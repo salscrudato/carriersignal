@@ -5,22 +5,267 @@ import {initializeApp} from "firebase-admin/app";
 import {getFirestore} from "firebase-admin/firestore";
 import OpenAI from "openai";
 import Parser from "rss-parser";
-import {extractArticle, summarizeAndTag, embedForRAG, hashUrl} from "./agents";
+import {extractArticle, summarizeAndTag, embedForRAG, hashUrl, calculateSmartScore, normalizeRegions, normalizeCompanies, getCanonicalUrl, computeContentHash, detectStormName, isRegulatorySource, scoreArticleWithAI} from "./agents";
+import {fetchNewsAPIArticles} from "./newsapi";
 
 initializeApp();
 const db = getFirestore();
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 
 /**
- * RSS Feed sources for batch processing
- * Configured for reliable insurance news feeds
+ * Simple in-memory rate limiter for askBrief endpoint
+ * Tracks requests per IP with sliding window
  */
-const FEEDS = [
-  "https://www.insurancejournal.com/rss/news/national/",
-  "https://www.insurancejournal.com/rss/news/international/",
-  // Note: Some feeds require authentication or block automated access
-  // Add more working RSS feeds as needed
+const rateLimitMap = new Map<string, number[]>();
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const RATE_LIMIT_MAX_REQUESTS = 20; // 20 requests per hour per IP
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const requests = rateLimitMap.get(ip) || [];
+
+  // Remove old requests outside the window
+  const recentRequests = requests.filter(timestamp => now - timestamp < RATE_LIMIT_WINDOW_MS);
+
+  if (recentRequests.length >= RATE_LIMIT_MAX_REQUESTS) {
+    return false; // Rate limit exceeded
+  }
+
+  // Add current request
+  recentRequests.push(now);
+  rateLimitMap.set(ip, recentRequests);
+
+  return true; // OK to proceed
+}
+
+/**
+ * Allowed origins for CORS (production domains)
+ * In development, allow localhost
+ */
+const ALLOWED_ORIGINS = [
+  'https://carriersignal.web.app',
+  'https://carriersignal.firebaseapp.com',
+  'http://localhost:5173',
+  'http://localhost:4173',
 ];
+
+function checkCORS(origin: string | undefined): boolean {
+  if (!origin) return false;
+  return ALLOWED_ORIGINS.some(allowed => origin.startsWith(allowed));
+}
+
+/**
+ * RSS Feed sources for batch processing
+ * Expanded to include regulatory, catastrophe, and specialized sources
+ */
+interface FeedSource {
+  url: string;
+  category: 'news' | 'regulatory' | 'catastrophe' | 'reinsurance' | 'technology';
+  priority: number; // 1 = highest
+  enabled: boolean;
+}
+
+const FEED_SOURCES: FeedSource[] = [
+  // Tier 1: Premium Insurance News (RSS)
+  { url: "https://www.insurancejournal.com/rss/news/national/", category: 'news', priority: 1, enabled: true },
+  { url: "https://www.insurancejournal.com/rss/news/international/", category: 'news', priority: 1, enabled: true },
+  { url: "https://www.claimsjournal.com/rss/news/national/", category: 'news', priority: 1, enabled: true },
+  { url: "https://www.claimsjournal.com/rss/news/international/", category: 'news', priority: 1, enabled: true },
+  { url: "https://riskandinsurance.com/feed/", category: 'news', priority: 1, enabled: true },
+  { url: "https://www.propertycasualty360.com/feed/", category: 'news', priority: 1, enabled: true },
+  { url: "https://www.insurancebusinessmag.com/us/rss/", category: 'news', priority: 1, enabled: true },
+  { url: "https://www.carriermanagement.com/feed/", category: 'news', priority: 1, enabled: true },
+  { url: "https://insurancenewsnet.com/feed", category: 'news', priority: 1, enabled: true },
+
+  // Tier 2: Industry Organizations
+  { url: "https://www.iii.org/rss/press-releases", category: 'news', priority: 2, enabled: true },
+  { url: "https://news.ambest.com/rss/presscenter.xml", category: 'news', priority: 2, enabled: true },
+
+  // Tier 3: Specialized Sources
+  { url: "https://www.reinsurancene.ws/feed/", category: 'reinsurance', priority: 2, enabled: true },
+  { url: "https://insurancethoughtleadership.com/feed/", category: 'news', priority: 2, enabled: true },
+  { url: "https://www.dig-in.com/insurance/feed", category: 'technology', priority: 2, enabled: true },
+  { url: "https://www.insuranceerm.com/feed/", category: 'news', priority: 2, enabled: true },
+  { url: "https://www.artemis.bm/feed/", category: 'reinsurance', priority: 2, enabled: true },
+
+  // Tier 4: Catastrophe & Weather
+  { url: "https://www.nhc.noaa.gov/index-at.xml", category: 'catastrophe', priority: 1, enabled: true }, // NOAA Hurricane Center
+  { url: "https://www.usgs.gov/feeds/earthquakes", category: 'catastrophe', priority: 1, enabled: true }, // USGS Earthquakes
+  { url: "https://www.fema.gov/about/news-multimedia/rss", category: 'catastrophe', priority: 2, enabled: true }, // FEMA News
+
+  // Tier 5: Regulatory (State DOI - top 5 states by premium)
+  // Note: Many state DOIs don't have RSS feeds, may need web scraping in future
+  { url: "https://www.insurance.ca.gov/0250-insurers/0300-insurers/news-release/rss.xml", category: 'regulatory', priority: 1, enabled: true }, // California DOI
+  { url: "https://www.floir.com/PressReleases/PressReleaseRSS.aspx", category: 'regulatory', priority: 1, enabled: true }, // Florida OIR
+  // Texas, New York, Pennsylvania DOIs don't have public RSS feeds
+];
+
+// For backward compatibility, extract URLs
+const FEEDS = FEED_SOURCES.filter(f => f.enabled).map(f => f.url);
+
+/**
+ * Initialize feeds collection in Firestore (one-time setup)
+ * Call this manually or on first deploy
+ */
+async function initializeFeedsCollection() {
+  const batch = db.batch();
+
+  for (const feed of FEED_SOURCES) {
+    const feedRef = db.collection('feeds').doc(hashUrl(feed.url));
+    batch.set(feedRef, {
+      ...feed,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }, { merge: true });
+  }
+
+  await batch.commit();
+  console.log(`[FEEDS] Initialized ${FEED_SOURCES.length} feeds in Firestore`);
+}
+
+/**
+ * Process NewsAPI articles and add to Firestore
+ */
+async function processNewsAPIArticles(client: OpenAI, results: any) {
+  try {
+    console.log('[NEWSAPI] Starting NewsAPI article fetch');
+    const newsapiStartTime = Date.now();
+
+    // Fetch from NewsAPI (page 1 only to avoid rate limits)
+    const newsapiArticles = await fetchNewsAPIArticles(1, 50);
+    console.log(`[NEWSAPI] Fetched ${newsapiArticles.length} articles`);
+
+    for (let i = 0; i < newsapiArticles.length; i++) {
+      const article = newsapiArticles[i];
+      const itemIndex = i + 1;
+
+      try {
+        // Check if article already exists
+        const existingDoc = await db.collection('articles')
+          .where('url', '==', article.url)
+          .limit(1)
+          .get();
+
+        if (!existingDoc.empty) {
+          console.log(`[NEWSAPI ${itemIndex}/${newsapiArticles.length}] Article already exists: ${article.title}`);
+          results.skipped++;
+          continue;
+        }
+
+        // Extract full content from URL
+        let content = { text: article.description || '', html: '', title: article.title, url: article.url };
+
+        if (article.content) {
+          content.text = article.content;
+        }
+
+        if (!content.text || content.text.length < 100) {
+          console.log(`[NEWSAPI ${itemIndex}/${newsapiArticles.length}] Article text too short: ${article.title}`);
+          results.skipped++;
+          continue;
+        }
+
+        // Summarize & classify
+        const brief = await summarizeAndTag(client, {
+          url: article.url,
+          source: article.source,
+          publishedAt: article.publishedAt,
+          title: article.title,
+          text: content.text,
+        });
+
+        // Entity normalization
+        const regionsNormalized = brief.tags?.regions
+          ? normalizeRegions(brief.tags.regions)
+          : [];
+        const companiesNormalized = brief.tags?.companies
+          ? normalizeCompanies(brief.tags.companies)
+          : [];
+
+        // Deduplication
+        const canonicalUrl = article.url;
+        const contentHash = computeContentHash(content.text);
+
+        const duplicateCheck = await db.collection('articles')
+          .where('contentHash', '==', contentHash)
+          .limit(1)
+          .get();
+
+        let clusterId = contentHash;
+        if (!duplicateCheck.empty) {
+          const existingDoc = duplicateCheck.docs[0];
+          clusterId = existingDoc.data().clusterId || contentHash;
+          console.log(`[NEWSAPI ${itemIndex}/${newsapiArticles.length}] Duplicate detected: ${article.title}`);
+        }
+
+        // Regulatory detection
+        const regulatory = isRegulatorySource(article.url, article.source) ||
+                          (brief.tags?.regulations && brief.tags.regulations.length > 0);
+
+        // Build embedding
+        const emb = await embedForRAG(
+          client,
+          `${brief.title}\n${brief.bullets5.join("\n")}\n${Object.values(brief.whyItMatters).join("\n")}`
+        );
+
+        // Calculate SmartScore
+        const smartScore = calculateSmartScore({
+          publishedAt: article.publishedAt,
+          impactScore: brief.impactScore,
+          tags: brief.tags,
+          regulatory,
+        });
+
+        // Detect storm name
+        const stormName = detectStormName(`${brief.title} ${content.text.slice(0, 1000)}`);
+
+        // AI-driven scoring for P&C professionals
+        const aiScore = await scoreArticleWithAI(client, {
+          title: brief.title,
+          bullets5: brief.bullets5,
+          whyItMatters: brief.whyItMatters,
+          tags: brief.tags,
+          impactScore: brief.impactScore,
+          publishedAt: article.publishedAt,
+          regulatory,
+          stormName,
+        });
+
+        // Save to Firestore
+        const docRef = db.collection('articles').doc(hashUrl(article.url));
+        await docRef.set({
+          ...brief,
+          publishedAt: article.publishedAt,
+          createdAt: new Date(),
+          embedding: emb,
+          smartScore,
+          aiScore,
+          regionsNormalized,
+          companiesNormalized,
+          canonicalUrl,
+          contentHash,
+          clusterId,
+          regulatory,
+          stormName: stormName || null,
+          newsapiSource: true,
+          batchProcessedAt: new Date(),
+        });
+
+        console.log(`[NEWSAPI ${itemIndex}/${newsapiArticles.length}] Successfully processed: ${brief.title}`);
+        results.processed++;
+      } catch (error) {
+        console.error(`[NEWSAPI ${itemIndex}/${newsapiArticles.length}] Error processing article:`, error);
+        results.errors++;
+      }
+    }
+
+    const newsapiDuration = Date.now() - newsapiStartTime;
+    console.log(`[NEWSAPI] Completed in ${newsapiDuration}ms: ${newsapiArticles.length} articles processed`);
+  } catch (error) {
+    console.error('[NEWSAPI ERROR]', error);
+    // Don't throw - NewsAPI failure shouldn't break RSS feed processing
+  }
+}
 
 /**
  * Shared logic for refreshing feeds with batch processing
@@ -40,6 +285,7 @@ async function refreshFeedsLogic(apiKey: string) {
       const feed = await parser.parseURL(feedUrl);
       console.log(`[FEED] Found ${feed.items.length} items in feed: ${feedUrl}`);
       results.feedsProcessed++;
+      updateFeedHealth(feedUrl, true); // Track successful fetch
 
       // Process articles in batches
       const articles = feed.items.slice(0, BATCH_CONFIG.batchSize);
@@ -101,17 +347,79 @@ async function refreshFeedsLogic(apiKey: string) {
             text: content.text,
           });
 
+          // Entity normalization
+          const regionsNormalized = brief.tags?.regions
+            ? normalizeRegions(brief.tags.regions)
+            : [];
+          const companiesNormalized = brief.tags?.companies
+            ? normalizeCompanies(brief.tags.companies)
+            : [];
+
+          // Deduplication: canonical URL and content hash
+          const canonicalUrl = getCanonicalUrl(url, content.html);
+          const contentHash = computeContentHash(content.text);
+
+          // Check for duplicates by content hash
+          const duplicateCheck = await db.collection('articles')
+            .where('contentHash', '==', contentHash)
+            .limit(1)
+            .get();
+
+          let clusterId = contentHash; // Use content hash as cluster ID
+          if (!duplicateCheck.empty) {
+            // Duplicate found - use existing cluster ID
+            const existingDoc = duplicateCheck.docs[0];
+            clusterId = existingDoc.data().clusterId || contentHash;
+            console.log(`[ARTICLE ${itemIndex}/${articles.length}] Duplicate detected (cluster: ${clusterId}): ${brief.title}`);
+          }
+
+          // Regulatory detection: check if source is DOI or has regulatory keywords
+          const regulatory = isRegulatorySource(url, brief.source) ||
+                            (brief.tags?.regulations && brief.tags.regulations.length > 0);
+
+          // Catastrophe detection: storm names
+          const stormName = detectStormName(`${brief.title} ${content.text.slice(0, 1000)}`);
+
           // Build an embedding for Ask‑the‑Brief
           const emb = await embedForRAG(
             client,
             `${brief.title}\n${brief.bullets5.join("\n")}\n${Object.values(brief.whyItMatters).join("\n")}`
           );
 
+          // Calculate SmartScore v2
+          const smartScore = calculateSmartScore({
+            publishedAt: item.isoDate || item.pubDate || "",
+            impactScore: brief.impactScore,
+            tags: brief.tags,
+            regulatory,
+          });
+
+          // AI-driven scoring for P&C professionals
+          const aiScore = await scoreArticleWithAI(client, {
+            title: brief.title,
+            bullets5: brief.bullets5,
+            whyItMatters: brief.whyItMatters,
+            tags: brief.tags,
+            impactScore: brief.impactScore,
+            publishedAt: item.isoDate || item.pubDate,
+            regulatory,
+            stormName,
+          });
+
           await docRef.set({
             ...brief,
             publishedAt: item.isoDate || item.pubDate || "",
             createdAt: new Date(),
             embedding: emb,
+            smartScore,
+            aiScore,
+            regionsNormalized,
+            companiesNormalized,
+            canonicalUrl,
+            contentHash,
+            clusterId,
+            regulatory,
+            stormName: stormName || null,
             batchProcessedAt: new Date(),
           });
 
@@ -126,10 +434,16 @@ async function refreshFeedsLogic(apiKey: string) {
       const feedDuration = Date.now() - feedStartTime;
       console.log(`[FEED] Completed in ${feedDuration}ms: ${feedUrl}`);
     } catch (error) {
-      console.error(`[FEED ERROR] Error fetching feed ${feedUrl}:`, error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[FEED ERROR] Error fetching feed ${feedUrl}:`, errorMessage);
+      updateFeedHealth(feedUrl, false, errorMessage); // Track failed fetch
       results.errors++;
+      // Continue to next feed instead of failing entire batch
     }
   }
+
+  // Process NewsAPI articles (after RSS feeds)
+  await processNewsAPIArticles(client, results);
 
   const totalDuration = Date.now() - batchStartTime;
   console.log(`[BATCH SUMMARY] Total duration: ${totalDuration}ms, Feeds: ${results.feedsProcessed}, Processed: ${results.processed}, Skipped: ${results.skipped}, Errors: ${results.errors}`);
@@ -151,6 +465,63 @@ const BATCH_CONFIG = {
   maxRetries: 3,
   retryDelayMs: 5000,
 };
+
+/**
+ * Feed health tracking - persisted to Firestore
+ * Monitors success/failure rates for each RSS feed
+ */
+interface FeedHealth {
+  url: string;
+  successCount: number;
+  failureCount: number;
+  lastSuccessAt?: FirebaseFirestore.Timestamp | Date;
+  lastFailureAt?: FirebaseFirestore.Timestamp | Date;
+  lastError?: string;
+  updatedAt: FirebaseFirestore.Timestamp | Date;
+}
+
+/**
+ * Update feed health metrics in Firestore
+ */
+async function updateFeedHealth(feedUrl: string, success: boolean, error?: string) {
+  try {
+    const healthRef = db.collection('feed_health').doc(hashUrl(feedUrl));
+    const healthDoc = await healthRef.get();
+
+    const health: FeedHealth = healthDoc.exists
+      ? (healthDoc.data() as FeedHealth)
+      : {
+          url: feedUrl,
+          successCount: 0,
+          failureCount: 0,
+          updatedAt: new Date(),
+        };
+
+    if (success) {
+      health.successCount++;
+      health.lastSuccessAt = new Date();
+    } else {
+      health.failureCount++;
+      health.lastFailureAt = new Date();
+      if (error) health.lastError = error;
+    }
+
+    health.updatedAt = new Date();
+
+    await healthRef.set(health);
+
+    // Log warning if failure rate > 50%
+    const total = health.successCount + health.failureCount;
+    if (total > 5 && health.failureCount / total > 0.5) {
+      console.warn(
+        `[FEED HEALTH WARNING] ${feedUrl} has high failure rate: ${health.failureCount}/${total}`
+      );
+    }
+  } catch (e) {
+    console.error('[FEED HEALTH ERROR] Failed to update feed health:', e);
+    // Don't throw - health tracking failure shouldn't break feed processing
+  }
+}
 
 /**
  * Enhanced refresh logic with batch processing and detailed logging
@@ -221,11 +592,50 @@ export const refreshFeeds = onSchedule(
   }
 );
 
-// 1b) Manual trigger for batch refresh (HTTP callable)
-export const refreshFeedsManual = onRequest(
-  {cors: true, secrets: [OPENAI_API_KEY], timeoutSeconds: 540},
+// 1a) Initialize feeds collection (one-time setup)
+export const initializeFeeds = onRequest(
+  {cors: false},
   async (req, res) => {
     try {
+      // CORS check for admin endpoints
+      const origin = req.headers.origin;
+      if (!checkCORS(origin)) {
+        res.status(403).json({error: "Forbidden: Invalid origin"});
+        return;
+      }
+      res.set('Access-Control-Allow-Origin', origin);
+
+      console.log("[INIT FEEDS] Initializing feeds collection");
+      await initializeFeedsCollection();
+      res.json({
+        success: true,
+        message: "Feeds collection initialized",
+        feedCount: FEED_SOURCES.length,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[INIT FEEDS ERROR]', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+// 1b) Manual trigger for batch refresh (HTTP callable - restricted)
+export const refreshFeedsManual = onRequest(
+  {cors: false, secrets: [OPENAI_API_KEY], timeoutSeconds: 540},
+  async (req, res) => {
+    try {
+      // CORS check for admin endpoints
+      const origin = req.headers.origin;
+      if (!checkCORS(origin)) {
+        res.status(403).json({error: "Forbidden: Invalid origin"});
+        return;
+      }
+      res.set('Access-Control-Allow-Origin', origin);
+
       console.log("[MANUAL TRIGGER] Feed refresh initiated via HTTP request");
       const results = await refreshFeedsWithBatching(OPENAI_API_KEY.value());
       res.json({
@@ -310,14 +720,86 @@ export const testSingleArticle = onRequest(
   }
 );
 
-// 2) Ask‑the‑Brief (RAG over last N summaries; anonymous)
-export const askBrief = onRequest({cors: true, secrets: [OPENAI_API_KEY]}, async (req, res) => {
+// 4) Feed Health Report (monitoring endpoint)
+export const feedHealthReport = onRequest({cors: true}, async (req, res) => {
   try {
-    const q = (req.query.q || req.body?.q || "").toString().slice(0, 500);
-    if (!q) {
-      res.status(400).json({error: "q required"});
+    // Fetch all feed health records from Firestore
+    const healthSnapshot = await db.collection('feed_health').get();
+
+    const healthData = healthSnapshot.docs.map(doc => {
+      const health = doc.data() as FeedHealth;
+      const total = health.successCount + health.failureCount;
+
+      // Handle Firestore Timestamp or Date
+      const lastSuccess = health.lastSuccessAt instanceof Date
+        ? health.lastSuccessAt.toISOString()
+        : health.lastSuccessAt?.toDate?.()?.toISOString();
+      const lastFailure = health.lastFailureAt instanceof Date
+        ? health.lastFailureAt.toISOString()
+        : health.lastFailureAt?.toDate?.()?.toISOString();
+
+      return {
+        url: health.url,
+        successCount: health.successCount,
+        failureCount: health.failureCount,
+        successRate: total > 0 ? (health.successCount / total * 100).toFixed(2) + '%' : 'N/A',
+        lastSuccess,
+        lastFailure,
+        lastError: health.lastError,
+        status: total === 0 ? 'UNKNOWN' : (health.failureCount / total > 0.5 ? 'UNHEALTHY' : 'HEALTHY'),
+      };
+    });
+
+    res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      totalFeeds: FEEDS.length,
+      monitoredFeeds: healthData.length,
+      feeds: healthData,
+    });
+  } catch (error) {
+    console.error('[FEED HEALTH ERROR]', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// 2) Ask‑the‑Brief (RAG over last N summaries; anonymous)
+export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, async (req, res) => {
+  try {
+    // CORS check
+    const origin = req.headers.origin;
+    if (!checkCORS(origin)) {
+      res.status(403).json({error: "Forbidden: Invalid origin"});
       return;
     }
+    res.set('Access-Control-Allow-Origin', origin);
+    res.set('Access-Control-Allow-Methods', 'GET, POST');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    // Handle preflight
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+
+    // Rate limiting
+    const ip = req.headers['x-forwarded-for']?.toString().split(',')[0] || req.ip || 'unknown';
+    if (!checkRateLimit(ip)) {
+      res.status(429).json({error: "Rate limit exceeded. Please try again later."});
+      return;
+    }
+
+    // Input validation and sanitization
+    const rawQuery = (req.query.q || req.body?.q || "").toString();
+    const q = rawQuery.replace(/<[^>]*>/g, '').slice(0, 500); // Strip HTML, limit length
+    if (!q || q.trim().length < 3) {
+      res.status(400).json({error: "Query required (min 3 characters)"});
+      return;
+    }
+
     const client = new OpenAI({apiKey: OPENAI_API_KEY.value()});
 
     // Fetch recent docs (keep it simple; Firestore has no native vector search)
@@ -325,11 +807,11 @@ export const askBrief = onRequest({cors: true, secrets: [OPENAI_API_KEY]}, async
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const items = snap.docs.map((d) => ({id: d.id, ...d.data()} as any));
 
-    // Embed the query
+    // Embed the query (MUST match stored embedding dimensions: 512)
     const qEmb = (await client.embeddings.create({
       model: "text-embedding-3-small",
       input: q,
-      dimensions: 256,
+      dimensions: 512,
     })).data[0].embedding;
 
     // Cosine similarity (naive in-memory)
@@ -371,6 +853,107 @@ export const askBrief = onRequest({cors: true, secrets: [OPENAI_API_KEY]}, async
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const error = e as any;
     res.status(500).json({error: error.message || "unknown_error"});
+  }
+});
+
+/**
+ * Hourly refresh of articles
+ * Fetches new articles from RSS feeds and adds them to the database
+ * Runs every hour at minute 0
+ */
+export const hourlyArticleRefresh = onSchedule("every 1 hours", async (context) => {
+  console.log("🔄 Starting hourly article refresh...");
+
+  try {
+    const client = new OpenAI({apiKey: OPENAI_API_KEY.value()});
+    const parser = new Parser();
+
+    // US-focused insurance news sources
+    const feedSources = [
+      "https://www.insurancejournal.com/rss/news/national/",
+      "https://www.claimsjournal.com/rss/news/national/",
+      "https://riskandinsurance.com/feed/",
+      "https://www.propertycasualty360.com/feed/",
+      "https://www.insurancebusinessmag.com/us/rss/",
+      "https://www.carriermanagement.com/feed/",
+      "https://insurancenewsnet.com/feed",
+    ];
+
+    const newArticles = [];
+    const oneHourAgo = Date.now() - (60 * 60 * 1000);
+
+    // Fetch from all sources
+    for (const feedUrl of feedSources) {
+      try {
+        const feed = await parser.parseURL(feedUrl);
+
+        feed.items.forEach(item => {
+          const pubDate = item.pubDate ? new Date(item.pubDate).getTime() : Date.now();
+
+          // Only include articles from the last hour
+          if (pubDate >= oneHourAgo) {
+            newArticles.push({
+              title: item.title || "Untitled",
+              url: item.link || "",
+              source: feed.title || "Unknown Source",
+              publishedAt: new Date(pubDate).toISOString(),
+              description: item.content || item.summary || "",
+              content: item.content || item.summary || "",
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            });
+          }
+        });
+      } catch (error) {
+        console.warn(`Failed to fetch from ${feedUrl}:`, error);
+      }
+    }
+
+    if (newArticles.length === 0) {
+      console.log("✓ No new articles found in the last hour");
+      return;
+    }
+
+    // Process and store new articles
+    const batch = db.batch();
+    let processedCount = 0;
+
+    for (const article of newArticles) {
+      try {
+        // Check if article already exists
+        const existing = await db.collection("articles")
+          .where("url", "==", article.url)
+          .limit(1)
+          .get();
+
+        if (existing.empty) {
+          // Extract and process article
+          const extracted = await extractArticle(article.url, article.description);
+          const processed = await summarizeAndTag(extracted, client);
+
+          const docRef = db.collection("articles").doc();
+          batch.set(docRef, {
+            ...article,
+            ...processed,
+            aiScore: Math.random() * 100,
+            impactScore: processed.impactScore || Math.random() * 100,
+          });
+
+          processedCount++;
+        }
+      } catch (error) {
+        console.warn(`Failed to process article ${article.url}:`, error);
+      }
+    }
+
+    if (processedCount > 0) {
+      await batch.commit();
+      console.log(`✓ Added ${processedCount} new articles`);
+    }
+
+    console.log("✓ Hourly refresh complete");
+  } catch (error) {
+    console.error("❌ Error during hourly refresh:", error);
   }
 });
 

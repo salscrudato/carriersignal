@@ -1,49 +1,98 @@
 import { useState, useEffect } from 'react';
 
+interface BookmarkedArticle {
+  url: string;
+  title: string;
+  source: string;
+  image?: string;
+  bookmarkedAt: number;
+}
+
+const BOOKMARKS_KEY = 'carriersignal_bookmarks';
+
 export function useBookmarks() {
-  const [bookmarks, setBookmarks] = useState<Set<string>>(() => {
-    const stored = localStorage.getItem('carriersignal-bookmarks');
-    return new Set(stored ? JSON.parse(stored) : []);
-  });
+  const [bookmarks, setBookmarks] = useState<BookmarkedArticle[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
 
+  // Load bookmarks from localStorage on mount
   useEffect(() => {
-    localStorage.setItem('carriersignal-bookmarks', JSON.stringify(Array.from(bookmarks)));
-  }, [bookmarks]);
-
-  const toggleBookmark = (url: string) => {
-    setBookmarks(prev => {
-      const updated = new Set(prev);
-      if (updated.has(url)) {
-        updated.delete(url);
-      } else {
-        updated.add(url);
+    try {
+      const stored = localStorage.getItem(BOOKMARKS_KEY);
+      if (stored) {
+        setBookmarks(JSON.parse(stored));
       }
-      return updated;
+    } catch (error) {
+      console.error('Error loading bookmarks:', error);
+    }
+    setIsLoaded(true);
+  }, []);
+
+  // Save bookmarks to localStorage whenever they change
+  useEffect(() => {
+    if (isLoaded) {
+      try {
+        localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
+      } catch (error) {
+        console.error('Error saving bookmarks:', error);
+      }
+    }
+  }, [bookmarks, isLoaded]);
+
+  const addBookmark = (article: Omit<BookmarkedArticle, 'bookmarkedAt'>) => {
+    setBookmarks(prev => {
+      const exists = prev.some(b => b.url === article.url);
+      if (exists) return prev;
+      return [...prev, { ...article, bookmarkedAt: Date.now() }];
     });
   };
 
-  const isBookmarked = (url: string) => bookmarks.has(url);
+  const removeBookmark = (url: string) => {
+    setBookmarks(prev => prev.filter(b => b.url !== url));
+  };
 
-  return { bookmarks, toggleBookmark, isBookmarked };
-}
+  const isBookmarked = (url: string) => {
+    return bookmarks.some(b => b.url === url);
+  };
 
-export function shareArticle(title: string, url: string, platform: 'twitter' | 'linkedin' | 'email' | 'copy') {
-  const encodedUrl = encodeURIComponent(url);
-  const encodedTitle = encodeURIComponent(title);
+  const exportToCSV = () => {
+    if (bookmarks.length === 0) return '';
 
-  switch (platform) {
-    case 'twitter':
-      window.open(`https://twitter.com/intent/tweet?text=${encodedTitle}&url=${encodedUrl}`, '_blank');
-      break;
-    case 'linkedin':
-      window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`, '_blank');
-      break;
-    case 'email':
-      window.location.href = `mailto:?subject=${encodedTitle}&body=${encodedUrl}`;
-      break;
-    case 'copy':
-      navigator.clipboard.writeText(url);
-      break;
-  }
+    const headers = ['Title', 'Source', 'URL', 'Bookmarked At'];
+    const rows = bookmarks.map(b => [
+      `"${b.title.replace(/"/g, '""')}"`,
+      `"${b.source.replace(/"/g, '""')}"`,
+      `"${b.url}"`,
+      new Date(b.bookmarkedAt).toISOString(),
+    ]);
+
+    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    return csv;
+  };
+
+  const downloadCSV = () => {
+    const csv = exportToCSV();
+    if (!csv) return;
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', `carriersignal-bookmarks-${Date.now()}.csv`);
+    link.style.visibility = 'hidden';
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return {
+    bookmarks,
+    addBookmark,
+    removeBookmark,
+    isBookmarked,
+    exportToCSV,
+    downloadCSV,
+  };
 }
 

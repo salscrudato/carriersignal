@@ -4,6 +4,15 @@ import { Readability } from "@mozilla/readability";
 import crypto from "node:crypto";
 import { z } from "zod";
 import { backOff } from "exponential-backoff"; // Import for retry logic
+import {
+  normalizeRegions as normalizeRegionsUtil,
+  normalizeCompanies as normalizeCompaniesUtil,
+  computeContentHash as computeContentHashUtil,
+  detectStormName as detectStormNameUtil,
+  isRegulatorySource as isRegulatorySourceUtil,
+  calculateSmartScore as calculateSmartScoreUtil,
+  hashUrl as hashUrlUtil,
+} from "./utils";
 
 export type Article = {
   url: string;
@@ -32,16 +41,28 @@ const schema = z.object({
     perils: z.array(z.string()).max(6), // Perils, e.g., "Hurricane", "Cyber"
     regions: z.array(z.string()).max(10), // ISO codes or names, e.g., "US-FL", "California"
     companies: z.array(z.string()).max(10), // Company names, e.g., "State Farm"
-    trends: z.array(z.string()).max(8), // New: Trends like "AI", "Climate Change", "InsurTech"
-    regulations: z.array(z.string()).max(5), // New: Regulatory aspects, e.g., "NAIC Bulletin", "Tort Reform"
+    trends: z.array(z.string()).max(8), // Trends like "GenAI", "Climate Risk", "Social Inflation", etc.
+    regulations: z.array(z.string()).max(5), // Regulatory aspects, e.g., "NAIC Bulletin", "Tort Reform"
   }),
   riskPulse: z.enum(["LOW", "MEDIUM", "HIGH"]),
-  sentiment: z.enum(["POSITIVE", "NEGATIVE", "NEUTRAL"]), // New: Overall sentiment
-  confidence: z.number().min(0).max(1), // New: AI confidence in classification (0-1)
+  sentiment: z.enum(["POSITIVE", "NEGATIVE", "NEUTRAL"]),
+  confidence: z.number().min(0).max(1),
+  // v2 additions
+  citations: z.array(z.string()).max(10), // URLs cited in bullets
+  impactScore: z.number().min(0).max(100), // Overall impact score
+  impactBreakdown: z.object({
+    market: z.number().min(0).max(100),
+    regulatory: z.number().min(0).max(100),
+    catastrophe: z.number().min(0).max(100),
+    technology: z.number().min(0).max(100),
+  }),
+  confidenceRationale: z.string().max(200), // Why this confidence level
+  leadQuote: z.string().max(300).optional(), // Key factual excerpt
+  disclosure: z.string().max(200).optional(), // If promotional/opinionated
 });
 
 export function hashUrl(u: string) {
-  return crypto.createHash("sha256").update(u).digest("hex").slice(0, 24);
+  return hashUrlUtil(u);
 }
 
 export async function extractArticle(url: string) {
@@ -138,8 +159,24 @@ export async function summarizeAndTag(
         riskPulse: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
         sentiment: { type: "string", enum: ["POSITIVE", "NEGATIVE", "NEUTRAL"] },
         confidence: { type: "number", minimum: 0, maximum: 1 },
+        citations: { type: "array", items: { type: "string" }, maxItems: 10 },
+        impactScore: { type: "number", minimum: 0, maximum: 100 },
+        impactBreakdown: {
+          type: "object",
+          properties: {
+            market: { type: "number", minimum: 0, maximum: 100 },
+            regulatory: { type: "number", minimum: 0, maximum: 100 },
+            catastrophe: { type: "number", minimum: 0, maximum: 100 },
+            technology: { type: "number", minimum: 0, maximum: 100 },
+          },
+          required: ["market", "regulatory", "catastrophe", "technology"],
+          additionalProperties: false,
+        },
+        confidenceRationale: { type: "string", maxLength: 200 },
+        leadQuote: { type: "string", maxLength: 300 },
+        disclosure: { type: "string", maxLength: 200 },
       },
-      required: ["title", "url", "source", "bullets5", "whyItMatters", "tags", "riskPulse", "sentiment", "confidence"],
+      required: ["title", "url", "source", "bullets5", "whyItMatters", "tags", "riskPulse", "sentiment", "confidence", "citations", "impactScore", "impactBreakdown", "confidenceRationale"],
     },
     strict: true,
   } as const;
@@ -148,16 +185,19 @@ export async function summarizeAndTag(
 
   const system = [
     "You are a senior P&C insurance analyst with 20+ years experience in underwriting, claims, and actuarial modeling.",
-    "Analyze articles for relevance to U.S. P&C insurance: focus on lines like auto, property, casualty; perils like hurricane, cyber; regions (use ISO codes e.g., US-FL); companies (exact names).",
-    "Add trends (e.g., 'AI Adoption', 'Climate Risk') and regulations (e.g., 'NAIC Bulletin', 'Tort Reform').",
-    "Summarize in 3-5 precise, factual bullets (max 50 words each).",
-    "For 'whyItMatters', provide concise, role-specific impacts (20-200 chars each): how it affects decisions, risks, opportunities.",
+    "Analyze articles for relevance to U.S. P&C insurance: focus on lines like auto, property, casualty; perils like hurricane, cyber; regions (use ISO 3166-2 codes e.g., US-FL, US-CA); companies (exact names).",
+    "Add trends (e.g., 'GenAI', 'Climate Risk', 'Social Inflation', 'Tort Reform', 'Secondary Perils', 'Litigation Funding') and regulations (e.g., 'NAIC Bulletin', 'DOI Bulletin', 'Rate Filing').",
+    "CRITICAL: Create 3-5 precise, factual bullets (max 35 words each) that form a compelling 2-3 sentence executive summary when read sequentially.",
+    "First bullet should be the headline impact. Second bullet should provide key context/data. Remaining bullets should detail implications and trends.",
+    "Include quantitative data where present. Use [n] markers for citations that map to the citations array.",
+    "For 'whyItMatters', provide outcome-oriented role-specific impacts (20-200 chars each): Decision, Risk, Action for each role.",
     "Assess riskPulse based on potential industry disruption: LOW (minor), MEDIUM (notable), HIGH (severe).",
     "Determine sentiment: POSITIVE (good for industry), NEGATIVE (challenges), NEUTRAL (informational).",
-    "Provide confidence (0-1) based on article clarity and relevance to P&C.",
+    "Provide confidence (0-1) based on article clarity and relevance to P&C, and explain in confidenceRationale (max 200 chars).",
+    "Calculate impactScore (0-100) and break down by market, regulatory, catastrophe, technology dimensions.",
+    "Include citations array with URLs referenced in bullets. Add leadQuote if there's a key factual excerpt. Add disclosure if article is promotional/opinionated.",
     "Return ONLY valid JSON per schema. Use current date " + currentDate + " for context if needed.",
-    "",
-    "Example Input:",
+    "Ensure bullets use [1], [2] citation markers. Include all v2 fields: citations, impactScore, impactBreakdown, confidenceRationale.",
     "URL: https://agencychecklists.com/2025/10/20/federal-report-2025-pc-sectors-decade-best-underwriting-profit-77765/",
     "SOURCE: Agency Checklists",
     "PUBLISHED: 2025-10-20",
@@ -219,4 +259,153 @@ export async function embedForRAG(client: OpenAI, text: string) {
     dimensions: 512, // Increased dimensions for better similarity
   });
   return e.data[0].embedding;
+}
+
+/**
+ * Calculate SmartScore v2: recency × relevance × impact × regulatory/catastrophe boosts
+ * Returns a score 0-100 for ranking articles
+ */
+export function calculateSmartScore(params: {
+  publishedAt?: string;
+  impactScore: number;
+  tags?: {
+    regulations?: string[];
+    perils?: string[];
+  };
+  regulatory?: boolean;
+}): number {
+  return calculateSmartScoreUtil(params);
+}
+
+
+
+/**
+ * Normalize regions to ISO 3166-2 codes
+ */
+export function normalizeRegions(regions: string[]): string[] {
+  return normalizeRegionsUtil(regions);
+}
+
+/**
+ * Normalize company names to canonical forms
+ */
+export function normalizeCompanies(companies: string[]): string[] {
+  return normalizeCompaniesUtil(companies);
+}
+
+/**
+ * Generate canonical URL (respect og:url if present)
+ */
+export function getCanonicalUrl(url: string, html?: string): string {
+  if (!html) return url;
+
+  try {
+    const dom = new JSDOM(html);
+    const ogUrl = dom.window.document.querySelector('meta[property="og:url"]')?.getAttribute("content");
+    if (ogUrl) return ogUrl;
+
+    const canonical = dom.window.document.querySelector('link[rel="canonical"]')?.getAttribute("href");
+    if (canonical) {
+      return canonical.startsWith('http') ? canonical : new URL(canonical, url).href;
+    }
+  } catch (e) {
+    // Ignore parsing errors
+  }
+
+  return url;
+}
+
+/**
+ * Compute content hash for deduplication (simhash-style)
+ */
+export function computeContentHash(text: string): string {
+  return computeContentHashUtil(text);
+}
+
+/**
+ * Detect storm/hurricane names from text
+ * Returns storm name if found (e.g., "Hurricane Milton", "Tropical Storm Debby")
+ */
+export function detectStormName(text: string): string | undefined {
+  return detectStormNameUtil(text);
+}
+
+/**
+ * Detect if article is from a regulatory source (DOI bulletin, etc.)
+ */
+export function isRegulatorySource(url: string, source: string): boolean {
+  return isRegulatorySourceUtil(url, source);
+}
+
+/**
+ * AI-driven article scoring for P&C insurance professionals
+ * Uses LLM to evaluate relevance, impact, and interest for underwriters, claims, brokers, actuaries
+ */
+export async function scoreArticleWithAI(
+  client: OpenAI,
+  article: {
+    title: string;
+    bullets5?: string[];
+    whyItMatters?: Record<string, string>;
+    tags?: any;
+    impactScore?: number;
+    publishedAt?: string;
+    regulatory?: boolean;
+    stormName?: string;
+  }
+): Promise<number> {
+  try {
+    const prompt = `You are an expert P&C insurance analyst scoring articles for relevance and impact to insurance professionals.
+
+Article Title: ${article.title}
+
+Key Points:
+${(article.bullets5 || []).map((b, i) => `${i + 1}. ${b}`).join('\n')}
+
+Professional Impact:
+${Object.entries(article.whyItMatters || {})
+  .map(([role, impact]) => `- ${role}: ${impact}`)
+  .join('\n')}
+
+Tags: ${JSON.stringify(article.tags || {})}
+Impact Score: ${article.impactScore || 0}/100
+Regulatory: ${article.regulatory ? 'Yes' : 'No'}
+Storm/Catastrophe: ${article.stormName || 'None'}
+Published: ${article.publishedAt || 'Unknown'}
+
+Score this article on a scale of 0-100 for P&C insurance professionals based on:
+1. Relevance to underwriting, claims, risk management, or actuarial work (40%)
+2. Timeliness and recency (20%)
+3. Impact on market, regulations, or catastrophe exposure (30%)
+4. Actionability for insurance professionals (10%)
+
+Consider:
+- Regulatory changes affecting P&C insurance
+- Catastrophe/peril developments
+- Market trends affecting rates or availability
+- Claims patterns or litigation trends
+- Technology/innovation in insurance
+- Competitive landscape changes
+
+Respond with ONLY a single number 0-100, no explanation.`;
+
+    const response = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 10,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const scoreText = (response.choices[0].message.content || "50").trim();
+    const score = parseInt(scoreText, 10);
+
+    if (isNaN(score) || score < 0 || score > 100) {
+      console.warn(`[AI SCORE] Invalid score "${scoreText}", defaulting to 50`);
+      return 50;
+    }
+
+    return score;
+  } catch (error) {
+    console.error('[AI SCORE ERROR]', error);
+    return 50; // Default fallback score
+  }
 }
