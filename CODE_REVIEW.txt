@@ -1,0 +1,4103 @@
+# CarrierSignal - Complete Code Review
+# Generated: 2025-10-27T06:53:07.378Z
+# Total Files: 33
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+1. functions/src/agents.ts
+2. functions/src/index.ts
+3. src/App.tsx
+4. src/components/AIAnswer.tsx
+5. src/components/ArticleCard.tsx
+6. src/components/Badge.tsx
+7. src/components/Button.tsx
+8. src/components/CompanyHealthDashboard.tsx
+9. src/components/DarkModeToggle.tsx
+10. src/components/FilterPanel.tsx
+11. src/components/Header.tsx
+12. src/components/KeyboardShortcuts.tsx
+13. src/components/MobileOptimizations.tsx
+14. src/components/Modal.tsx
+15. src/components/ReadingList.tsx
+16. src/components/RegulatoryDashboard.tsx
+17. src/components/RiskDashboard.tsx
+18. src/components/RiskIntelligenceDashboard.tsx
+19. src/components/SaveArticleButton.tsx
+20. src/components/SearchSuggestions.tsx
+21. src/components/ShareMenu.tsx
+22. src/components/SkeletonLoader.tsx
+23. src/components/Tooltip.tsx
+24. src/components/TrendingArticles.tsx
+25. src/firebase.ts
+26. src/hooks/useBookmarks.ts
+27. src/hooks/useDarkMode.ts
+28. src/hooks/useMobileDetect.ts
+29. src/main.tsx
+30. src/utils/advancedScoring.ts
+31. src/utils/aiKeyPoints.ts
+32. src/utils/governmentApis.ts
+33. src/utils/rssParser.ts
+
+================================================================================
+FULL SOURCE CODE
+================================================================================
+
+
+================================================================================
+FILE 1/33: functions/src/agents.ts
+================================================================================
+
+import OpenAI from "openai";
+import {JSDOM} from "jsdom";
+import {Readability} from "@mozilla/readability";
+import crypto from "node:crypto";
+import {z} from "zod";
+
+export type Article = {
+  url: string;
+  source: string;
+  publishedAt?: string;
+  title?: string;
+  html?: string;
+  text?: string;
+};
+
+const schema = z.object({
+  title: z.string(),
+  url: z.string().url(),
+  source: z.string(),
+  bullets5: z.array(z.string()).min(3).max(5),
+  whyItMatters: z.object({
+    underwriting: z.string(),
+    claims: z.string(),
+    brokerage: z.string(),
+    actuarial: z.string(),
+  }),
+  tags: z.object({
+    lob: z.array(z.string()).max(6),
+    perils: z.array(z.string()).max(6),
+    regions: z.array(z.string()).max(10), // state/country codes
+    companies: z.array(z.string()).max(10),
+  }),
+  riskPulse: z.enum(["LOW", "MEDIUM", "HIGH"]),
+});
+
+export function hashUrl(u: string) {
+  return crypto.createHash("sha256").update(u).digest("hex").slice(0, 24);
+}
+
+export async function extractArticle(url: string) {
+  // Lightweight: try HTTP fetch & Readability; fallback to RSS content snippet upstream
+  const res = await fetch(url, {redirect: "follow"});
+  const html = await res.text();
+  const dom = new JSDOM(html, {url});
+  const reader = new Readability(dom.window.document);
+  const parsed = reader.parse();
+  return {
+    url,
+    title: parsed?.title ?? dom.window.document.title ?? "",
+    html,
+    text: (parsed?.textContent ?? "").trim(),
+    image: undefined,
+  };
+}
+
+export async function summarizeAndTag(
+  client: OpenAI,
+  art: Article & { text?: string; image?: string }
+) {
+  const jsonSchema = {
+    name: "InsuranceBrief",
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        title: {type: "string"},
+        url: {type: "string"},
+        source: {type: "string"},
+        bullets5: {type: "array", items: {type: "string"}, minItems: 3, maxItems: 5},
+        whyItMatters: {
+          type: "object",
+          properties: {
+            underwriting: {type: "string"},
+            claims: {type: "string"},
+            brokerage: {type: "string"},
+            actuarial: {type: "string"},
+          },
+          required: ["underwriting", "claims", "brokerage", "actuarial"],
+          additionalProperties: false,
+        },
+        tags: {
+          type: "object",
+          properties: {
+            lob: {type: "array", items: {type: "string"}},
+            perils: {type: "array", items: {type: "string"}},
+            regions: {type: "array", items: {type: "string"}},
+            companies: {type: "array", items: {type: "string"}},
+          },
+          required: ["lob", "perils", "regions", "companies"],
+          additionalProperties: false,
+        },
+        riskPulse: {type: "string", enum: ["LOW", "MEDIUM", "HIGH"]},
+      },
+      required: ["title", "url", "source", "bullets5", "whyItMatters", "tags", "riskPulse"],
+    },
+    strict: true,
+  } as const;
+
+  const system = [
+    "You are a senior P&C insurance analyst.",
+    "Summarize precisely and classify accurately for: LOB, perils, regions (US states or countries), companies.",
+    "Write 5 bullets max. Then provide role-specific \"Why it matters\".",
+    "Return ONLY valid JSON according to the provided schema.",
+  ].join(" ");
+
+  const input = [
+    `URL: ${art.url}`,
+    `SOURCE: ${art.source}`,
+    `PUBLISHED: ${art.publishedAt ?? ""}`,
+    `TITLE: ${art.title ?? ""}`,
+    "CONTENT:",
+    (art.text ?? "").slice(0, 14000),
+  ].join("\n");
+
+  async function run(model: string) {
+    const resp = await client.chat.completions.create({
+      model,
+      temperature: 0.2,
+      max_tokens: 900,
+      response_format: {type: "json_schema", json_schema: jsonSchema},
+      messages: [
+        {role: "system", content: system},
+        {role: "user", content: input},
+      ],
+    });
+    // Extract the JSON response
+    const outText = resp.choices[0]?.message?.content ?? "{}";
+    return schema.parse(JSON.parse(outText));
+  }
+
+  try {
+    return await run("gpt-4o-mini");
+  } catch {
+    return await run("gpt-4o-mini");
+  }
+}
+
+export async function embedForRAG(client: OpenAI, text: string) {
+  const e = await client.embeddings.create({
+    model: "text-embedding-3-small",
+    input: text,
+    dimensions: 256,
+  });
+  return e.data[0].embedding;
+}
+
+
+
+
+================================================================================
+FILE 2/33: functions/src/index.ts
+================================================================================
+
+import {onSchedule} from "firebase-functions/v2/scheduler";
+import {onRequest} from "firebase-functions/v2/https";
+import {defineSecret} from "firebase-functions/params";
+import {initializeApp} from "firebase-admin/app";
+import {getFirestore} from "firebase-admin/firestore";
+import OpenAI from "openai";
+import Parser from "rss-parser";
+import {extractArticle, summarizeAndTag, embedForRAG, hashUrl} from "./agents";
+
+initializeApp();
+const db = getFirestore();
+const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
+
+/**
+ * RSS Feed sources for batch processing
+ * Configured for reliable insurance news feeds
+ */
+const FEEDS = [
+  "https://www.insurancejournal.com/rss/news/national/",
+  "https://www.insurancejournal.com/rss/news/international/",
+  // Note: Some feeds require authentication or block automated access
+  // Add more working RSS feeds as needed
+];
+
+/**
+ * Shared logic for refreshing feeds with batch processing
+ * Processes articles in batches with retry logic and detailed logging
+ */
+async function refreshFeedsLogic(apiKey: string) {
+  const client = new OpenAI({apiKey});
+  const parser = new Parser();
+
+  const results = {processed: 0, skipped: 0, errors: 0, feedsProcessed: 0};
+  const batchStartTime = Date.now();
+
+  for (const feedUrl of FEEDS) {
+    const feedStartTime = Date.now();
+    try {
+      console.log(`[FEED] Fetching feed: ${feedUrl}`);
+      const feed = await parser.parseURL(feedUrl);
+      console.log(`[FEED] Found ${feed.items.length} items in feed: ${feedUrl}`);
+      results.feedsProcessed++;
+
+      // Process articles in batches
+      const articles = feed.items.slice(0, BATCH_CONFIG.batchSize);
+
+      for (let i = 0; i < articles.length; i++) {
+        const item = articles[i];
+        const itemIndex = i + 1;
+
+        try {
+          if (!item.link) {
+            console.log(`[ARTICLE ${itemIndex}/${articles.length}] Skipping item without link in ${feedUrl}`);
+            results.skipped++;
+            continue;
+          }
+
+          const url = item.link;
+          const id = hashUrl(url);
+          const docRef = db.collection("articles").doc(id);
+          const exists = (await docRef.get()).exists;
+
+          if (exists) {
+            console.log(`[ARTICLE ${itemIndex}/${articles.length}] Article already exists: ${url}`);
+            results.skipped++;
+            continue;
+          }
+
+          console.log(`[ARTICLE ${itemIndex}/${articles.length}] Processing: ${url}`);
+
+          // Extract full content with retry logic
+          let content: Awaited<ReturnType<typeof extractArticle>> | undefined;
+          let extractRetries = 0;
+          while (extractRetries < BATCH_CONFIG.maxRetries) {
+            try {
+              content = await extractArticle(url);
+              break;
+            } catch (error) {
+              extractRetries++;
+              if (extractRetries < BATCH_CONFIG.maxRetries) {
+                console.log(`[ARTICLE ${itemIndex}/${articles.length}] Extract retry ${extractRetries}/${BATCH_CONFIG.maxRetries}`);
+                await new Promise(resolve => setTimeout(resolve, BATCH_CONFIG.retryDelayMs));
+              } else {
+                throw error;
+              }
+            }
+          }
+
+          if (!content || !content.text || content.text.length < 100) {
+            console.log(`[ARTICLE ${itemIndex}/${articles.length}] Article text too short (${content?.text?.length || 0} chars): ${url}`);
+            results.skipped++;
+            continue;
+          }
+
+          // Summarize & classify
+          const brief = await summarizeAndTag(client, {
+            url,
+            source: (item.creator || feed.title || content.url || "").toString(),
+            publishedAt: item.isoDate || item.pubDate || "",
+            title: content.title,
+            text: content.text,
+          });
+
+          // Build an embedding for Ask‑the‑Brief
+          const emb = await embedForRAG(
+            client,
+            `${brief.title}\n${brief.bullets5.join("\n")}\n${Object.values(brief.whyItMatters).join("\n")}`
+          );
+
+          await docRef.set({
+            ...brief,
+            publishedAt: item.isoDate || item.pubDate || "",
+            createdAt: new Date(),
+            embedding: emb,
+            batchProcessedAt: new Date(),
+          });
+
+          console.log(`[ARTICLE ${itemIndex}/${articles.length}] Successfully processed: ${brief.title}`);
+          results.processed++;
+        } catch (error) {
+          console.error(`[ARTICLE ${itemIndex}/${articles.length}] Error processing article from ${feedUrl}:`, error);
+          results.errors++;
+        }
+      }
+
+      const feedDuration = Date.now() - feedStartTime;
+      console.log(`[FEED] Completed in ${feedDuration}ms: ${feedUrl}`);
+    } catch (error) {
+      console.error(`[FEED ERROR] Error fetching feed ${feedUrl}:`, error);
+      results.errors++;
+    }
+  }
+
+  const totalDuration = Date.now() - batchStartTime;
+  console.log(`[BATCH SUMMARY] Total duration: ${totalDuration}ms, Feeds: ${results.feedsProcessed}, Processed: ${results.processed}, Skipped: ${results.skipped}, Errors: ${results.errors}`);
+
+  return results;
+}
+
+/**
+ * Batch refresh configuration
+ * Defines the recurring schedule for news article batch processing
+ */
+const BATCH_CONFIG = {
+  // Primary batch: Every 60 minutes (hourly)
+  interval: 60,
+  timeZone: "America/New_York",
+  // Batch size: Process up to 50 articles per batch
+  batchSize: 50,
+  // Retry configuration
+  maxRetries: 3,
+  retryDelayMs: 5000,
+};
+
+/**
+ * Enhanced refresh logic with batch processing and detailed logging
+ */
+async function refreshFeedsWithBatching(apiKey: string) {
+  const startTime = Date.now();
+  console.log(`[BATCH START] Initiating news feed batch refresh at ${new Date().toISOString()}`);
+  console.log(`[BATCH CONFIG] Interval: ${BATCH_CONFIG.interval}min, BatchSize: ${BATCH_CONFIG.batchSize}, MaxRetries: ${BATCH_CONFIG.maxRetries}`);
+
+  try {
+    const results = await refreshFeedsLogic(apiKey);
+    const duration = Date.now() - startTime;
+
+    console.log(`[BATCH COMPLETE] Refresh completed in ${duration}ms`);
+    console.log(`[BATCH RESULTS] Processed: ${results.processed}, Skipped: ${results.skipped}, Errors: ${results.errors}`);
+
+    // Log batch completion to Firestore for monitoring
+    await logBatchCompletion({
+      timestamp: new Date(),
+      duration,
+      processed: results.processed,
+      skipped: results.skipped,
+      errors: results.errors,
+      status: 'success',
+    });
+
+    return results;
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    console.error(`[BATCH ERROR] Batch refresh failed after ${duration}ms:`, error);
+
+    // Log batch failure to Firestore for monitoring
+    await logBatchCompletion({
+      timestamp: new Date(),
+      duration,
+      processed: 0,
+      skipped: 0,
+      errors: 1,
+      status: 'failed',
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+    });
+
+    throw error;
+  }
+}
+
+/**
+ * Log batch completion metrics to Firestore for monitoring and analytics
+ */
+async function logBatchCompletion(metrics: Record<string, unknown>) {
+  try {
+    await db.collection('batch_logs').add({
+      ...metrics,
+      batchInterval: BATCH_CONFIG.interval,
+      batchSize: BATCH_CONFIG.batchSize,
+    });
+  } catch (error) {
+    console.error('[BATCH LOG ERROR] Failed to log batch metrics:', error);
+    // Don't throw - logging failure shouldn't fail the batch
+  }
+}
+
+// 1) Scheduled gatherer (hourly batch refresh)
+export const refreshFeeds = onSchedule(
+  {schedule: `every ${BATCH_CONFIG.interval} minutes`, timeZone: BATCH_CONFIG.timeZone, secrets: [OPENAI_API_KEY]},
+  async () => {
+    await refreshFeedsWithBatching(OPENAI_API_KEY.value());
+  }
+);
+
+// 1b) Manual trigger for batch refresh (HTTP callable)
+export const refreshFeedsManual = onRequest(
+  {cors: true, secrets: [OPENAI_API_KEY], timeoutSeconds: 540},
+  async (req, res) => {
+    try {
+      console.log("[MANUAL TRIGGER] Feed refresh initiated via HTTP request");
+      const results = await refreshFeedsWithBatching(OPENAI_API_KEY.value());
+      res.json({
+        success: true,
+        message: "Batch feed refresh complete",
+        batchConfig: BATCH_CONFIG,
+        results,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const err = error as any;
+      console.error("[MANUAL TRIGGER ERROR] Error in refreshFeedsManual:", err);
+      res.status(500).json({
+        success: false,
+        error: err.message || "Unknown error",
+        stack: err.stack,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+);
+
+// 1c) Test single article processing
+export const testSingleArticle = onRequest(
+  {cors: true, secrets: [OPENAI_API_KEY]},
+  async (req, res) => {
+    try {
+      console.log("[TEST] Single article processing test initiated");
+      const client = new OpenAI({apiKey: OPENAI_API_KEY.value()});
+      const parser = new Parser();
+
+      const feedUrl = FEEDS[0];
+      console.log(`[TEST] Fetching feed: ${feedUrl}`);
+      const feed = await parser.parseURL(feedUrl);
+      console.log(`[TEST] Found ${feed.items.length} items`);
+
+      if (feed.items.length === 0) {
+        res.json({error: "No items in feed", timestamp: new Date().toISOString()});
+        return;
+      }
+
+      const item = feed.items[0];
+      const url = item.link!;
+      console.log(`[TEST] Processing: ${url}`);
+
+      // Extract
+      const content = await extractArticle(url);
+      console.log(`[TEST] Extracted ${content.text?.length || 0} characters`);
+
+      // Summarize
+      const brief = await summarizeAndTag(client, {
+        url,
+        source: (item.creator || feed.title || "").toString(),
+        publishedAt: item.isoDate || item.pubDate || "",
+        title: content.title,
+        text: content.text,
+      });
+
+      console.log(`[TEST] Summarized: ${brief.title}`);
+
+      res.json({
+        success: true,
+        batchConfig: BATCH_CONFIG,
+        article: {
+          url,
+          extractedLength: content.text?.length || 0,
+          brief,
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const err = error as any;
+      console.error("Error in testSingleArticle:", err);
+      res.status(500).json({
+        success: false,
+        error: err.message || "Unknown error",
+        stack: err.stack,
+      });
+    }
+  }
+);
+
+// 2) Ask‑the‑Brief (RAG over last N summaries; anonymous)
+export const askBrief = onRequest({cors: true, secrets: [OPENAI_API_KEY]}, async (req, res) => {
+  try {
+    const q = (req.query.q || req.body?.q || "").toString().slice(0, 500);
+    if (!q) {
+      res.status(400).json({error: "q required"});
+      return;
+    }
+    const client = new OpenAI({apiKey: OPENAI_API_KEY.value()});
+
+    // Fetch recent docs (keep it simple; Firestore has no native vector search)
+    const snap = await db.collection("articles").orderBy("createdAt", "desc").limit(500).get();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const items = snap.docs.map((d) => ({id: d.id, ...d.data()} as any));
+
+    // Embed the query
+    const qEmb = (await client.embeddings.create({
+      model: "text-embedding-3-small",
+      input: q,
+      dimensions: 256,
+    })).data[0].embedding;
+
+    // Cosine similarity (naive in-memory)
+    const cos = (a: number[], b: number[]) => {
+      const dot = a.reduce((s, v, i) => s + v * b[i], 0);
+      const ma = Math.sqrt(a.reduce((s, v) => s + v * v, 0));
+      const mb = Math.sqrt(b.reduce((s, v) => s + v * v, 0));
+      return dot / (ma * mb);
+    };
+    const ranked = items
+      .map((it) => ({it, score: cos(qEmb, it.embedding)}))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 8);
+
+    const context = ranked.map((r) =>
+      `TITLE: ${r.it.title}\nBULLETS:\n- ${r.it.bullets5.join("\n- ")}\nWHY:\n${
+        Object.entries(r.it.whyItMatters).map(([k, v]) => `${k.toUpperCase()}: ${v}`).join("\n")
+      }\nURL: ${r.it.url}`
+    ).join("\n\n---\n\n");
+
+    const answer = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0.2,
+      max_tokens: 400,
+      messages: [
+        {
+          role: "system",
+          content: "Answer using ONLY the provided context. If not found, say so. " +
+            "Provide short answer + 3 bullet rationale + cite URLs you used.",
+        },
+        {role: "user", content: `Question: ${q}\n\nContext:\n${context}`},
+      ],
+    });
+
+    const text = answer.choices[0]?.message?.content ?? "No answer.";
+
+    res.json({answer: text, sources: ranked.map((r) => ({url: r.it.url, title: r.it.title}))});
+  } catch (e) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const error = e as any;
+    res.status(500).json({error: error.message || "unknown_error"});
+  }
+});
+
+
+
+
+================================================================================
+FILE 3/33: src/App.tsx
+================================================================================
+
+import { useEffect, useState, useMemo } from "react";
+import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { db } from "./firebase";
+import { Header } from "./components/Header";
+import { ArticleCard } from "./components/ArticleCard";
+import { SkeletonGrid } from "./components/SkeletonLoader";
+import { RegulatoryDashboard } from "./components/RegulatoryDashboard";
+import { generateInsuranceKeyPoints } from "./utils/aiKeyPoints";
+import "./index.css";
+
+type Article = {
+  title: string;
+  url: string;
+  source: string;
+  publishedAt?: string;
+  bullets5?: string[];
+  description?: string;
+  content?: string;
+  image?: string;
+  whyItMatters?: Record<string, string>;
+  tags?: { lob?: string[]; perils?: string[]; regions?: string[]; companies?: string[] };
+  createdAt?: Date | { toDate: () => Date };
+  relevanceScore?: number;
+  recencyScore?: number;
+  combinedScore?: number;
+  disasterScore?: number;
+  weatherScore?: number;
+  financialScore?: number;
+};
+
+type SortOption = 'smart' | 'recency' | 'relevance';
+
+
+
+const ITEMS_PER_PAGE = 12;
+
+export default function App() {
+  const [items, setItems] = useState<Article[]>([]);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<SortOption>('smart');
+  const [regulatoryNews, setRegulatoryNews] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // Handle scroll to show/hide scroll-to-top button
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    (async () => {
+      try {
+        // Fetch from Firebase
+        const qs = query(collection(db, "articles"), orderBy("createdAt", "desc"), limit(100));
+        const snap = await getDocs(qs);
+        const firebaseArticles = snap.docs.map((d) => d.data() as Article);
+
+        // Use Firebase articles only
+        const uniqueArticles = firebaseArticles;
+
+        // Apply AI scoring to all articles
+        const scoredArticles = uniqueArticles.map(article => {
+          const recencyScore = calculateRecencyScore(article.publishedAt);
+          const relevanceScore = calculateInsuranceRelevanceScore(article);
+          const combinedScore = calculateCombinedScore(article, recencyScore, relevanceScore);
+
+          // Generate AI key points for insurance sector
+          const keyPoints = generateInsuranceKeyPoints(
+            article.title,
+            article.description || '',
+            article.content || ''
+          );
+
+          return {
+            ...article,
+            recencyScore,
+            relevanceScore,
+            combinedScore,
+            bullets5: keyPoints,
+          };
+        });
+
+        // Sort by combined score (smart sorting)
+        scoredArticles.sort((a, b) => (b.combinedScore || 0) - (a.combinedScore || 0));
+
+        // Extract regulatory news from articles
+        const regulatory = extractRegulatoryNews(scoredArticles);
+
+        // Store all data
+        setItems(scoredArticles.slice(0, 100));
+        setRegulatoryNews(regulatory);
+      } catch (error) {
+        console.error("Error fetching articles:", error);
+        // Fall back to Firebase articles only
+        try {
+          const qs = query(collection(db, "articles"), orderBy("createdAt", "desc"), limit(50));
+          const snap = await getDocs(qs);
+          const allArticles = snap.docs.map((d) => d.data() as Article);
+
+          // Apply AI scoring to Firebase articles
+          const scoredArticles = allArticles.map(article => {
+            const recencyScore = calculateRecencyScore(article.publishedAt);
+            const relevanceScore = calculateInsuranceRelevanceScore(article);
+            const combinedScore = calculateCombinedScore(article, recencyScore, relevanceScore);
+
+            return {
+              ...article,
+              recencyScore,
+              relevanceScore,
+              combinedScore,
+            };
+          });
+
+          scoredArticles.sort((a, b) => (b.combinedScore || 0) - (a.combinedScore || 0));
+          setItems(scoredArticles);
+        } catch (fbError) {
+          console.error("Error fetching from Firebase:", fbError);
+        }
+      } finally {
+        setInitialLoading(false);
+      }
+    })();
+  }, []);
+
+  // Calculate recency score (1-10 scale)
+  // Recent articles get higher scores, older articles get lower scores
+  function calculateRecencyScore(publishedAt?: string): number {
+    if (!publishedAt) return 5; // Default middle score
+
+    const now = new Date().getTime();
+    const pubDate = new Date(publishedAt).getTime();
+    const ageInHours = (now - pubDate) / (1000 * 60 * 60);
+
+    // Scoring logic:
+    // 0-1 hours: 10 (brand new)
+    // 1-6 hours: 9-8
+    // 6-24 hours: 8-6
+    // 24-72 hours: 6-4
+    // 72+ hours: 4-1
+
+    if (ageInHours <= 1) return 10;
+    if (ageInHours <= 6) return 9 - (ageInHours / 6);
+    if (ageInHours <= 24) return 8 - ((ageInHours - 6) / 18);
+    if (ageInHours <= 72) return 6 - ((ageInHours - 24) / 48);
+
+    // Very old articles get minimum score
+    return Math.max(1, 4 - (ageInHours - 72) / 168); // Decay over weeks
+  }
+
+  // Calculate insurance relevance score using AI (1-10 scale)
+  // Analyzes content for insurance-specific keywords and concepts
+  function calculateInsuranceRelevanceScore(article: Article): number {
+    const text = `${article.title} ${article.description} ${article.content}`.toLowerCase();
+
+    let score = 0;
+    let keywordMatches = 0;
+
+    // Insurance industry keywords with weights
+    const insuranceKeywords = {
+      // Core insurance terms (weight: 2)
+      'insurance': 2, 'policy': 2, 'claim': 2, 'premium': 2, 'coverage': 2,
+      'underwriting': 2, 'insurer': 2, 'policyholder': 2, 'deductible': 2,
+
+      // Lines of business (weight: 1.5)
+      'auto': 1.5, 'home': 1.5, 'health': 1.5, 'life': 1.5, 'commercial': 1.5,
+      'workers compensation': 1.5, 'liability': 1.5, 'property': 1.5,
+
+      // Perils and risks (weight: 1.5)
+      'flood': 1.5, 'hurricane': 1.5, 'earthquake': 1.5, 'wildfire': 1.5,
+      'tornado': 1.5, 'hail': 1.5, 'wind': 1.5, 'cyber': 1.5, 'breach': 1.5,
+
+      // Regulatory and compliance (weight: 1.5)
+      'regulation': 1.5, 'compliance': 1.5, 'sec': 1.5, 'doj': 1.5, 'fbi': 1.5,
+      'lawsuit': 1.5, 'settlement': 1.5, 'fine': 1.5, 'penalty': 1.5,
+
+      // Financial and market terms (weight: 1)
+      'rate': 1, 'loss': 1, 'profit': 1, 'revenue': 1, 'earnings': 1,
+      'market': 1, 'industry': 1, 'trend': 1, 'forecast': 1,
+
+      // Risk management (weight: 1)
+      'risk': 1, 'mitigation': 1, 'management': 1, 'assessment': 1,
+    };
+
+    // Count keyword matches and calculate score
+    for (const [keyword, weight] of Object.entries(insuranceKeywords)) {
+      const regex = new RegExp(`\\b${keyword}\\b`, 'g');
+      const matches = text.match(regex) || [];
+      if (matches.length > 0) {
+        keywordMatches += matches.length;
+        score += Math.min(matches.length * weight, 3); // Cap contribution per keyword
+      }
+    }
+
+    // Normalize score to 1-10 scale
+    // 0 keywords: 1 (not relevant)
+    // 1-2 keywords: 3-4 (low relevance)
+    // 3-5 keywords: 5-6 (medium relevance)
+    // 6-10 keywords: 7-8 (high relevance)
+    // 10+ keywords: 9-10 (very high relevance)
+
+    if (keywordMatches === 0) return 1;
+    if (keywordMatches <= 2) return 2 + (keywordMatches * 1);
+    if (keywordMatches <= 5) return 4 + (keywordMatches * 0.4);
+    if (keywordMatches <= 10) return 6 + (keywordMatches * 0.3);
+    return Math.min(10, 8 + (keywordMatches * 0.1));
+  }
+
+  // Calculate combined score using innovative algorithm
+  // Combines recency and relevance with dynamic weighting
+  function calculateCombinedScore(_article: Article, recencyScore: number, relevanceScore: number): number {
+    // Dynamic weighting based on relevance
+    // High relevance articles: weight recency more (70% recency, 30% relevance)
+    // Medium relevance articles: balanced (50/50)
+    // Low relevance articles: weight relevance more (30% recency, 70% relevance)
+
+    let recencyWeight = 0.5;
+    let relevanceWeight = 0.5;
+
+    if (relevanceScore >= 8) {
+      // Very relevant - prioritize recency to show latest important news
+      recencyWeight = 0.7;
+      relevanceWeight = 0.3;
+    } else if (relevanceScore >= 6) {
+      // Moderately relevant - balanced approach
+      recencyWeight = 0.5;
+      relevanceWeight = 0.5;
+    } else if (relevanceScore >= 4) {
+      // Somewhat relevant - prioritize relevance
+      recencyWeight = 0.3;
+      relevanceWeight = 0.7;
+    } else {
+      // Low relevance - heavily prioritize relevance
+      recencyWeight = 0.2;
+      relevanceWeight = 0.8;
+    }
+
+    // Apply exponential boost to high-scoring articles
+    const recencyBoosted = Math.pow(recencyScore / 10, 0.8) * 10;
+    const relevanceBoosted = Math.pow(relevanceScore / 10, 0.9) * 10;
+
+    const combined = (recencyBoosted * recencyWeight) + (relevanceBoosted * relevanceWeight);
+
+    return Math.min(10, Math.max(1, combined));
+  }
+
+
+
+  // Apply AI-based sorting
+  const filteredAndSortedItems = useMemo(() => {
+    let result = [...items];
+
+    // Apply sorting based on selected option
+    if (sortBy === 'recency') {
+      // Sort by recency score only
+      result.sort((a, b) => (b.recencyScore || 0) - (a.recencyScore || 0));
+    } else if (sortBy === 'relevance') {
+      // Sort by relevance score only
+      result.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+    } else {
+      // Default: smart sorting (combined score)
+      result.sort((a, b) => (b.combinedScore || 0) - (a.combinedScore || 0));
+    }
+
+    return result;
+  }, [items, sortBy]);
+
+  // Extract regulatory news from articles
+  function extractRegulatoryNews(articles: Article[]): any[] {
+    const states = ['California', 'Texas', 'New York', 'Florida', 'Illinois', 'Pennsylvania', 'Ohio', 'Georgia', 'North Carolina', 'Michigan'];
+    const regulatory: any[] = [];
+
+    for (const article of articles.slice(0, 50)) {
+      const text = `${article.title} ${article.description}`.toLowerCase();
+
+      for (const state of states) {
+        if (text.includes(state.toLowerCase())) {
+          const categories = ['Rate Filing', 'Compliance', 'Coverage', 'Enforcement'];
+          const category = categories[Math.floor(Math.random() * categories.length)];
+
+          regulatory.push({
+            id: `${article.url}-${state}`,
+            state,
+            title: article.title,
+            description: article.description || '',
+            date: article.publishedAt || new Date().toISOString(),
+            category,
+          });
+          break;
+        }
+      }
+    }
+
+    return regulatory.slice(0, 10);
+  }
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredAndSortedItems.length / ITEMS_PER_PAGE);
+  const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIdx = startIdx + ITEMS_PER_PAGE;
+  const paginatedItems = filteredAndSortedItems.slice(startIdx, endIdx);
+
+  return (
+    <div className="ai-gradient-bg min-h-screen flex flex-col" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <Header isLoading={false} />
+
+      <main className="flex-1 mx-auto w-full max-w-7xl px-3 sm:px-6 lg:px-8 py-6 sm:py-8 transition-all duration-350">
+        {/* Regulatory Dashboard */}
+        {!initialLoading && regulatoryNews.length > 0 && (
+          <RegulatoryDashboard regulatoryNews={regulatoryNews} />
+        )}
+
+        {/* Sort Controls */}
+        {items.length > 0 && (
+          <div className="mb-8 flex justify-center">
+            <div className="inline-flex items-center gap-3 bg-white rounded-xl border border-slate-200 shadow-lg p-1.5 hover:shadow-xl transition-all duration-350">
+              <span className="text-xs font-black text-slate-600 uppercase tracking-widest px-4">Sort by:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="px-4 py-2.5 rounded-lg border-0 bg-gradient-to-r from-blue-50 to-indigo-50 text-sm font-bold text-slate-900 transition-all duration-350 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer hover:bg-blue-100"
+              >
+                <option value="smart">Smart (Recency + Relevance)</option>
+                <option value="recency">By Recency</option>
+                <option value="relevance">By Insurance Relevance</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {initialLoading ? (
+          <SkeletonGrid count={6} />
+        ) : items.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24">
+            <div className="text-center max-w-md">
+              <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-100 via-indigo-100 to-blue-100 rounded-2xl flex items-center justify-center mb-8 shadow-lg hover:shadow-xl transition-all duration-350 border border-blue-200">
+                <svg className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2m2 2a2 2 0 002-2m-2 2v-6a2 2 0 012-2h2.5a2 2 0 012 2v6a2 2 0 01-2 2h-2.5z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-black text-slate-900 mb-3">No US Articles Yet</h2>
+              <p className="text-base text-slate-600 font-semibold leading-relaxed">Check back soon for the latest US insurance industry news curated by AI.</p>
+              <div className="mt-6 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 hover:shadow-md transition-all duration-350">
+                <div className="flex items-center gap-2 mb-2.5">
+                  <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" />
+                  </svg>
+                  <p className="text-xs text-slate-600 font-bold uppercase tracking-widest">Tip</p>
+                </div>
+                <p className="text-sm text-slate-700 font-semibold">Articles are automatically curated and updated throughout the day.</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children" role="feed" aria-label="US insurance news articles">
+              {paginatedItems.map((article, idx) => (
+                <ArticleCard key={`${currentPage}-${idx}`} article={article} />
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="mt-12 flex flex-col items-center gap-6">
+                <div className="flex items-center justify-center gap-2 flex-wrap bg-white rounded-xl border border-slate-200 shadow-lg p-3.5 hover:shadow-xl transition-all duration-350">
+                  <button
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className="px-4 py-2.5 rounded-lg border border-slate-300 bg-white hover:bg-blue-50 hover:border-blue-300 hover:shadow-sm disabled:opacity-40 disabled:cursor-not-allowed text-sm font-bold text-slate-900 transition-all duration-350 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:hover:bg-white disabled:hover:border-slate-300"
+                    aria-label="Previous page"
+                  >
+                    ← Previous
+                  </button>
+
+                  <div className="flex items-center gap-2 px-2">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-10 h-10 rounded-lg font-bold transition-all duration-350 ${
+                          currentPage === page
+                            ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg scale-105'
+                            : 'bg-white border border-slate-300 text-slate-900 hover:bg-blue-50 hover:border-blue-300 hover:shadow-sm'
+                        }`}
+                        aria-label={`Go to page ${page}`}
+                        aria-current={currentPage === page ? 'page' : undefined}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-4 py-2.5 rounded-lg border border-slate-300 bg-white hover:bg-blue-50 hover:border-blue-300 hover:shadow-sm disabled:opacity-40 disabled:cursor-not-allowed text-sm font-bold text-slate-900 transition-all duration-350 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:hover:bg-white disabled:hover:border-slate-300"
+                    aria-label="Next page"
+                  >
+                    Next →
+                  </button>
+                </div>
+
+                <p className="text-sm text-slate-600 font-bold uppercase tracking-widest">
+                  Page {currentPage} of {totalPages} • Showing {paginatedItems.length} of {filteredAndSortedItems.length} articles
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </main>
+
+
+
+      {/* Scroll to Top Button */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-24 right-6 w-14 h-14 rounded-full bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-700 text-white shadow-xl hover:shadow-2xl transition-all duration-350 flex items-center justify-center hover:scale-115 active:scale-95 z-40 animate-slideInUp border border-blue-400 border-opacity-40 hover:border-opacity-70"
+          title="Scroll to top"
+          aria-label="Scroll to top"
+        >
+          <svg className="w-6 h-6 transition-transform duration-350" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7 16l5-5m0 0l5 5m-5-5v12" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
+
+
+================================================================================
+FILE 4/33: src/components/AIAnswer.tsx
+================================================================================
+
+interface AIAnswerProps {
+  answer: string;
+  isLoading: boolean;
+}
+
+export function AIAnswer({ answer, isLoading }: AIAnswerProps) {
+  if (!answer && !isLoading) return null;
+
+  return (
+    <section className="bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50 border-b border-slate-200/50 py-6 sm:py-8" aria-label="AI-powered insights">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:border-blue-200">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 sm:px-6 py-5 sm:py-6 relative overflow-hidden">
+              <div className="absolute inset-0 opacity-5 bg-gradient-to-r from-white to-transparent"></div>
+              <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -mr-20 -mt-20"></div>
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/3 rounded-full -ml-16 -mb-16"></div>
+              <div className="flex items-center gap-3 relative z-10">
+                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/20 backdrop-blur-sm shadow-lg">
+                  <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-white tracking-tight">AI-Powered Insight</h2>
+                  <p className="text-xs text-blue-100 font-medium">Analyzed from latest industry news</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="px-4 sm:px-6 py-6 sm:py-7 relative z-10">
+              {isLoading ? (
+                <div className="space-y-3">
+                  <div className="h-4 bg-gradient-to-r from-slate-200 to-slate-100 rounded-lg animate-pulse w-3/4"></div>
+                  <div className="h-4 bg-gradient-to-r from-slate-200 to-slate-100 rounded-lg animate-pulse w-full"></div>
+                  <div className="h-4 bg-gradient-to-r from-slate-200 to-slate-100 rounded-lg animate-pulse w-5/6"></div>
+                  <div className="h-4 bg-gradient-to-r from-slate-200 to-slate-100 rounded-lg animate-pulse w-4/5"></div>
+                </div>
+              ) : (
+                <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap font-medium">
+                  {answer}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
+
+
+================================================================================
+FILE 5/33: src/components/ArticleCard.tsx
+================================================================================
+
+
+
+interface Article {
+  title: string;
+  url: string;
+  source: string;
+  publishedAt?: string;
+  description?: string;
+  content?: string;
+  image?: string;
+  bullets5?: string[];
+  whyItMatters?: Record<string, string>;
+  tags?: { lob?: string[]; perils?: string[]; regions?: string[]; companies?: string[] };
+  recencyScore?: number;
+  relevanceScore?: number;
+  combinedScore?: number;
+  disasterScore?: number;
+  weatherScore?: number;
+  financialScore?: number;
+}
+
+interface ArticleCardProps {
+  article: Article;
+}
+
+export function ArticleCard({ article }: ArticleCardProps) {
+  const timeAgo = article.publishedAt ? getTimeAgo(new Date(article.publishedAt)) : '';
+
+  return (
+    <article className="group bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-2xl hover:border-blue-300 transition-all duration-350 flex flex-col h-full touch-manipulation hover:border-opacity-100">
+      {/* Accent line at top */}
+      <div className="h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-400 opacity-0 group-hover:opacity-100 transition-opacity duration-350"></div>
+
+      {/* Header */}
+      <div className="px-7 py-7 border-b border-slate-100 bg-gradient-to-br from-white to-slate-50">
+        <a
+          href={article.url}
+          target="_blank"
+          rel="noreferrer"
+          className="block text-lg font-black text-slate-900 hover:text-blue-600 transition-colors line-clamp-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 rounded leading-snug mb-4"
+        >
+          {article.title}
+        </a>
+        <div className="flex items-center justify-between text-xs gap-2">
+          <span className="font-bold text-slate-700 uppercase tracking-widest">{article.source}</span>
+          {timeAgo && <span className="text-slate-500 font-semibold">{timeAgo}</span>}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="px-7 py-7 flex-1 flex flex-col">
+        {/* Description */}
+        {article.description && (
+          <p className="text-sm text-slate-700 leading-relaxed mb-5 font-medium">
+            {article.description}
+          </p>
+        )}
+
+        {/* AI Key Points - Insurance Sector Insights */}
+        {article.bullets5 && article.bullets5.length > 0 && (
+          <div className="mb-6 p-6 bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-50 rounded-xl border border-blue-200 shadow-sm hover:shadow-lg transition-all duration-350 group/insights">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center flex-shrink-0 group-hover/insights:scale-115 transition-transform duration-350">
+                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+              </div>
+              <h4 className="text-xs font-black text-blue-900 uppercase tracking-widest">Key Insights</h4>
+              <span className="ml-auto text-xs font-bold text-blue-700 bg-blue-100 px-3 py-1.5 rounded-full">{article.bullets5.length}</span>
+            </div>
+            <ul className="space-y-3">
+              {article.bullets5.slice(0, 5).map((bullet, idx) => (
+                <li key={idx} className="flex gap-3 text-sm text-slate-700 leading-relaxed font-medium">
+                  <span className="text-blue-600 font-bold flex-shrink-0 mt-0.5 text-lg">•</span>
+                  <span className="flex-1">{bullet}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Read More Link */}
+        <div className="mt-auto pt-6 border-t border-slate-100">
+          <a
+            href={article.url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-700 transition-all duration-350 group/link"
+          >
+            Read Full Article
+            <svg className="w-4 h-4 group-hover/link:translate-x-2 transition-transform duration-350" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function getTimeAgo(date: Date): string {
+  const now = new Date();
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+
+
+
+================================================================================
+FILE 6/33: src/components/Badge.tsx
+================================================================================
+
+interface BadgeProps {
+  children: React.ReactNode;
+  variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'neutral';
+  size?: 'sm' | 'md' | 'lg';
+  icon?: React.ReactNode;
+  className?: string;
+}
+
+const variantStyles = {
+  primary: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 hover:shadow-sm transition-all duration-350',
+  secondary: 'bg-cyan-50 text-cyan-700 border-cyan-200 hover:bg-cyan-100 hover:shadow-sm transition-all duration-350',
+  success: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:shadow-sm transition-all duration-350',
+  warning: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 hover:shadow-sm transition-all duration-350',
+  danger: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100 hover:shadow-sm transition-all duration-350',
+  neutral: 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:shadow-sm transition-all duration-350',
+};
+
+const sizeStyles = {
+  sm: 'px-2 py-0.5 text-xs',
+  md: 'px-2.5 py-1 text-sm',
+  lg: 'px-3 py-1.5 text-base',
+};
+
+export function Badge({
+  children,
+  variant = 'primary',
+  size = 'md',
+  icon,
+  className = ''
+}: BadgeProps) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full font-semibold border transition-all duration-300 hover:shadow-sm ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}>
+      {icon && <span className="flex-shrink-0">{icon}</span>}
+      {children}
+    </span>
+  );
+}
+
+
+
+
+================================================================================
+FILE 7/33: src/components/Button.tsx
+================================================================================
+
+import React from 'react';
+
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  size?: 'sm' | 'md' | 'lg';
+  isLoading?: boolean;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+}
+
+const variantStyles = {
+  primary: 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 focus:ring-blue-500',
+  secondary: 'bg-slate-200 text-slate-900 hover:bg-slate-300 active:bg-slate-400 focus:ring-slate-500 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600',
+  outline: 'border-2 border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-900 active:bg-blue-100 focus:ring-blue-500',
+  ghost: 'text-slate-700 hover:bg-slate-100 active:bg-slate-200 focus:ring-slate-500 dark:text-slate-300 dark:hover:bg-slate-800',
+};
+
+const sizeStyles = {
+  sm: 'px-3 py-1.5 text-sm',
+  md: 'px-4 py-2 text-base',
+  lg: 'px-6 py-3 text-lg',
+};
+
+export function Button({
+  variant = 'primary',
+  size = 'md',
+  isLoading = false,
+  icon,
+  children,
+  className = '',
+  disabled,
+  ...props
+}: ButtonProps) {
+  return (
+    <button
+      {...props}
+      disabled={disabled || isLoading}
+      className={`inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
+    >
+      {isLoading ? (
+        <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+      ) : icon ? (
+        <span className="flex-shrink-0">{icon}</span>
+      ) : null}
+      {children}
+    </button>
+  );
+}
+
+
+
+
+================================================================================
+FILE 8/33: src/components/CompanyHealthDashboard.tsx
+================================================================================
+
+/**
+ * Company Health Dashboard
+ * Displays financial health of insurance companies based on SEC filings and credit ratings
+ */
+
+interface CompanyHealth {
+  name: string;
+  ticker?: string;
+  healthScore: number;
+  recentFilings: number;
+  creditRating?: string;
+  financialStress: boolean;
+  lastUpdated: string;
+}
+
+interface CompanyHealthDashboardProps {
+  companies: CompanyHealth[];
+}
+
+function getHealthColor(score: number): string {
+  if (score >= 8) return 'from-emerald-50 to-green-50';
+  if (score >= 6) return 'from-amber-50 to-yellow-50';
+  if (score >= 4) return 'from-orange-50 to-red-50';
+  return 'from-red-50 to-rose-50';
+}
+
+function getHealthBadgeColor(score: number): string {
+  if (score >= 8) return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+  if (score >= 6) return 'bg-amber-100 text-amber-800 border-amber-300';
+  if (score >= 4) return 'bg-orange-100 text-orange-800 border-orange-300';
+  return 'bg-red-100 text-red-800 border-red-300';
+}
+
+function getHealthLabel(score: number): string {
+  if (score >= 8) return 'Excellent';
+  if (score >= 6) return 'Good';
+  if (score >= 4) return 'Fair';
+  return 'At Risk';
+}
+
+export function CompanyHealthDashboard({ companies }: CompanyHealthDashboardProps) {
+  if (companies.length === 0) {
+    return null;
+  }
+
+  const averageHealth = companies.reduce((sum, c) => sum + c.healthScore, 0) / companies.length;
+  const atRiskCount = companies.filter(c => c.financialStress).length;
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-8">
+      <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+        <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M8.16 2.75a.75.75 0 00-1.32 0l-.478 1.435a.75.75 0 01-.564.564l-1.435.478a.75.75 0 000 1.32l1.435.478c.247.082.45.285.564.564l.478 1.435a.75.75 0 001.32 0l.478-1.435c.082-.247.285-.45.564-.564l1.435-.478a.75.75 0 000-1.32l-1.435-.478a.75.75 0 01-.564-.564l-.478-1.435zm7.84 7a.75.75 0 00-1.32 0l-.478 1.435a.75.75 0 01-.564.564l-1.435.478a.75.75 0 000 1.32l1.435.478c.247.082.45.285.564.564l.478 1.435a.75.75 0 001.32 0l.478-1.435c.082-.247.285-.45.564-.564l1.435-.478a.75.75 0 000-1.32l-1.435-.478a.75.75 0 01-.564-.564l-.478-1.435z" />
+        </svg>
+        Company Financial Health
+      </h2>
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-3 gap-4 mb-6 pb-6 border-b border-slate-200">
+        <div className="text-center">
+          <div className="text-2xl font-bold text-blue-600">{averageHealth.toFixed(1)}</div>
+          <div className="text-xs text-slate-600 font-medium">Average Health</div>
+        </div>
+        <div className="text-center">
+          <div className="text-2xl font-bold text-slate-900">{companies.length}</div>
+          <div className="text-xs text-slate-600 font-medium">Companies Tracked</div>
+        </div>
+        <div className="text-center">
+          <div className={`text-2xl font-bold ${atRiskCount > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+            {atRiskCount}
+          </div>
+          <div className="text-xs text-slate-600 font-medium">At Risk</div>
+        </div>
+      </div>
+
+      {/* Company Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {companies.map((company, idx) => (
+          <div
+            key={idx}
+            className={`bg-gradient-to-br ${getHealthColor(company.healthScore)} rounded-lg p-4 border border-slate-200`}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h3 className="font-bold text-slate-900">{company.name}</h3>
+                {company.ticker && (
+                  <p className="text-xs text-slate-600">{company.ticker}</p>
+                )}
+              </div>
+              <div className={`px-2 py-1 rounded-full border text-xs font-semibold ${getHealthBadgeColor(company.healthScore)}`}>
+                {getHealthLabel(company.healthScore)}
+              </div>
+            </div>
+
+            {/* Health Score Bar */}
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-slate-700">Health Score</span>
+                <span className="text-xs font-bold text-slate-900">{company.healthScore.toFixed(1)}/10</span>
+              </div>
+              <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div
+                  className={`h-full bg-gradient-to-r ${
+                    company.healthScore >= 8
+                      ? 'from-emerald-500 to-green-500'
+                      : company.healthScore >= 6
+                      ? 'from-amber-500 to-yellow-500'
+                      : company.healthScore >= 4
+                      ? 'from-orange-500 to-red-500'
+                      : 'from-red-600 to-rose-600'
+                  }`}
+                  style={{ width: `${(company.healthScore / 10) * 100}%` }}
+                ></div>
+              </div>
+            </div>
+
+            {/* Details */}
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-700">Recent Filings:</span>
+                <span className="font-semibold text-slate-900">{company.recentFilings}</span>
+              </div>
+              {company.creditRating && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-700">Credit Rating:</span>
+                  <span className="font-semibold text-slate-900">{company.creditRating}</span>
+                </div>
+              )}
+              {company.financialStress && (
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-300">
+                  <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" />
+                  </svg>
+                  <span className="text-xs font-semibold text-red-700">Financial Stress Detected</span>
+                </div>
+              )}
+            </div>
+
+            {/* Last Updated */}
+            <div className="text-xs text-slate-600 mt-3 pt-3 border-t border-slate-300">
+              Updated: {new Date(company.lastUpdated).toLocaleDateString()}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+
+
+================================================================================
+FILE 9/33: src/components/DarkModeToggle.tsx
+================================================================================
+
+import { useDarkMode } from '../hooks/useDarkMode';
+
+export function DarkModeToggle() {
+  const { isDark, toggle } = useDarkMode();
+
+  return (
+    <button
+      onClick={toggle}
+      className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 hover:scale-110 active:scale-95"
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={isDark ? 'Light mode' : 'Dark mode'}
+    >
+      {isDark ? (
+        <svg className="w-5 h-5 text-slate-400 transition-transform duration-300" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+        </svg>
+      ) : (
+        <svg className="w-5 h-5 text-slate-600 transition-transform duration-300" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.536l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.121-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zm5.657-9.193a1 1 0 00-1.414 0l-.707.707A1 1 0 005.05 6.464l.707-.707a1 1 0 001.414-1.414l-.707-.707zM5 8a1 1 0 100-2H4a1 1 0 100 2h1z" clipRule="evenodd" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+
+
+
+================================================================================
+FILE 10/33: src/components/FilterPanel.tsx
+================================================================================
+
+interface FilterPanelProps {
+  filters: {
+    searchQuery: string;
+    source?: string;
+  };
+  onFiltersChange: (filters: any) => void;
+  filterOptions: {
+    sources: string[];
+  };
+  isOpen: boolean;
+  onToggle: () => void;
+  activeFilterCount: number;
+}
+
+export function FilterPanel({
+  filters,
+  onFiltersChange,
+  filterOptions,
+  isOpen,
+  onToggle,
+  activeFilterCount,
+}: FilterPanelProps) {
+  const handleSearchChange = (query: string) => {
+    onFiltersChange({ ...filters, searchQuery: query });
+  };
+
+  const handleSourceChange = (source: string) => {
+    onFiltersChange({
+      ...filters,
+      source: filters.source === source ? undefined : source
+    });
+  };
+
+  const clearAllFilters = () => {
+    onFiltersChange({
+      searchQuery: '',
+      source: undefined,
+    });
+  };
+
+  return (
+    <>
+      {/* Filter Toggle Button */}
+      <div className="mb-6 flex items-center gap-3">
+        <button
+          onClick={onToggle}
+          className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-300 rounded-xl hover:bg-blue-50 hover:border-blue-300 transition-all duration-300 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm hover:shadow-md"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          Search & Filter
+          {activeFilterCount > 0 && (
+            <span className="ml-1 px-2.5 py-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs rounded-full font-bold shadow-md">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+
+        {activeFilterCount > 0 && (
+          <button
+            onClick={clearAllFilters}
+            className="text-sm text-blue-600 hover:text-blue-700 font-bold transition-colors hover:underline"
+          >
+            Clear All
+          </button>
+        )}
+      </div>
+
+      {/* Filter Panel */}
+      {isOpen && (
+        <div className="mb-8 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden animate-slideInDown hover:shadow-2xl transition-shadow duration-300">
+          {/* Accent line */}
+          <div className="h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-400 opacity-60"></div>
+
+          {/* Search */}
+          <div className="px-6 py-5 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Search Articles</label>
+            <input
+              type="text"
+              placeholder="Enter keywords..."
+              value={filters.searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 hover:border-blue-300"
+            />
+          </div>
+
+          {/* Source Filter */}
+          {filterOptions.sources.length > 0 && (
+            <div className="px-6 py-5 border-b border-slate-200">
+              <h3 className="text-sm font-bold text-slate-900 mb-4 uppercase tracking-widest">Filter by Source</h3>
+              <div className="space-y-2.5">
+                {filterOptions.sources.map((source) => (
+                  <label key={source} className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 p-3 rounded-lg transition-all duration-300 border border-transparent hover:border-slate-200">
+                    <input
+                      type="radio"
+                      name="source"
+                      checked={filters.source === source}
+                      onChange={() => handleSourceChange(source)}
+                      className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span className="text-sm text-slate-700 font-semibold">{source}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+
+
+
+================================================================================
+FILE 11/33: src/components/Header.tsx
+================================================================================
+
+interface HeaderProps {
+  isLoading: boolean;
+}
+
+export function Header({ isLoading }: HeaderProps) {
+
+  return (
+    <header
+      className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-lg backdrop-blur-xl bg-opacity-98 transition-all duration-350"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+    >
+      {/* Subtle gradient line at top */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-500 opacity-50"></div>
+
+      <div className="mx-auto w-full px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-center h-16 sm:h-20 gap-4 touch-manipulation relative">
+          {/* Centered Title with Enhanced Blue Gradient */}
+          <div className="flex flex-col items-center justify-center">
+            <h1
+              className="text-3xl sm:text-5xl font-black tracking-tighter transition-all duration-350 hover:scale-105"
+              style={{
+                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 50%, #1e40af 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                fontFamily: '"Inter", "Helvetica Neue", sans-serif',
+                fontWeight: 950,
+                letterSpacing: '-0.035em',
+              }}
+            >
+              CarrierSignal
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 font-bold tracking-widest mt-2 uppercase">AI-Curated Insurance News</p>
+          </div>
+
+          {/* Status Indicator - Right Side */}
+          <div className="absolute right-3 sm:right-6 lg:right-8 flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+              {isLoading && (
+                <>
+                  <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full animate-pulse"></div>
+                  <span className="hidden sm:inline">Analyzing…</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+
+
+
+================================================================================
+FILE 12/33: src/components/KeyboardShortcuts.tsx
+================================================================================
+
+import { useState, useEffect } from 'react';
+
+interface KeyboardShortcutsProps {
+  onSearch?: () => void;
+  onToggleFilters?: () => void;
+}
+
+export function KeyboardShortcuts({ onSearch, onToggleFilters }: KeyboardShortcutsProps) {
+  const [showHelp, setShowHelp] = useState(false);
+
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + K for search
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        onSearch?.();
+      }
+      // Cmd/Ctrl + F for filters
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault();
+        onToggleFilters?.();
+      }
+      // ? for help
+      if (e.key === '?' && !showHelp) {
+        setShowHelp(true);
+      }
+      // Escape to close help
+      if (e.key === 'Escape' && showHelp) {
+        setShowHelp(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [onSearch, onToggleFilters, showHelp]);
+
+  return (
+    <>
+      {showHelp && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-96 overflow-y-auto animate-scaleIn">
+            <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-white">Keyboard Shortcuts</h2>
+              <button
+                onClick={() => setShowHelp(false)}
+                className="text-white hover:text-blue-100 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-700 font-medium">Search</span>
+                  <kbd className="px-2 py-1 bg-slate-100 border border-slate-300 rounded text-xs font-semibold text-slate-700">
+                    ⌘K
+                  </kbd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-700 font-medium">Toggle Filters</span>
+                  <kbd className="px-2 py-1 bg-slate-100 border border-slate-300 rounded text-xs font-semibold text-slate-700">
+                    ⌘F
+                  </kbd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-700 font-medium">Help</span>
+                  <kbd className="px-2 py-1 bg-slate-100 border border-slate-300 rounded text-xs font-semibold text-slate-700">
+                    ?
+                  </kbd>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-200 pt-4">
+                <p className="text-xs text-slate-500 text-center">
+                  Press <kbd className="px-1 bg-slate-100 rounded text-xs">ESC</kbd> to close
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Help Button */}
+      <button
+        onClick={() => setShowHelp(true)}
+        className="fixed bottom-6 right-6 w-10 h-10 rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 transition-all duration-300 flex items-center justify-center font-bold text-lg hover:scale-110 active:scale-95 z-40"
+        title="Keyboard shortcuts (press ?)"
+        aria-label="Show keyboard shortcuts"
+      >
+        ?
+      </button>
+    </>
+  );
+}
+
+
+
+
+================================================================================
+FILE 13/33: src/components/MobileOptimizations.tsx
+================================================================================
+
+import { useState } from 'react';
+
+interface SwipeHandlerProps {
+  onSwipeLeft?: () => void;
+  onSwipeRight?: () => void;
+  children: React.ReactNode;
+}
+
+export function SwipeHandler({ onSwipeLeft, onSwipeRight, children }: SwipeHandlerProps) {
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    setTouchEnd(e.changedTouches[0].clientX);
+    handleSwipe();
+  };
+
+  const handleSwipe = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe && onSwipeLeft) {
+      onSwipeLeft();
+    }
+    if (isRightSwipe && onSwipeRight) {
+      onSwipeRight();
+    }
+  };
+
+  return (
+    <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+      {children}
+    </div>
+  );
+}
+
+export function MobileOptimizedButton({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      {...props}
+      className={`min-h-[44px] min-w-[44px] active:scale-95 transition-transform ${props.className || ''}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+
+
+
+================================================================================
+FILE 14/33: src/components/Modal.tsx
+================================================================================
+
+import { useEffect } from 'react';
+
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+}
+
+export function Modal({ isOpen, onClose, title, children, footer }: ModalProps) {
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      ></div>
+
+      {/* Modal */}
+      <div className="relative bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full mx-4 animate-scaleIn">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">{title}</h2>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            aria-label="Close modal"
+          >
+            <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="px-6 py-4 max-h-96 overflow-y-auto">
+          {children}
+        </div>
+
+        {/* Footer */}
+        {footer && (
+          <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-end gap-3">
+            {footer}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+
+
+================================================================================
+FILE 15/33: src/components/ReadingList.tsx
+================================================================================
+
+import { useState, useEffect } from 'react';
+
+interface SavedArticle {
+  url: string;
+  title: string;
+  savedAt: string;
+}
+
+export function ReadingList() {
+  const [savedArticles, setSavedArticles] = useState<SavedArticle[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    // Load saved articles from localStorage
+    const saved: SavedArticle[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('saved_')) {
+        const data = localStorage.getItem(key);
+        if (data) {
+          try {
+            saved.push(JSON.parse(data));
+          } catch (e) {
+            // Ignore parse errors
+          }
+        }
+      }
+    }
+    setSavedArticles(saved.sort((a, b) => 
+      new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime()
+    ));
+  }, [isOpen]);
+
+  const removeSaved = (url: string) => {
+    localStorage.removeItem(`saved_${url}`);
+    setSavedArticles(prev => prev.filter(a => a.url !== url));
+  };
+
+  const clearAll = () => {
+    if (confirm('Are you sure you want to clear all saved articles?')) {
+      savedArticles.forEach(article => {
+        localStorage.removeItem(`saved_${article.url}`);
+      });
+      setSavedArticles([]);
+    }
+  };
+
+  return (
+    <>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="fixed bottom-20 right-6 w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center font-bold text-lg hover:scale-110 active:scale-95 z-40"
+        title="Reading list"
+        aria-label="Open reading list"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 19V5z" />
+        </svg>
+        {savedArticles.length > 0 && (
+          <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+            {savedArticles.length}
+          </span>
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-md w-full max-h-96 overflow-hidden flex flex-col animate-slideInUp sm:animate-scaleIn">
+            {/* Header */}
+            <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-white">Reading List</h2>
+                <p className="text-xs text-blue-100">{savedArticles.length} saved articles</p>
+              </div>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="text-white hover:text-blue-100 transition-colors"
+                aria-label="Close reading list"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto">
+              {savedArticles.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 px-4">
+                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                    <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 19V5z" />
+                    </svg>
+                  </div>
+                  <p className="text-sm text-slate-600 text-center font-medium">
+                    No saved articles yet. Click the bookmark icon on any article to save it.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-200">
+                  {savedArticles.map((article) => (
+                    <div key={article.url} className="p-4 hover:bg-slate-50 transition-colors group">
+                      <a
+                        href={article.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block text-sm font-semibold text-slate-900 hover:text-blue-600 transition-colors line-clamp-2 mb-2"
+                      >
+                        {article.title}
+                      </a>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-500">
+                          {new Date(article.savedAt).toLocaleDateString()}
+                        </span>
+                        <button
+                          onClick={() => removeSaved(article.url)}
+                          className="text-xs text-red-600 hover:text-red-700 font-medium opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            {savedArticles.length > 0 && (
+              <div className="border-t border-slate-200 p-4">
+                <button
+                  onClick={clearAll}
+                  className="w-full px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  Clear All
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+
+
+
+================================================================================
+FILE 16/33: src/components/RegulatoryDashboard.tsx
+================================================================================
+
+/**
+ * Regulatory Dashboard
+ * Displays regulatory news and compliance tracking by state
+ */
+
+interface RegulatoryNews {
+  id: string;
+  state: string;
+  title: string;
+  description: string;
+  date: string;
+  category: string;
+}
+
+interface RegulatoryDashboardProps {
+  regulatoryNews: RegulatoryNews[];
+}
+
+function getCategoryBadgeColor(category: string): string {
+  const lower = category.toLowerCase();
+  if (lower.includes('rate') || lower.includes('premium')) return 'bg-blue-100 text-blue-800 border-blue-300';
+  if (lower.includes('claim') || lower.includes('coverage')) return 'bg-purple-100 text-purple-800 border-purple-300';
+  if (lower.includes('compliance') || lower.includes('requirement')) return 'bg-amber-100 text-amber-800 border-amber-300';
+  if (lower.includes('enforcement') || lower.includes('penalty')) return 'bg-red-100 text-red-800 border-red-300';
+  return 'bg-slate-100 text-slate-800 border-slate-300';
+}
+
+export function RegulatoryDashboard({ regulatoryNews }: RegulatoryDashboardProps) {
+  if (regulatoryNews.length === 0) {
+    return null;
+  }
+
+  // Group by state
+  const byState = new Map<string, RegulatoryNews[]>();
+  for (const news of regulatoryNews) {
+    if (!byState.has(news.state)) {
+      byState.set(news.state, []);
+    }
+    byState.get(news.state)!.push(news);
+  }
+
+  // Get top states by news count
+  const topStates = Array.from(byState.entries())
+    .sort((a, b) => b[1].length - a[1].length)
+    .slice(0, 5);
+
+  // Get recent news
+  const recentNews = regulatoryNews
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5);
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-lg p-7 mb-8 hover:shadow-xl transition-all duration-350 relative">
+      {/* Accent line */}
+      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 rounded-t-2xl opacity-70"></div>
+
+      <h2 className="text-2xl font-black text-slate-900 mb-7 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center flex-shrink-0 shadow-md">
+          <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
+          </svg>
+        </div>
+        Regulatory Compliance
+      </h2>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6.5">
+        {/* Top States */}
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-6 border border-amber-200 hover:shadow-lg transition-all duration-350">
+          <h3 className="font-black text-amber-900 mb-5 flex items-center gap-2 text-lg">
+            <svg className="w-5 h-5 text-amber-700" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M5.5 13a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.3A4.5 4.5 0 1113.5 13H11V9.413l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13H5.5z" />
+            </svg>
+            Most Active States
+          </h3>
+          <ul className="space-y-3.5">
+            {topStates.map(([state, news]) => (
+              <li key={state} className="flex items-center justify-between p-4 bg-white rounded-lg border border-amber-100 hover:border-amber-300 hover:shadow-md transition-all duration-350">
+                <div>
+                  <div className="font-bold text-slate-900">{state}</div>
+                  <div className="text-xs text-slate-600 font-semibold">{news.length} regulatory updates</div>
+                </div>
+                <div className="flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-br from-amber-100 to-orange-100 border border-amber-200 shadow-sm">
+                  <span className="text-sm font-bold text-amber-700">{news.length}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Recent News */}
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-6 border border-slate-200 hover:shadow-lg transition-all duration-350">
+          <h3 className="font-black text-slate-900 mb-5 flex items-center gap-2 text-lg">
+            <svg className="w-5 h-5 text-slate-700" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm3.293 1.293a1 1 0 011.414 0L10 9.414l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+            </svg>
+            Recent Updates
+          </h3>
+          <ul className="space-y-3.5">
+            {recentNews.map(news => (
+              <li key={news.id} className="p-4 bg-white rounded-lg border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all duration-350">
+                <div className="flex items-start justify-between gap-2 mb-2.5">
+                  <div className="font-bold text-slate-900 text-sm line-clamp-2">{news.title}</div>
+                  <span className={`px-3 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap ${getCategoryBadgeColor(news.category)}`}>
+                    {news.category}
+                  </span>
+                </div>
+                <div className="text-xs text-slate-600 mb-2 font-semibold">{news.state}</div>
+                <div className="text-xs text-slate-500">{new Date(news.date).toLocaleDateString()}</div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-3 gap-4.5 mt-7 pt-7 border-t border-slate-200">
+        <div className="text-center p-4 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 hover:shadow-md transition-all duration-350">
+          <div className="text-3xl font-black text-blue-600">{regulatoryNews.length}</div>
+          <div className="text-xs text-slate-600 font-bold uppercase tracking-widest mt-2">Total Updates</div>
+        </div>
+        <div className="text-center p-4 rounded-lg bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 hover:shadow-md transition-all duration-350">
+          <div className="text-3xl font-black text-amber-600">{byState.size}</div>
+          <div className="text-xs text-slate-600 font-bold uppercase tracking-widest mt-2">States Covered</div>
+        </div>
+        <div className="text-center p-4 rounded-lg bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100 hover:shadow-md transition-all duration-350">
+          <div className="text-3xl font-black text-purple-600">
+            {new Set(regulatoryNews.map(n => n.category)).size}
+          </div>
+          <div className="text-xs text-slate-600 font-bold uppercase tracking-widest mt-2">Categories</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
+
+================================================================================
+FILE 17/33: src/components/RiskDashboard.tsx
+================================================================================
+
+interface Article {
+  riskPulse?: 'LOW' | 'MEDIUM' | 'HIGH';
+  tags: { perils: string[] };
+}
+
+interface RiskDashboardProps {
+  articles: Article[];
+}
+
+export function RiskDashboard({ articles }: RiskDashboardProps) {
+  // Calculate risk distribution
+  const riskCounts = {
+    HIGH: articles.filter(a => a.riskPulse === 'HIGH').length,
+    MEDIUM: articles.filter(a => a.riskPulse === 'MEDIUM').length,
+    LOW: articles.filter(a => a.riskPulse === 'LOW').length,
+  };
+
+  const totalArticles = articles.length;
+  const highRiskPercentage = totalArticles > 0 ? Math.round((riskCounts.HIGH / totalArticles) * 100) : 0;
+  const mediumRiskPercentage = totalArticles > 0 ? Math.round((riskCounts.MEDIUM / totalArticles) * 100) : 0;
+  const lowRiskPercentage = totalArticles > 0 ? Math.round((riskCounts.LOW / totalArticles) * 100) : 0;
+
+  // Get top perils
+  const perilCounts: Record<string, number> = {};
+  articles.forEach(article => {
+    article.tags.perils.forEach(peril => {
+      perilCounts[peril] = (perilCounts[peril] || 0) + 1;
+    });
+  });
+
+  const topPerils = Object.entries(perilCounts)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5)
+    .map(([peril, count]) => ({ peril, count }));
+
+  // Determine market sentiment
+  const getSentiment = () => {
+    if (highRiskPercentage > 40) return { label: 'High Alert', color: 'text-red-600', bg: 'bg-red-50' };
+    if (highRiskPercentage > 20) return { label: 'Elevated Risk', color: 'text-amber-600', bg: 'bg-amber-50' };
+    return { label: 'Stable', color: 'text-green-600', bg: 'bg-green-50' };
+  };
+
+  const sentiment = getSentiment();
+
+  return (
+    <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Market Sentiment */}
+      <div className={`${sentiment.bg} rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all`}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Market Sentiment</h3>
+          <div className={`w-3 h-3 rounded-full ${
+            sentiment.label === 'High Alert' ? 'bg-red-600 animate-pulse' :
+            sentiment.label === 'Elevated Risk' ? 'bg-amber-600 animate-pulse' :
+            'bg-green-600'
+          }`}></div>
+        </div>
+        <p className={`text-2xl font-bold ${sentiment.color}`}>{sentiment.label}</p>
+        <p className="text-xs text-slate-600 mt-2">Based on {totalArticles} articles</p>
+      </div>
+
+      {/* Risk Distribution */}
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all">
+        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4">Risk Distribution</h3>
+        <div className="space-y-3">
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-semibold text-red-700">High Risk</span>
+              <span className="text-xs font-bold text-red-700">{riskCounts.HIGH}</span>
+            </div>
+            <div className="w-full bg-red-100 rounded-full h-2">
+              <div
+                className="bg-red-600 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${highRiskPercentage}%` }}
+              ></div>
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-semibold text-amber-700">Medium Risk</span>
+              <span className="text-xs font-bold text-amber-700">{riskCounts.MEDIUM}</span>
+            </div>
+            <div className="w-full bg-amber-100 rounded-full h-2">
+              <div
+                className="bg-amber-600 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${mediumRiskPercentage}%` }}
+              ></div>
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-semibold text-green-700">Low Risk</span>
+              <span className="text-xs font-bold text-green-700">{riskCounts.LOW}</span>
+            </div>
+            <div className="w-full bg-green-100 rounded-full h-2">
+              <div
+                className="bg-green-600 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${lowRiskPercentage}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Top Perils */}
+      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all">
+        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4">Top Perils</h3>
+        <div className="space-y-2">
+          {topPerils.length > 0 ? (
+            topPerils.map(({ peril, count }, idx) => (
+              <div key={peril} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-purple-600">#{idx + 1}</span>
+                  <span className="text-sm font-medium text-slate-700 truncate">{peril}</span>
+                </div>
+                <span className="text-xs font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded-full">
+                  {count}
+                </span>
+              </div>
+            ))
+          ) : (
+            <p className="text-xs text-slate-500">No peril data available</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
+
+================================================================================
+FILE 18/33: src/components/RiskIntelligenceDashboard.tsx
+================================================================================
+
+/**
+ * Risk Intelligence Dashboard
+ * Displays disaster events, weather alerts, and trending topics
+ */
+
+interface DisasterEvent {
+  id: string;
+  declarationDate: string;
+  disasterType: string;
+  state: string;
+  county?: string;
+  title: string;
+}
+
+interface WeatherAlert {
+  id: string;
+  event: string;
+  headline: string;
+  areaDesc: string;
+  severity: string;
+}
+
+interface RiskIntelligenceDashboardProps {
+  disasters: DisasterEvent[];
+  weatherAlerts: WeatherAlert[];
+  trendingTopics: Map<string, number>;
+}
+
+export function RiskIntelligenceDashboard({
+  disasters,
+  weatherAlerts,
+  trendingTopics,
+}: RiskIntelligenceDashboardProps) {
+  const recentDisasters = disasters.slice(0, 5);
+  const severeAlerts = weatherAlerts.filter(a => a.severity === 'Severe' || a.severity === 'Extreme').slice(0, 5);
+  const topTopics = Array.from(trendingTopics.entries()).slice(0, 5);
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-lg p-6 mb-8 hover:shadow-xl transition-shadow duration-300">
+      {/* Accent line */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 via-orange-500 to-red-500 rounded-t-2xl opacity-60"></div>
+
+      <h2 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 to-orange-600 flex items-center justify-center flex-shrink-0">
+          <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" />
+          </svg>
+        </div>
+        Risk Intelligence
+      </h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Recent Disasters */}
+        <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl p-5 border border-red-200 hover:shadow-md transition-shadow duration-300">
+          <h3 className="font-bold text-red-900 mb-4 flex items-center gap-2 text-lg">
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" />
+            </svg>
+            Recent Disasters
+          </h3>
+          {recentDisasters.length > 0 ? (
+            <ul className="space-y-3">
+              {recentDisasters.map(disaster => (
+                <li key={disaster.id} className="text-sm p-2 rounded-lg bg-white border border-red-100 hover:border-red-300 hover:shadow-sm transition-all duration-300">
+                  <div className="font-bold text-red-900">{disaster.disasterType}</div>
+                  <div className="text-red-700 font-medium">{disaster.state}</div>
+                  <div className="text-xs text-red-600 font-medium">
+                    {new Date(disaster.declarationDate).toLocaleDateString()}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-red-700 font-medium">No recent disasters</p>
+          )}
+        </div>
+
+        {/* Severe Weather Alerts */}
+        <div className="bg-gradient-to-br from-cyan-50 to-blue-50 rounded-xl p-5 border border-cyan-200 hover:shadow-md transition-shadow duration-300">
+          <h3 className="font-bold text-cyan-900 mb-4 flex items-center gap-2 text-lg">
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.3A4.5 4.5 0 1113.5 16H11V9.413l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V16H5.5z" />
+            </svg>
+            Severe Weather
+          </h3>
+          {severeAlerts.length > 0 ? (
+            <ul className="space-y-3">
+              {severeAlerts.map(alert => (
+                <li key={alert.id} className="text-sm p-2 rounded-lg bg-white border border-cyan-100 hover:border-cyan-300 hover:shadow-sm transition-all duration-300">
+                  <div className="font-bold text-cyan-900">{alert.event}</div>
+                  <div className="text-cyan-700 line-clamp-2 font-medium">{alert.areaDesc}</div>
+                  <div className="text-xs text-cyan-600 font-bold">{alert.severity}</div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-cyan-700 font-medium">No severe weather alerts</p>
+          )}
+        </div>
+
+        {/* Trending Topics */}
+        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-200 hover:shadow-md transition-shadow duration-300">
+          <h3 className="font-bold text-purple-900 mb-4 flex items-center gap-2 text-lg">
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+            </svg>
+            Trending Topics
+          </h3>
+          {topTopics.length > 0 ? (
+            <ul className="space-y-2">
+              {topTopics.map(([topic, count]) => (
+                <li key={topic} className="text-sm p-2 rounded-lg bg-white border border-purple-100 hover:border-purple-300 hover:shadow-sm transition-all duration-300">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-purple-900 capitalize">{topic}</span>
+                    <span className="text-xs font-bold text-purple-700 bg-gradient-to-r from-purple-200 to-pink-200 px-2.5 py-1 rounded-full">
+                      {count}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-purple-700 font-medium">No trending topics</p>
+          )}
+        </div>
+      </div>
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-slate-200">
+        <div className="text-center p-3 rounded-lg bg-gradient-to-br from-red-50 to-orange-50 border border-red-100">
+          <div className="text-3xl font-black text-red-600">{disasters.length}</div>
+          <div className="text-xs text-slate-600 font-bold uppercase tracking-wide mt-1">Active Disasters</div>
+        </div>
+        <div className="text-center p-3 rounded-lg bg-gradient-to-br from-cyan-50 to-blue-50 border border-cyan-100">
+          <div className="text-3xl font-black text-cyan-600">{weatherAlerts.length}</div>
+          <div className="text-xs text-slate-600 font-bold uppercase tracking-wide mt-1">Weather Alerts</div>
+        </div>
+        <div className="text-center p-3 rounded-lg bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100">
+          <div className="text-3xl font-black text-purple-600">{trendingTopics.size}</div>
+          <div className="text-xs text-slate-600 font-bold uppercase tracking-wide mt-1">Trending Topics</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
+
+================================================================================
+FILE 19/33: src/components/SaveArticleButton.tsx
+================================================================================
+
+import { useState, useEffect } from 'react';
+
+interface SaveArticleButtonProps {
+  articleUrl: string;
+  articleTitle: string;
+}
+
+export function SaveArticleButton({ articleUrl, articleTitle }: SaveArticleButtonProps) {
+  const [isSaved, setIsSaved] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+
+  // Check if article is saved on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(`saved_${articleUrl}`);
+    setIsSaved(!!saved);
+  }, [articleUrl]);
+
+  const handleSave = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (isSaved) {
+      localStorage.removeItem(`saved_${articleUrl}`);
+      setIsSaved(false);
+    } else {
+      localStorage.setItem(`saved_${articleUrl}`, JSON.stringify({
+        url: articleUrl,
+        title: articleTitle,
+        savedAt: new Date().toISOString(),
+      }));
+      setIsSaved(true);
+    }
+
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2000);
+  };
+
+  return (
+    <>
+      <button
+        onClick={handleSave}
+        className={`p-2 rounded-lg transition-all duration-300 ${
+          isSaved
+            ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+        }`}
+        title={isSaved ? 'Remove from saved' : 'Save article'}
+        aria-label={isSaved ? 'Remove from saved' : 'Save article'}
+      >
+        <svg
+          className="w-5 h-5"
+          fill={isSaved ? 'currentColor' : 'none'}
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M5 5a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 19V5z"
+          />
+        </svg>
+      </button>
+
+      {showToast && (
+        <div className="fixed bottom-4 right-4 bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium animate-slideInUp z-50">
+          {isSaved ? 'Article saved!' : 'Article removed from saved'}
+        </div>
+      )}
+    </>
+  );
+}
+
+
+
+
+================================================================================
+FILE 20/33: src/components/SearchSuggestions.tsx
+================================================================================
+
+import { useState, useEffect } from 'react';
+
+interface SearchSuggestionsProps {
+  query: string;
+  onSelect: (suggestion: string) => void;
+  isOpen: boolean;
+}
+
+const TRENDING_TOPICS = [
+  'Catastrophe bonds',
+  'Climate risk',
+  'Cyber insurance',
+  'Workers compensation',
+  'Commercial auto',
+  'Homeowners insurance',
+  'Reinsurance',
+  'Underwriting trends',
+  'Claims management',
+  'Insurance technology',
+];
+
+export function SearchSuggestions({ query, onSelect, isOpen }: SearchSuggestionsProps) {
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!query.trim()) {
+      setSuggestions(TRENDING_TOPICS.slice(0, 5));
+      return;
+    }
+
+    const filtered = TRENDING_TOPICS.filter(topic =>
+      topic.toLowerCase().includes(query.toLowerCase())
+    );
+    setSuggestions(filtered.slice(0, 5));
+  }, [query]);
+
+  if (!isOpen || suggestions.length === 0) return null;
+
+  return (
+    <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-lg z-40 overflow-hidden">
+      <div className="max-h-64 overflow-y-auto">
+        {suggestions.map((suggestion, idx) => (
+          <button
+            key={idx}
+            onClick={() => onSelect(suggestion)}
+            className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
+          >
+            <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            {suggestion}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+
+
+================================================================================
+FILE 21/33: src/components/ShareMenu.tsx
+================================================================================
+
+import { useState } from 'react';
+import { shareArticle } from '../hooks/useBookmarks';
+
+interface ShareMenuProps {
+  title: string;
+  url: string;
+}
+
+export function ShareMenu({ title, url }: ShareMenuProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = (platform: 'twitter' | 'linkedin' | 'email' | 'copy') => {
+    shareArticle(title, url, platform);
+    if (platform === 'copy') {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 hover:scale-110 active:scale-95"
+        aria-label="Share article"
+      >
+        <svg className="w-5 h-5 text-slate-600 dark:text-slate-400 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C9.589 12.438 10 11.166 10 9.5c0-2.485-2.686-4.5-6-4.5s-6 2.015-6 4.5S.682 14.5 4 14.5c1.06 0 2.062-.474 2.942-1.194l5.494 3.447c-.456.913-.938 1.638-.938 2.747 0 2.485 2.686 4.5 6 4.5s6-2.015 6-4.5-2.686-4.5-6-4.5c-1.06 0-2.062.474-2.942 1.194l-5.494-3.447z" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full right-0 mt-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-xl z-40 overflow-hidden min-w-max animate-slideInUp">
+          <button
+            onClick={() => handleShare('twitter')}
+            className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-300 flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300 font-medium hover:text-blue-600 dark:hover:text-blue-400"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2s9 5 20 5a9.5 9.5 0 00-9-5.5c4.75 2.25 7-7 7-7" />
+            </svg>
+            Twitter
+          </button>
+          <button
+            onClick={() => handleShare('linkedin')}
+            className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-300 flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300 font-medium hover:text-blue-600 dark:hover:text-blue-400"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z" />
+            </svg>
+            LinkedIn
+          </button>
+          <button
+            onClick={() => handleShare('email')}
+            className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-300 flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300 font-medium hover:text-blue-600 dark:hover:text-blue-400"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            Email
+          </button>
+          <div className="border-t border-slate-200 dark:border-slate-700"></div>
+          <button
+            onClick={() => handleShare('copy')}
+            className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-300 flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300 font-medium hover:text-blue-600 dark:hover:text-blue-400"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            {copied ? 'Copied!' : 'Copy Link'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
+
+================================================================================
+FILE 22/33: src/components/SkeletonLoader.tsx
+================================================================================
+
+export function SkeletonLoader() {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg transition-all duration-350">
+      {/* Accent line */}
+      <div className="h-1.5 bg-gradient-to-r from-slate-200 to-slate-100 opacity-60"></div>
+
+      {/* Header */}
+      <div className="px-7 py-6 border-b border-slate-100 bg-gradient-to-br from-white to-slate-50">
+        <div className="h-6 bg-gradient-to-r from-slate-200 via-slate-150 to-slate-100 rounded-lg w-3/4 mb-4 animate-shimmer"></div>
+        <div className="flex items-center justify-between">
+          <div className="h-4 bg-slate-200 rounded-lg w-1/4 animate-shimmer"></div>
+          <div className="h-4 bg-slate-200 rounded-lg w-1/5 animate-shimmer"></div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="px-7 py-6">
+        {/* Key Points */}
+        <div className="mb-6">
+          <div className="h-3 bg-slate-200 rounded-lg w-1/6 mb-4 animate-shimmer"></div>
+          <div className="space-y-3.5">
+            <div className="h-4 bg-slate-100 rounded-lg w-full animate-shimmer"></div>
+            <div className="h-4 bg-slate-100 rounded-lg w-5/6 animate-shimmer"></div>
+            <div className="h-4 bg-slate-100 rounded-lg w-4/5 animate-shimmer"></div>
+          </div>
+        </div>
+
+        {/* Why It Matters */}
+        <div className="border-t border-slate-100 pt-6">
+          <div className="h-4 bg-slate-200 rounded-lg w-1/4 animate-shimmer"></div>
+        </div>
+      </div>
+
+      {/* Tags */}
+      <div className="px-7 py-6 bg-gradient-to-r from-slate-50 to-slate-100 border-t border-slate-200">
+        <div className="flex flex-wrap gap-2.5">
+          <div className="h-6 bg-slate-200 rounded-full w-16 animate-shimmer"></div>
+          <div className="h-6 bg-slate-200 rounded-full w-20 animate-shimmer"></div>
+          <div className="h-6 bg-slate-200 rounded-full w-24 animate-shimmer"></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function SkeletonGrid({ count = 3 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {Array.from({ length: count }).map((_, i) => (
+        <SkeletonLoader key={i} />
+      ))}
+    </div>
+  );
+}
+
+
+
+
+================================================================================
+FILE 23/33: src/components/Tooltip.tsx
+================================================================================
+
+import { useState } from 'react';
+
+interface TooltipProps {
+  content: string;
+  children: React.ReactNode;
+  position?: 'top' | 'bottom' | 'left' | 'right';
+}
+
+const positionClasses = {
+  top: 'bottom-full mb-2 left-1/2 -translate-x-1/2',
+  bottom: 'top-full mt-2 left-1/2 -translate-x-1/2',
+  left: 'right-full mr-2 top-1/2 -translate-y-1/2',
+  right: 'left-full ml-2 top-1/2 -translate-y-1/2',
+};
+
+const arrowClasses = {
+  top: 'top-full left-1/2 -translate-x-1/2 border-t-slate-700 dark:border-t-slate-600 border-l-transparent border-r-transparent border-b-transparent',
+  bottom: 'bottom-full left-1/2 -translate-x-1/2 border-b-slate-700 dark:border-b-slate-600 border-l-transparent border-r-transparent border-t-transparent',
+  left: 'left-full top-1/2 -translate-y-1/2 border-l-slate-700 dark:border-l-slate-600 border-t-transparent border-b-transparent border-r-transparent',
+  right: 'right-full top-1/2 -translate-y-1/2 border-r-slate-700 dark:border-r-slate-600 border-t-transparent border-b-transparent border-l-transparent',
+};
+
+export function Tooltip({ content, children, position = 'top' }: TooltipProps) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  return (
+    <div className="relative inline-block">
+      <div
+        onMouseEnter={() => setIsVisible(true)}
+        onMouseLeave={() => setIsVisible(false)}
+        className="cursor-help"
+      >
+        {children}
+      </div>
+
+      {isVisible && (
+        <div className={`absolute z-50 px-3 py-2 text-sm font-medium text-white bg-slate-700 dark:bg-slate-600 rounded-lg whitespace-nowrap pointer-events-none ${positionClasses[position]}`}>
+          {content}
+          <div className={`absolute w-2 h-2 border-4 ${arrowClasses[position]}`}></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
+
+================================================================================
+FILE 24/33: src/components/TrendingArticles.tsx
+================================================================================
+
+interface Article {
+  title: string;
+  url: string;
+  source: string;
+  riskPulse?: 'LOW' | 'MEDIUM' | 'HIGH';
+  publishedAt?: string;
+}
+
+interface TrendingArticlesProps {
+  articles: Article[];
+  onArticleClick?: (article: Article) => void;
+}
+
+export function TrendingArticles({ articles, onArticleClick }: TrendingArticlesProps) {
+  // Get trending articles (HIGH risk + recent)
+  const trendingArticles = articles
+    .filter(a => a.riskPulse === 'HIGH')
+    .slice(0, 3);
+
+  if (trendingArticles.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mb-8">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 to-red-600 shadow-md">
+          <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+          </svg>
+        </div>
+        <h2 className="text-lg font-bold text-slate-900">🔥 Trending Now</h2>
+        <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded-full">
+          High Risk
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {trendingArticles.map((article, idx) => (
+          <a
+            key={idx}
+            href={article.url}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => onArticleClick?.(article)}
+            className="group bg-gradient-to-br from-red-50 to-orange-50 rounded-lg border border-red-200 p-4 hover:shadow-lg hover:border-red-300 transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 mt-1">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-600 text-white font-bold text-sm">
+                  {idx + 1}
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-slate-900 group-hover:text-red-600 transition-colors line-clamp-2 mb-2">
+                  {article.title}
+                </h3>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-600">{article.source}</span>
+                  <svg className="w-4 h-4 text-red-600 opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:translate-x-1">
+                    <path fill="currentColor" d="M8.293 4.707a1 1 0 010-1.414l4-4a1 1 0 111.414 1.414L10.414 3l3.293 3.293a1 1 0 01-1.414 1.414l-4-4z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+
+
+================================================================================
+FILE 25/33: src/firebase.ts
+================================================================================
+
+import {initializeApp} from "firebase/app";
+import {getFirestore} from "firebase/firestore";
+
+export const app = initializeApp({
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+});
+export const db = getFirestore(app);
+
+
+
+
+================================================================================
+FILE 26/33: src/hooks/useBookmarks.ts
+================================================================================
+
+import { useState, useEffect } from 'react';
+
+export function useBookmarks() {
+  const [bookmarks, setBookmarks] = useState<Set<string>>(() => {
+    const stored = localStorage.getItem('carriersignal-bookmarks');
+    return new Set(stored ? JSON.parse(stored) : []);
+  });
+
+  useEffect(() => {
+    localStorage.setItem('carriersignal-bookmarks', JSON.stringify(Array.from(bookmarks)));
+  }, [bookmarks]);
+
+  const toggleBookmark = (url: string) => {
+    setBookmarks(prev => {
+      const updated = new Set(prev);
+      if (updated.has(url)) {
+        updated.delete(url);
+      } else {
+        updated.add(url);
+      }
+      return updated;
+    });
+  };
+
+  const isBookmarked = (url: string) => bookmarks.has(url);
+
+  return { bookmarks, toggleBookmark, isBookmarked };
+}
+
+export function shareArticle(title: string, url: string, platform: 'twitter' | 'linkedin' | 'email' | 'copy') {
+  const encodedUrl = encodeURIComponent(url);
+  const encodedTitle = encodeURIComponent(title);
+
+  switch (platform) {
+    case 'twitter':
+      window.open(`https://twitter.com/intent/tweet?text=${encodedTitle}&url=${encodedUrl}`, '_blank');
+      break;
+    case 'linkedin':
+      window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`, '_blank');
+      break;
+    case 'email':
+      window.location.href = `mailto:?subject=${encodedTitle}&body=${encodedUrl}`;
+      break;
+    case 'copy':
+      navigator.clipboard.writeText(url);
+      break;
+  }
+}
+
+
+
+
+================================================================================
+FILE 27/33: src/hooks/useDarkMode.ts
+================================================================================
+
+import { useEffect, useState } from 'react';
+
+export function useDarkMode() {
+  const [isDark, setIsDark] = useState(() => {
+    // Check localStorage first
+    const stored = localStorage.getItem('carriersignal-dark-mode');
+    if (stored !== null) {
+      return stored === 'true';
+    }
+    // Fall back to system preference
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    // Update localStorage
+    localStorage.setItem('carriersignal-dark-mode', isDark.toString());
+
+    // Update DOM
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDark]);
+
+  const toggle = () => setIsDark(!isDark);
+
+  return { isDark, toggle };
+}
+
+
+
+
+================================================================================
+FILE 28/33: src/hooks/useMobileDetect.ts
+================================================================================
+
+import { useEffect, useState } from 'react';
+
+export function useMobileDetect() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  return isMobile;
+}
+
+
+
+
+================================================================================
+FILE 29/33: src/main.tsx
+================================================================================
+
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.tsx'
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+
+
+
+================================================================================
+FILE 30/33: src/utils/advancedScoring.ts
+================================================================================
+
+/**
+ * Advanced Scoring System
+ * Incorporates recency, relevance, disaster correlation, weather correlation, and financial data
+ */
+
+export interface ScoringFactors {
+  recencyScore: number;
+  relevanceScore: number;
+  disasterScore: number;
+  weatherScore: number;
+  financialScore: number;
+  combinedScore: number;
+}
+
+/**
+ * Calculate disaster correlation score
+ * Articles about disasters in affected regions get boosted
+ */
+export function calculateDisasterScore(
+  article: any,
+  disasterCorrelations: Map<string, any[]>
+): number {
+  const disasters = disasterCorrelations.get(article.url) || [];
+
+  if (disasters.length === 0) return 0;
+
+  // Base score for disaster correlation
+  let score = 3;
+
+  // Boost for multiple disasters
+  if (disasters.length > 1) score += 1;
+
+  // Boost for recent disasters
+  const recentDisasters = disasters.filter(d => {
+    const daysSince = (Date.now() - new Date(d.declarationDate).getTime()) / (1000 * 60 * 60 * 24);
+    return daysSince < 7;
+  });
+
+  if (recentDisasters.length > 0) score += 2;
+
+  return Math.min(10, score);
+}
+
+/**
+ * Calculate weather correlation score
+ * Articles about weather events get boosted
+ */
+export function calculateWeatherScore(
+  article: any,
+  weatherCorrelations: Map<string, any[]>
+): number {
+  const alerts = weatherCorrelations.get(article.url) || [];
+
+  if (alerts.length === 0) return 0;
+
+  // Base score for weather correlation
+  let score = 2;
+
+  // Boost for multiple alerts
+  if (alerts.length > 1) score += 1;
+
+  // Boost for severe weather
+  const severeAlerts = alerts.filter(a => a.severity === 'Severe' || a.severity === 'Extreme');
+  if (severeAlerts.length > 0) score += 2;
+
+  return Math.min(10, score);
+}
+
+/**
+ * Calculate financial health score
+ * Articles about financially stressed companies get boosted
+ */
+export function calculateFinancialScore(
+  article: any,
+  secFilings: any[]
+): number {
+  const articleText = `${article.title} ${article.description}`.toLowerCase();
+
+  // Keywords indicating financial stress
+  const stressKeywords = [
+    'bankruptcy',
+    'insolvency',
+    'financial stress',
+    'liquidity',
+    'capital',
+    'reserve',
+    'downgrade',
+    'rating cut',
+  ];
+
+  let score = 0;
+  for (const keyword of stressKeywords) {
+    if (articleText.includes(keyword)) {
+      score += 1;
+    }
+  }
+
+  // Check if article mentions insurance companies with recent filings
+  for (const filing of secFilings) {
+    if (articleText.includes(filing.companyName.toLowerCase())) {
+      score += 2;
+      break;
+    }
+  }
+
+  return Math.min(10, score);
+}
+
+/**
+ * Calculate comprehensive combined score
+ * Incorporates all factors with intelligent weighting
+ */
+export function calculateComprehensiveScore(
+  _article: any,
+  recencyScore: number,
+  relevanceScore: number,
+  disasterScore: number,
+  weatherScore: number,
+  financialScore: number
+): number {
+  // Base weights
+  let recencyWeight = 0.35;
+  let relevanceWeight = 0.35;
+  let disasterWeight = 0.15;
+  let weatherWeight = 0.10;
+  let financialWeight = 0.05;
+
+  // Adjust weights based on scores
+  if (disasterScore > 5) {
+    disasterWeight = 0.25;
+    recencyWeight = 0.30;
+    relevanceWeight = 0.30;
+    weatherWeight = 0.10;
+    financialWeight = 0.05;
+  }
+
+  if (weatherScore > 5) {
+    weatherWeight = 0.20;
+    recencyWeight = 0.30;
+    relevanceWeight = 0.30;
+    disasterWeight = 0.10;
+    financialWeight = 0.10;
+  }
+
+  if (financialScore > 5) {
+    financialWeight = 0.20;
+    recencyWeight = 0.30;
+    relevanceWeight = 0.30;
+    disasterWeight = 0.10;
+    weatherWeight = 0.10;
+  }
+
+  // Calculate weighted score
+  const weighted =
+    recencyScore * recencyWeight +
+    relevanceScore * relevanceWeight +
+    disasterScore * disasterWeight +
+    weatherScore * weatherWeight +
+    financialScore * financialWeight;
+
+  // Apply exponential boosting
+  const boosted = Math.pow(weighted / 10, 0.85) * 10;
+
+  return Math.min(10, Math.max(1, boosted));
+}
+
+/**
+ * Calculate all scoring factors for an article
+ */
+export function calculateAllScores(
+  article: any,
+  recencyScore: number,
+  relevanceScore: number,
+  disasterCorrelations: Map<string, any[]>,
+  weatherCorrelations: Map<string, any[]>,
+  secFilings: any[]
+): ScoringFactors {
+  const disasterScore = calculateDisasterScore(article, disasterCorrelations);
+  const weatherScore = calculateWeatherScore(article, weatherCorrelations);
+  const financialScore = calculateFinancialScore(article, secFilings);
+
+  const combinedScore = calculateComprehensiveScore(
+    article,
+    recencyScore,
+    relevanceScore,
+    disasterScore,
+    weatherScore,
+    financialScore
+  );
+
+  return {
+    recencyScore,
+    relevanceScore,
+    disasterScore,
+    weatherScore,
+    financialScore,
+    combinedScore,
+  };
+}
+
+/**
+ * Identify high-risk articles
+ * Articles with high disaster or weather scores
+ */
+export function identifyHighRiskArticles(articles: any[]): any[] {
+  return articles
+    .filter(a => (a.disasterScore || 0) > 5 || (a.weatherScore || 0) > 5)
+    .sort((a, b) => (b.combinedScore || 0) - (a.combinedScore || 0))
+    .slice(0, 10);
+}
+
+/**
+ * Identify trending topics
+ * Based on frequency of keywords in recent articles
+ */
+export function identifyTrendingTopics(articles: any[]): Map<string, number> {
+  const keywords = new Map<string, number>();
+
+  const insuranceKeywords = [
+    'hurricane',
+    'wildfire',
+    'flood',
+    'earthquake',
+    'tornado',
+    'hail',
+    'cyber',
+    'ransomware',
+    'climate',
+    'rate',
+    'premium',
+    'claim',
+    'coverage',
+    'policy',
+  ];
+
+  for (const item of articles.slice(0, 50)) {
+    const text = `${item.title} ${item.description}`.toLowerCase();
+
+    for (const keyword of insuranceKeywords) {
+      if (text.includes(keyword)) {
+        keywords.set(keyword, (keywords.get(keyword) || 0) + 1);
+      }
+    }
+  }
+
+  // Sort by frequency
+  return new Map([...keywords.entries()].sort((a, b) => b[1] - a[1]));
+}
+
+
+
+
+================================================================================
+FILE 31/33: src/utils/aiKeyPoints.ts
+================================================================================
+
+/**
+ * AI Key Points Generator
+ * Generates 3-5 insurance-relevant key points from article content
+ * Optimized prompt for insurance sector analysis
+ */
+
+const INSURANCE_KEYWORDS = [
+  'premium', 'claim', 'coverage', 'policy', 'deductible', 'liability',
+  'underwriting', 'risk', 'loss', 'damage', 'catastrophe', 'disaster',
+  'rate', 'insurer', 'carrier', 'broker', 'agent', 'adjuster',
+  'fraud', 'compliance', 'regulation', 'reserve', 'capital',
+  'reinsurance', 'catastrophe bond', 'loss ratio', 'combined ratio',
+  'cyber', 'ransomware', 'data breach', 'property', 'casualty',
+  'workers comp', 'auto', 'home', 'commercial', 'umbrella',
+  'weather', 'flood', 'hurricane', 'wildfire', 'earthquake',
+  'financial stress', 'insolvency', 'downgrade', 'rating'
+];
+
+/**
+ * Generate insurance-relevant key points from article content
+ * Uses local analysis without external API calls
+ */
+export function generateInsuranceKeyPoints(
+  title: string,
+  description: string,
+  content?: string
+): string[] {
+  const fullText = `${title} ${description} ${content || ''}`.toLowerCase();
+  const keyPoints: string[] = [];
+
+  // Extract insurance-specific insights
+  const insights = extractInsuranceInsights(fullText, title, description);
+
+  // Generate key points based on insights - prioritize in order
+  if (insights.riskImpact) {
+    keyPoints.push(insights.riskImpact);
+  }
+  if (insights.marketImpact) {
+    keyPoints.push(insights.marketImpact);
+  }
+  if (insights.regulatoryImpact) {
+    keyPoints.push(insights.regulatoryImpact);
+  }
+  if (insights.operationalImpact) {
+    keyPoints.push(insights.operationalImpact);
+  }
+  if (insights.financialImpact) {
+    keyPoints.push(insights.financialImpact);
+  }
+
+  // Filter out empty strings
+  const filteredPoints = keyPoints.filter(p => p.length > 0);
+
+  // Ensure minimum 3 key points - generate fallback insights if needed
+  if (filteredPoints.length < 3) {
+    const fallbackInsights = generateFallbackInsights(fullText, title, description);
+    filteredPoints.push(...fallbackInsights);
+  }
+
+  // Return 3-5 key points
+  return filteredPoints.slice(0, 5);
+}
+
+/**
+ * Extract insurance-specific insights from article text
+ * Generates article-specific insights rather than generic templates
+ */
+function extractInsuranceInsights(
+  text: string,
+  title: string,
+  description: string
+): Record<string, string> {
+  const insights: Record<string, string> = {};
+  const fullContent = `${title} ${description} ${text}`.toLowerCase();
+
+  // Risk Impact Analysis - Extract specific risk types
+  if (fullContent.includes('hurricane') || fullContent.includes('tropical storm')) {
+    insights.riskImpact = 'Hurricane Risk: Coastal property exposure faces elevated loss potential from tropical storm systems.';
+  } else if (fullContent.includes('wildfire') || fullContent.includes('forest fire')) {
+    insights.riskImpact = 'Wildfire Exposure: Western property portfolios face increased loss severity from expanding fire seasons.';
+  } else if (fullContent.includes('flood')) {
+    insights.riskImpact = 'Flood Risk: Water damage claims and flood insurance availability becoming critical underwriting factors.';
+  } else if (fullContent.includes('earthquake')) {
+    insights.riskImpact = 'Seismic Risk: Earthquake exposure in active zones driving higher loss reserves and reinsurance costs.';
+  } else if (fullContent.includes('ransomware') || fullContent.includes('cyber attack')) {
+    insights.riskImpact = 'Cyber Threat: Ransomware attacks increasing cyber liability claims and business interruption losses.';
+  } else if (fullContent.includes('data breach')) {
+    insights.riskImpact = 'Data Security: Privacy breaches driving demand for cyber and E&O insurance coverage.';
+  } else if (fullContent.includes('claim') && fullContent.includes('surge')) {
+    insights.riskImpact = 'Claims Surge: Elevated claim frequency and severity impacting loss ratios and reserve adequacy.';
+  } else if (fullContent.includes('liability') && fullContent.includes('exposure')) {
+    insights.riskImpact = 'Liability Exposure: Emerging liability trends affecting underwriting standards and premium rates.';
+  }
+
+  // Market Impact Analysis - Extract specific market dynamics
+  if (fullContent.includes('rate increase') || fullContent.includes('premium increase')) {
+    const percentage = extractPercentage(fullContent);
+    insights.marketImpact = `Rate Adjustment: ${percentage ? `${percentage} premium increases` : 'Significant rate increases'} reflecting loss experience and market conditions.`;
+  } else if (fullContent.includes('rate decrease') || fullContent.includes('premium decrease')) {
+    insights.marketImpact = 'Rate Softening: Competitive pricing pressure and improved loss experience driving rate reductions.';
+  } else if (fullContent.includes('merger') || fullContent.includes('acquisition')) {
+    const companies = extractCompanyNames(fullContent);
+    insights.marketImpact = `Market Consolidation: ${companies ? `${companies} transaction` : 'Strategic consolidation'} reshaping competitive landscape and market capacity.`;
+  } else if (fullContent.includes('insolvency') || fullContent.includes('receivership')) {
+    insights.marketImpact = 'Carrier Failure: Insolvency event reducing market capacity and affecting policyholder protections.';
+  } else if (fullContent.includes('capacity') && fullContent.includes('constrain')) {
+    insights.marketImpact = 'Capacity Constraints: Limited underwriting capacity driving selective underwriting and higher rates.';
+  }
+
+  // Regulatory Impact Analysis - Extract specific regulatory actions
+  if (fullContent.includes('rate filing') || fullContent.includes('rate approval')) {
+    insights.regulatoryImpact = 'Rate Regulation: State insurance regulators reviewing and approving rate filings affecting market pricing.';
+  } else if (fullContent.includes('climate') && fullContent.includes('regulation')) {
+    insights.regulatoryImpact = 'Climate Regulation: New climate-related regulatory requirements affecting underwriting and disclosure.';
+  } else if (fullContent.includes('enforcement') && fullContent.includes('violation')) {
+    insights.regulatoryImpact = 'Regulatory Enforcement: Compliance violations resulting in penalties and operational requirements.';
+  } else if (fullContent.includes('legislation') || fullContent.includes('bill')) {
+    insights.regulatoryImpact = 'Legislative Action: New insurance legislation affecting policy requirements and market operations.';
+  } else if (fullContent.includes('mandate') || fullContent.includes('requirement')) {
+    insights.regulatoryImpact = 'Compliance Mandate: New regulatory requirements necessitating operational and underwriting changes.';
+  }
+
+  // Operational Impact Analysis - Extract specific operational changes
+  if (fullContent.includes('technology') && fullContent.includes('invest')) {
+    insights.operationalImpact = 'Technology Investment: Digital transformation initiatives improving underwriting and claims efficiency.';
+  } else if (fullContent.includes('artificial intelligence') || fullContent.includes('machine learning')) {
+    insights.operationalImpact = 'AI Implementation: Machine learning and AI adoption enhancing risk assessment and fraud detection.';
+  } else if (fullContent.includes('automation')) {
+    insights.operationalImpact = 'Process Automation: Workflow automation reducing operational costs and improving turnaround times.';
+  } else if (fullContent.includes('talent') || fullContent.includes('workforce shortage')) {
+    insights.operationalImpact = 'Workforce Challenge: Labor market tightness affecting hiring and retention of insurance professionals.';
+  } else if (fullContent.includes('remote') || fullContent.includes('hybrid')) {
+    insights.operationalImpact = 'Work Model Evolution: Hybrid and remote work arrangements reshaping operational infrastructure.';
+  }
+
+  // Financial Impact Analysis - Extract specific financial metrics
+  if (fullContent.includes('earnings') || fullContent.includes('profit')) {
+    const direction = fullContent.includes('decline') || fullContent.includes('loss') ? 'declining' : 'improving';
+    insights.financialImpact = `Financial Performance: ${direction} earnings reflecting underwriting results and investment returns.`;
+  } else if (fullContent.includes('loss ratio')) {
+    insights.financialImpact = 'Loss Ratio Pressure: Deteriorating loss ratios impacting profitability and capital adequacy.';
+  } else if (fullContent.includes('combined ratio')) {
+    insights.financialImpact = 'Combined Ratio Impact: Underwriting profitability metrics affecting financial performance and dividends.';
+  } else if (fullContent.includes('capital') && fullContent.includes('requirement')) {
+    insights.financialImpact = 'Capital Requirements: Regulatory capital needs affecting dividend policy and growth investments.';
+  } else if (fullContent.includes('reserve') && fullContent.includes('increase')) {
+    insights.financialImpact = 'Reserve Strengthening: Increased loss reserves reflecting claims experience and risk assessment.';
+  }
+
+  return insights;
+}
+
+/**
+ * Extract percentage from text
+ */
+function extractPercentage(text: string): string | null {
+  const match = text.match(/(\d+(?:\.\d+)?)\s*%/);
+  return match ? `${match[1]}%` : null;
+}
+
+/**
+ * Extract company names from text
+ */
+function extractCompanyNames(text: string): string | null {
+  // Look for common insurance company patterns
+  const companies = [
+    'State Farm', 'Allstate', 'Geico', 'Progressive', 'Berkshire',
+    'AIG', 'Travelers', 'Hartford', 'Chubb', 'Zurich'
+  ];
+
+  for (const company of companies) {
+    if (text.toLowerCase().includes(company.toLowerCase())) {
+      return company;
+    }
+  }
+  return null;
+}
+
+/**
+ * Generate a concise insurance-focused summary
+ */
+export function generateInsuranceSummary(
+  title: string,
+  description: string
+): string {
+  const text = `${title} ${description}`.toLowerCase();
+
+  // Identify primary insurance sector impact
+  if (text.includes('property') || text.includes('casualty')) {
+    return 'P&C Insurance';
+  } else if (text.includes('life') || text.includes('health')) {
+    return 'Life & Health';
+  } else if (text.includes('cyber') || text.includes('data')) {
+    return 'Cyber Insurance';
+  } else if (text.includes('workers') || text.includes('comp')) {
+    return 'Workers Comp';
+  } else if (text.includes('auto') || text.includes('vehicle')) {
+    return 'Auto Insurance';
+  } else if (text.includes('commercial')) {
+    return 'Commercial Lines';
+  } else if (text.includes('reinsurance') || text.includes('catastrophe')) {
+    return 'Reinsurance';
+  }
+
+  return 'Insurance Industry';
+}
+
+/**
+ * Generate fallback insights when primary insights are insufficient
+ * These are more specific and article-focused than generic templates
+ */
+function generateFallbackInsights(
+  text: string,
+  title: string,
+  description: string
+): string[] {
+  const fallbacks: string[] = [];
+  const fullContent = `${title} ${description} ${text}`.toLowerCase();
+
+  // Extract specific entities and context from the article
+  const hasNumbers = /\d+%|\$\d+|rate|premium|increase|decrease/.test(fullContent);
+  const hasRegulation = /regulation|compliance|requirement|rule|law|mandate|enforcement/.test(fullContent);
+  const hasDisaster = /hurricane|flood|wildfire|earthquake|storm|disaster|catastrophe|weather/.test(fullContent);
+  const hasRisk = /risk|exposure|loss|claim|damage|liability|coverage/.test(fullContent);
+  const hasCyber = /cyber|ransomware|breach|data|security|attack|hacking/.test(fullContent);
+  const hasM_A = /acquisition|merger|acquisition|buyout|consolidation|deal/.test(fullContent);
+  const hasRate = /rate|premium|pricing|cost|expense|fee/.test(fullContent);
+  const hasCompany = /company|carrier|insurer|provider|firm|organization/.test(fullContent);
+
+  // Fallback 1: Specific to article content
+  if (hasDisaster) {
+    const disasterType = extractDisasterType(fullContent);
+    fallbacks.push(`${disasterType} Impact: Natural disaster event with significant implications for property and casualty insurance exposure.`);
+  } else if (hasCyber) {
+    fallbacks.push('Cyber Risk Development: Emerging cyber threat or data security incident affecting insurance industry.');
+  } else if (hasM_A) {
+    fallbacks.push('Market Consolidation: Merger, acquisition, or strategic partnership reshaping competitive landscape.');
+  } else if (hasRegulation) {
+    fallbacks.push('Regulatory Change: New compliance requirement or regulatory action affecting insurance operations.');
+  } else if (hasRate) {
+    fallbacks.push('Pricing Dynamics: Rate changes, premium adjustments, or pricing strategy developments in the market.');
+  } else if (hasRisk) {
+    fallbacks.push('Risk Assessment: Article addresses emerging risks or changes in insurance exposure patterns.');
+  } else if (hasCompany) {
+    fallbacks.push('Industry Development: Significant company announcement or strategic initiative affecting the sector.');
+  } else {
+    fallbacks.push('Market Update: Important insurance industry development with professional relevance.');
+  }
+
+  // Fallback 2: Stakeholder-specific impact
+  if (hasCyber) {
+    fallbacks.push('Underwriting Consideration: Cyber incidents influence underwriting standards and risk assessment protocols.');
+  } else if (hasDisaster) {
+    fallbacks.push('Claims Management: Natural disasters trigger significant claims activity and reserve requirements.');
+  } else if (hasRegulation) {
+    fallbacks.push('Compliance Requirement: Regulatory changes necessitate operational adjustments and policy updates.');
+  } else if (hasM_A) {
+    fallbacks.push('Market Opportunity: Consolidation activity may create business opportunities or competitive challenges.');
+  } else if (hasRate) {
+    fallbacks.push('Pricing Impact: Rate movements affect competitive positioning and profitability metrics.');
+  } else {
+    fallbacks.push('Professional Relevance: Content directly impacts insurance professionals and decision-making processes.');
+  }
+
+  // Fallback 3: Actionable insight
+  if (hasNumbers) {
+    fallbacks.push('Quantified Impact: Article provides specific metrics or data points for performance analysis.');
+  } else if (hasRegulation) {
+    fallbacks.push('Implementation Timeline: Regulatory changes require timely compliance and operational adjustments.');
+  } else if (hasDisaster) {
+    fallbacks.push('Preparedness Factor: Event highlights importance of disaster preparedness and response planning.');
+  } else if (hasCyber) {
+    fallbacks.push('Risk Mitigation: Cyber incidents underscore need for enhanced security and risk management measures.');
+  } else if (hasM_A) {
+    fallbacks.push('Strategic Implication: Market consolidation may reshape industry structure and competitive dynamics.');
+  } else {
+    fallbacks.push('Industry Insight: Article provides valuable perspective on insurance market trends and developments.');
+  }
+
+  return fallbacks;
+}
+
+/**
+ * Extract specific disaster type from text
+ */
+function extractDisasterType(text: string): string {
+  if (text.includes('hurricane')) return 'Hurricane';
+  if (text.includes('flood')) return 'Flood';
+  if (text.includes('wildfire')) return 'Wildfire';
+  if (text.includes('earthquake')) return 'Earthquake';
+  if (text.includes('tornado')) return 'Tornado';
+  if (text.includes('storm')) return 'Storm';
+  if (text.includes('hail')) return 'Hail';
+  if (text.includes('wind')) return 'Wind';
+  return 'Natural Disaster';
+}
+
+/**
+ * Calculate insurance relevance score based on keyword density
+ */
+export function calculateInsuranceRelevance(
+  title: string,
+  description: string,
+  content?: string
+): number {
+  const fullText = `${title} ${description} ${content || ''}`.toLowerCase();
+  let relevanceScore = 0;
+
+  for (const keyword of INSURANCE_KEYWORDS) {
+    const regex = new RegExp(`\\b${keyword}\\b`, 'g');
+    const matches = fullText.match(regex);
+    if (matches) {
+      relevanceScore += matches.length;
+    }
+  }
+
+  // Normalize to 1-10 scale
+  const normalizedScore = Math.min(10, Math.max(1, (relevanceScore / 5) + 1));
+  return Math.round(normalizedScore * 10) / 10;
+}
+
+
+
+
+================================================================================
+FILE 32/33: src/utils/governmentApis.ts
+================================================================================
+
+/**
+ * Government APIs Utility
+ * Integrates OpenFEMA, NOAA Weather, and SEC EDGAR APIs
+ */
+
+export interface DisasterEvent {
+  id: string;
+  declarationDate: string;
+  disasterType: string;
+  state: string;
+  county?: string;
+  title: string;
+  incidentType: string;
+}
+
+export interface WeatherAlert {
+  id: string;
+  event: string;
+  headline: string;
+  description: string;
+  effective: string;
+  expires: string;
+  areaDesc: string;
+  severity: string;
+}
+
+export interface SECFiling {
+  accessionNumber: string;
+  filingDate: string;
+  reportDate: string;
+  companyName: string;
+  formType: string;
+  url: string;
+}
+
+/**
+ * Fetch disaster declarations from OpenFEMA API
+ * No authentication required
+ */
+export async function fetchDisasterDeclarations(): Promise<DisasterEvent[]> {
+  try {
+    // Fetch recent disaster declarations (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const dateStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+    const response = await fetch(
+      `https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries?$filter=declarationDate gt '${dateStr}'&$top=100`
+    );
+
+    if (!response.ok) {
+      console.error('Failed to fetch OpenFEMA data:', response.statusText);
+      return [];
+    }
+
+    const data = await response.json();
+    const disasters: DisasterEvent[] = [];
+
+    if (data.DisasterDeclarationsSummaries) {
+      for (const item of data.DisasterDeclarationsSummaries) {
+        disasters.push({
+          id: item.disasterId?.toString() || '',
+          declarationDate: item.declarationDate || '',
+          disasterType: item.incidentType || '',
+          state: item.state || '',
+          county: item.county || '',
+          title: item.title || '',
+          incidentType: item.incidentType || '',
+        });
+      }
+    }
+
+    return disasters;
+  } catch (error) {
+    console.error('Error fetching OpenFEMA data:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetch active weather alerts from NOAA API
+ * No authentication required
+ */
+export async function fetchWeatherAlerts(): Promise<WeatherAlert[]> {
+  try {
+    const response = await fetch('https://api.weather.gov/alerts/active');
+
+    if (!response.ok) {
+      console.error('Failed to fetch NOAA weather alerts:', response.statusText);
+      return [];
+    }
+
+    const data = await response.json();
+    const alerts: WeatherAlert[] = [];
+
+    if (data.features) {
+      for (const feature of data.features) {
+        const props = feature.properties;
+        alerts.push({
+          id: props.id || '',
+          event: props.event || '',
+          headline: props.headline || '',
+          description: props.description || '',
+          effective: props.effective || '',
+          expires: props.expires || '',
+          areaDesc: props.areaDesc || '',
+          severity: props.severity || '',
+        });
+      }
+    }
+
+    return alerts;
+  } catch (error) {
+    console.error('Error fetching NOAA weather alerts:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetch SEC EDGAR filings for insurance companies
+ * Uses RSS feed - no authentication required
+ */
+export async function fetchSECFilings(): Promise<SECFiling[]> {
+  try {
+    // Fetch recent 10-K, 10-Q, and 8-K filings
+    const response = await fetch(
+      'https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=&type=10-K|10-Q|8-K&dateb=&owner=exclude&count=100&search_text=insurance'
+    );
+
+    if (!response.ok) {
+      console.error('Failed to fetch SEC EDGAR data:', response.statusText);
+      return [];
+    }
+
+    const text = await response.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'text/html');
+
+    const filings: SECFiling[] = [];
+    const rows = doc.querySelectorAll('table tr');
+
+    // Parse SEC EDGAR table (skip header)
+    for (let i = 1; i < Math.min(rows.length, 51); i++) {
+      const cells = rows[i].querySelectorAll('td');
+      if (cells.length >= 4) {
+        const companyName = cells[0]?.textContent?.trim() || '';
+        const formType = cells[1]?.textContent?.trim() || '';
+        const filingDate = cells[3]?.textContent?.trim() || '';
+        const link = cells[1]?.querySelector('a')?.getAttribute('href') || '';
+
+        if (companyName && formType) {
+          filings.push({
+            accessionNumber: link.split('/').pop() || '',
+            filingDate,
+            reportDate: filingDate,
+            companyName,
+            formType,
+            url: `https://www.sec.gov${link}`,
+          });
+        }
+      }
+    }
+
+    return filings;
+  } catch (error) {
+    console.error('Error fetching SEC EDGAR data:', error);
+    return [];
+  }
+}
+
+/**
+ * Get state insurance department RSS feeds
+ */
+export function getStateInsuranceDepartmentFeeds(): Array<{ url: string; state: string }> {
+  return [
+    {
+      url: 'https://www.tdi.texas.gov/news/rss.html',
+      state: 'Texas',
+    },
+    {
+      url: 'https://idoi.illinois.gov/news/rss.xml',
+      state: 'Illinois',
+    },
+    {
+      url: 'https://insurance.delaware.gov/news/rss/',
+      state: 'Delaware',
+    },
+    {
+      url: 'https://www.insurance.ca.gov/news/rss.xml',
+      state: 'California',
+    },
+    {
+      url: 'https://www.dfs.ny.gov/news_and_events/rss.xml',
+      state: 'New York',
+    },
+  ];
+}
+
+/**
+ * Fetch NAIC InsData statistics
+ */
+export async function fetchNAICData(): Promise<any> {
+  try {
+    const response = await fetch('https://content.naic.org/industry/insdata');
+
+    if (!response.ok) {
+      console.error('Failed to fetch NAIC data:', response.statusText);
+      return null;
+    }
+
+    // NAIC provides downloadable data, return URL for reference
+    return {
+      source: 'NAIC InsData',
+      url: 'https://content.naic.org/industry/insdata',
+      description: 'Insurance industry financial and market share data',
+    };
+  } catch (error) {
+    console.error('Error fetching NAIC data:', error);
+    return null;
+  }
+}
+
+/**
+ * Correlate disasters with article locations
+ */
+export function correlateDisastersWithArticles(
+  disasters: DisasterEvent[],
+  articles: any[]
+): Map<string, DisasterEvent[]> {
+  const correlations = new Map<string, DisasterEvent[]>();
+
+  for (const article of articles) {
+    const articleText = `${article.title} ${article.description}`.toLowerCase();
+    const relatedDisasters: DisasterEvent[] = [];
+
+    for (const disaster of disasters) {
+      const state = disaster.state.toLowerCase();
+      const disasterType = disaster.disasterType.toLowerCase();
+
+      // Check if article mentions the state or disaster type
+      if (
+        articleText.includes(state) ||
+        articleText.includes(disasterType) ||
+        articleText.includes(disaster.title.toLowerCase())
+      ) {
+        relatedDisasters.push(disaster);
+      }
+    }
+
+    if (relatedDisasters.length > 0) {
+      correlations.set(article.url, relatedDisasters);
+    }
+  }
+
+  return correlations;
+}
+
+/**
+ * Correlate weather alerts with article locations
+ */
+export function correlateWeatherWithArticles(
+  alerts: WeatherAlert[],
+  articles: any[]
+): Map<string, WeatherAlert[]> {
+  const correlations = new Map<string, WeatherAlert[]>();
+
+  for (const article of articles) {
+    const articleText = `${article.title} ${article.description}`.toLowerCase();
+    const relatedAlerts: WeatherAlert[] = [];
+
+    for (const alert of alerts) {
+      const areaDesc = alert.areaDesc.toLowerCase();
+      const event = alert.event.toLowerCase();
+
+      // Check if article mentions the area or event type
+      if (articleText.includes(areaDesc) || articleText.includes(event)) {
+        relatedAlerts.push(alert);
+      }
+    }
+
+    if (relatedAlerts.length > 0) {
+      correlations.set(article.url, relatedAlerts);
+    }
+  }
+
+  return correlations;
+}
+
+
+
+
+================================================================================
+FILE 33/33: src/utils/rssParser.ts
+================================================================================
+
+/**
+ * RSS Feed Parser Utility
+ * Parses RSS feeds from insurance news sources
+ */
+
+export interface RSSArticle {
+  title: string;
+  link: string;
+  description: string;
+  pubDate: string;
+  source: string;
+  guid?: string;
+}
+
+/**
+ * Parse RSS feed XML and extract articles
+ */
+export async function parseRSSFeed(feedUrl: string, sourceName: string): Promise<RSSArticle[]> {
+  try {
+    const response = await fetch(feedUrl);
+    if (!response.ok) {
+      console.error(`Failed to fetch RSS feed from ${sourceName}: ${response.statusText}`);
+      return [];
+    }
+
+    const text = await response.text();
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(text, 'text/xml');
+
+    // Check for parsing errors
+    if (xmlDoc.getElementsByTagName('parsererror').length > 0) {
+      console.error(`Failed to parse RSS feed from ${sourceName}`);
+      return [];
+    }
+
+    const items = xmlDoc.getElementsByTagName('item');
+    const articles: RSSArticle[] = [];
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      
+      const title = item.getElementsByTagName('title')[0]?.textContent || '';
+      const link = item.getElementsByTagName('link')[0]?.textContent || '';
+      const description = item.getElementsByTagName('description')[0]?.textContent || '';
+      const pubDate = item.getElementsByTagName('pubDate')[0]?.textContent || new Date().toISOString();
+      const guid = item.getElementsByTagName('guid')[0]?.textContent || link;
+
+      if (title && link) {
+        articles.push({
+          title,
+          link,
+          description: stripHtml(description),
+          pubDate,
+          source: sourceName,
+          guid,
+        });
+      }
+    }
+
+    return articles;
+  } catch (error) {
+    console.error(`Error parsing RSS feed from ${sourceName}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Strip HTML tags from text
+ */
+function stripHtml(html: string): string {
+  const tmp = document.createElement('DIV');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+}
+
+/**
+ * Fetch all RSS feeds in parallel
+ */
+export async function fetchAllRSSFeeds(): Promise<RSSArticle[]> {
+  const feeds = [
+    {
+      url: 'https://www.insurancejournal.com/rss/news',
+      name: 'Insurance Journal',
+    },
+    {
+      url: 'https://www.propertycasualty360.com/feed/',
+      name: 'Property Casualty 360',
+    },
+    {
+      url: 'https://insurancenewsnet.com/feed/',
+      name: 'InsuranceNewsNet',
+    },
+    {
+      url: 'https://web.ambest.com/news/rss',
+      name: 'A.M. Best',
+    },
+    {
+      url: 'https://www.artemis.bm/news/feed/',
+      name: 'Artemis.bm',
+    },
+  ];
+
+  const results = await Promise.all(
+    feeds.map(feed => parseRSSFeed(feed.url, feed.name))
+  );
+
+  return results.flat();
+}
+
+/**
+ * Deduplicate articles by URL
+ */
+export function deduplicateArticles(articles: RSSArticle[]): RSSArticle[] {
+  const seen = new Set<string>();
+  const unique: RSSArticle[] = [];
+
+  for (const article of articles) {
+    if (!seen.has(article.link)) {
+      seen.add(article.link);
+      unique.push(article);
+    }
+  }
+
+  return unique;
+}
+
+/**
+ * Sort articles by publication date (newest first)
+ */
+export function sortArticlesByDate(articles: RSSArticle[]): RSSArticle[] {
+  return articles.sort((a, b) => {
+    const dateA = new Date(a.pubDate).getTime();
+    const dateB = new Date(b.pubDate).getTime();
+    return dateB - dateA;
+  });
+}
+
+/**
+ * Convert RSS articles to Article format
+ */
+export function convertRSSToArticles(rssArticles: RSSArticle[]): any[] {
+  return rssArticles.map(rss => ({
+    title: rss.title,
+    url: rss.link,
+    source: rss.source,
+    publishedAt: rss.pubDate,
+    description: rss.description,
+    content: rss.description,
+  }));
+}
+
+
+
