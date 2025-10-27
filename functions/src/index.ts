@@ -126,7 +126,7 @@ async function initializeFeedsCollection() {
 /**
  * Process NewsAPI articles and add to Firestore
  */
-async function processNewsAPIArticles(client: OpenAI, results: any) {
+async function processNewsAPIArticles(client: OpenAI, results: { skipped: number; processed: number; errors: number }) {
   try {
     console.log('[NEWSAPI] Starting NewsAPI article fetch');
     const newsapiStartTime = Date.now();
@@ -153,7 +153,7 @@ async function processNewsAPIArticles(client: OpenAI, results: any) {
         }
 
         // Extract full content from URL
-        let content = { text: article.description || '', html: '', title: article.title, url: article.url };
+        const content = { text: article.description || '', html: '', title: article.title, url: article.url };
 
         if (article.content) {
           content.text = article.content;
@@ -861,7 +861,7 @@ export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, asyn
  * Fetches new articles from RSS feeds and adds them to the database
  * Runs every hour at minute 0
  */
-export const hourlyArticleRefresh = onSchedule("every 1 hours", async (context) => {
+export const hourlyArticleRefresh = onSchedule("every 1 hours", async () => {
   console.log("🔄 Starting hourly article refresh...");
 
   try {
@@ -879,7 +879,16 @@ export const hourlyArticleRefresh = onSchedule("every 1 hours", async (context) 
       "https://insurancenewsnet.com/feed",
     ];
 
-    const newArticles = [];
+    const newArticles: Array<{
+      title: string;
+      url: string;
+      source: string;
+      publishedAt: string;
+      description: string;
+      content: string;
+      createdAt: number;
+      updatedAt: number;
+    }> = [];
     const oneHourAgo = Date.now() - (60 * 60 * 1000);
 
     // Fetch from all sources
@@ -928,8 +937,8 @@ export const hourlyArticleRefresh = onSchedule("every 1 hours", async (context) 
 
         if (existing.empty) {
           // Extract and process article
-          const extracted = await extractArticle(article.url, article.description);
-          const processed = await summarizeAndTag(extracted, client);
+          const extracted = await extractArticle(article.url);
+          const processed = await summarizeAndTag(client, { ...extracted, source: article.source });
 
           const docRef = db.collection("articles").doc();
           batch.set(docRef, {

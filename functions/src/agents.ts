@@ -1,7 +1,6 @@
 import OpenAI from "openai";
 import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
-import crypto from "node:crypto";
 import { z } from "zod";
 import { backOff } from "exponential-backoff"; // Import for retry logic
 import {
@@ -308,7 +307,7 @@ export function getCanonicalUrl(url: string, html?: string): string {
     if (canonical) {
       return canonical.startsWith('http') ? canonical : new URL(canonical, url).href;
     }
-  } catch (e) {
+  } catch {
     // Ignore parsing errors
   }
 
@@ -347,7 +346,7 @@ export async function scoreArticleWithAI(
     title: string;
     bullets5?: string[];
     whyItMatters?: Record<string, string>;
-    tags?: any;
+    tags?: Record<string, unknown>;
     impactScore?: number;
     publishedAt?: string;
     regulatory?: boolean;
