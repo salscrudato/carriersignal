@@ -65,10 +65,10 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
             isOpen ? 'translate-y-0' : 'translate-y-full'
           }`}
         >
-          <div className="bg-gradient-to-b from-white via-blue-50/30 to-purple-50/20 border-t border-blue-200/30 rounded-t-3xl shadow-2xl animate-enhancedPremiumGlow">
+          <div className="liquid-glass-ultra border-t border-blue-200/20 rounded-t-3xl shadow-2xl animate-enhancedPremiumGlow">
             {/* Handle Bar */}
             <div className="flex justify-center pt-3 pb-2">
-              <div className="w-12 h-1 bg-slate-300 rounded-full" />
+              <div className="w-12 h-1 bg-gradient-to-r from-blue-300 to-purple-300 rounded-full" />
             </div>
 
             {/* Navigation Items */}
@@ -78,8 +78,8 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
                 onClick={() => handleNavClick('feed')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
                   currentView === 'feed'
-                    ? 'bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 shadow-md'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    ? 'liquid-glass-premium text-blue-700 shadow-md border border-blue-200/30'
+                    : 'liquid-glass-light text-slate-700 hover:border-blue-200/40'
                 }`}
               >
                 <Search size={20} />
@@ -91,8 +91,8 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
                 onClick={() => handleNavClick('dashboard')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
                   currentView === 'dashboard'
-                    ? 'bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 shadow-md'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    ? 'liquid-glass-premium text-blue-700 shadow-md border border-blue-200/30'
+                    : 'liquid-glass-light text-slate-700 hover:border-blue-200/40'
                 }`}
               >
                 <BarChart3 size={20} />
@@ -104,8 +104,8 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
                 onClick={() => handleNavClick('bookmarks')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
                   currentView === 'bookmarks'
-                    ? 'bg-amber-100 text-amber-700 shadow-md'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    ? 'liquid-glass-premium text-amber-700 shadow-md border border-amber-200/30'
+                    : 'liquid-glass-light text-slate-700 hover:border-amber-200/40'
                 }`}
               >
                 <Bookmark size={20} />
@@ -117,8 +117,8 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
                 onClick={() => handleNavClick('settings')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
                   currentView === 'settings'
-                    ? 'bg-blue-100 text-blue-700 shadow-md'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    ? 'liquid-glass-premium text-blue-700 shadow-md border border-blue-200/30'
+                    : 'liquid-glass-light text-slate-700 hover:border-blue-200/40'
                 }`}
               >
                 <Settings size={20} />
@@ -128,7 +128,7 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
               {/* Close Button */}
               <button
                 onClick={() => setIsOpen(false)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300 transition-all duration-300 mt-4"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold liquid-glass-light text-slate-700 hover:border-slate-300/40 transition-all duration-300 mt-4 border border-slate-200/30"
               >
                 <X size={20} />
                 <span>Close</span>
@@ -141,7 +141,7 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
       {/* Overlay */}
       {isOpen && (
         <div
-          className="md:hidden fixed inset-0 z-30 bg-black/40 pointer-events-auto"
+          className="md:hidden fixed inset-0 z-30 bg-black/30 backdrop-blur-sm pointer-events-auto transition-all duration-300"
           onClick={() => setIsOpen(false)}
         />
       )}

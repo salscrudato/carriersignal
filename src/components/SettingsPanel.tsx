@@ -37,7 +37,7 @@ export function SettingsPanel({
       <div className="max-w-2xl mx-auto p-6 space-y-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-lg liquid-glass-premium flex items-center justify-center border border-blue-200/30">
             <Settings size={20} className="text-blue-600" />
           </div>
           <h2 className="text-2xl font-bold text-slate-900">Settings</h2>
@@ -56,8 +56,8 @@ export function SettingsPanel({
                   onClick={() => setSelectedSort(sort.id as any)}
                   className={`w-full p-4 rounded-lg border-2 transition-all duration-200 text-left flex items-center gap-3 ${
                     selectedSort === sort.id
-                      ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-purple-50'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
+                      ? 'liquid-glass-premium border-blue-300/50'
+                      : 'liquid-glass-light border-blue-200/30 hover:border-blue-300/50'
                   }`}
                 >
                   <div className="text-blue-600">
@@ -73,16 +73,16 @@ export function SettingsPanel({
         </div>
 
         {/* Save Button */}
-        <div className="flex gap-3 pt-6 border-t border-slate-200">
+        <div className="flex gap-3 pt-6 border-t border-blue-200/20">
           <button
             onClick={handleSave}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white rounded-lg hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 transition-all duration-300 font-semibold"
+            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 liquid-glass-premium text-blue-700 rounded-lg hover:border-blue-300/50 transition-all duration-300 font-semibold border border-blue-200/30 elevated-glow"
           >
             <Save size={18} />
             Save Settings
           </button>
           {saved && (
-            <div className="flex items-center gap-2 px-4 py-3 bg-green-50 text-green-700 rounded-lg text-sm font-medium">
+            <div className="flex items-center gap-2 px-4 py-3 liquid-glass-light text-green-700 rounded-lg text-sm font-medium border border-green-200/30">
               <Check size={18} />
               Saved
             </div>

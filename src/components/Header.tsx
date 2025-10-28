@@ -9,7 +9,7 @@ export function Header({
 }: HeaderProps) {
   return (
     <header
-      className="sticky top-0 z-50 bg-white border-b border-blue-200/30 transition-all duration-350"
+      className="sticky top-0 z-50 liquid-glass-premium border-b border-blue-200/20 transition-all duration-350 backdrop-blur-xl"
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
 
@@ -18,7 +18,7 @@ export function Header({
           {/* Center: Logo & Branding - Centered */}
           <div className="flex items-center justify-center gap-2 group flex-shrink-0">
             {/* Modern Shield Icon with Blue-Purple-Pink Glow */}
-            <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center shadow-lg group-hover:shadow-2xl group-hover:scale-110 transition-all duration-300 animate-deepGlow">
+            <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center shadow-lg group-hover:shadow-2xl group-hover:scale-110 transition-all duration-300 animate-deepGlow elevated-glow">
               {/* Glow backdrop - subtle blue-purple-pink glow */}
               <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-400 via-purple-400 to-pink-400 opacity-0 group-hover:opacity-40 blur-xl transition-opacity duration-300"></div>
               <Shield size={16} className="text-white sm:w-5 sm:h-5 animate-iconGlow relative z-10" />

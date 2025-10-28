@@ -12,6 +12,7 @@
 import { useState, useEffect } from 'react';
 import { Zap, Clock, ExternalLink } from 'lucide-react';
 import { rankArticlesByAI, rankArticlesByRecency } from '../utils/rankingSystem';
+import { InfiniteScrollLoader, ScrollSentinelLoader } from './InfiniteScrollLoader';
 
 interface Article {
   title: string;
@@ -42,6 +43,9 @@ interface SearchFirstProps {
   selectedArticle?: Article | null;
   sortMode?: 'smart' | 'recency';
   onSortChange?: (sort: 'smart' | 'recency') => void;
+  isLoadingMore?: boolean;
+  hasMore?: boolean;
+  sentinelRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export function SearchFirst({
@@ -50,6 +54,9 @@ export function SearchFirst({
   selectedArticle,
   sortMode = 'smart',
   onSortChange,
+  isLoadingMore = false,
+  hasMore = true,
+  sentinelRef,
 }: SearchFirstProps) {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [localSortBy, setLocalSortBy] = useState<'smart' | 'recency'>(sortMode || 'smart');
@@ -99,10 +106,10 @@ export function SearchFirst({
     <div className="w-full max-w-full overflow-x-hidden space-y-0 flex flex-col h-full">
 
       {/* Sort Controls Header - Mobile Optimized */}
-      <div className="sticky top-0 z-40 bg-white border-b border-purple-200/50 shadow-sm p-3 sm:p-4 flex-shrink-0 w-full max-w-full overflow-x-hidden">
+      <div className="sticky top-0 z-40 liquid-glass-premium border-b border-purple-200/30 shadow-sm p-3 sm:p-4 flex-shrink-0 w-full max-w-full overflow-x-hidden">
         <div className="flex items-center gap-2 sm:gap-3 w-full max-w-full overflow-x-hidden">
           {/* Sort Buttons - Two Options Only */}
-          <div className="flex items-center gap-1 sm:gap-1.5 bg-purple-50 rounded-lg p-1 border border-purple-200/50 flex-shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 liquid-glass-light rounded-lg p-1 border border-purple-200/30 flex-shrink-0">
             <button
               onClick={() => {
                 setLocalSortBy('smart');
@@ -110,7 +117,7 @@ export function SearchFirst({
               }}
               className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
                 localSortBy === 'smart'
-                  ? 'bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 shadow-md'
+                  ? 'liquid-glass-premium text-purple-700 shadow-md border border-purple-200/30'
                   : 'text-purple-600 hover:text-purple-900 hover:bg-purple-50/50'
               }`}
             >
@@ -126,7 +133,7 @@ export function SearchFirst({
               }}
               className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
                 localSortBy === 'recency'
-                  ? 'bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 shadow-md'
+                  ? 'liquid-glass-premium text-blue-700 shadow-md border border-blue-200/30'
                   : 'text-blue-600 hover:text-blue-900 hover:bg-blue-50/50'
               }`}
             >
@@ -159,6 +166,26 @@ export function SearchFirst({
               />
             ))}
           </div>
+
+          {/* Loading indicator for infinite scroll */}
+          {isLoadingMore && (
+            <div className="mt-6">
+              <ScrollSentinelLoader />
+            </div>
+          )}
+
+          {/* Sentinel element for infinite scroll trigger */}
+          <div ref={sentinelRef} className="h-4 w-full" />
+
+          {/* End of list or error states */}
+          {!isLoadingMore && (
+            <InfiniteScrollLoader
+              isLoading={false}
+              hasMore={hasMore}
+              isEmpty={searchResults.length === 0}
+              itemCount={3}
+            />
+          )}
         </div>
       </div>
 
@@ -197,15 +224,15 @@ function SearchResultCard({ result, isSelected, onSelect, index = 0 }: SearchRes
       style={{ animationDelay: `${index * 50}ms` }}
       className={`w-full max-w-full rounded-xl border-2 transition-all duration-300 animate-slideInWithBounce overflow-hidden flex flex-col ${
         isSelected
-          ? 'liquid-glass-premium border-blue-400 shadow-lg animate-premiumGlow'
-          : 'glass border-blue-200/30 hover:border-blue-300 hover:shadow-lg hover:scale-102 hover:animate-subtleGlowPulse'
+          ? 'liquid-glass-ultra border-blue-300/50 shadow-lg animate-premiumGlow elevated-glow'
+          : 'liquid-glass border-blue-200/30 hover:border-blue-300/50 hover:shadow-lg hover:scale-102 hover:animate-subtleGlowPulse micro-glow'
       }`}
     >
       {/* Gradient Accent Top - Blue to Purple to Pink */}
-      <div className="h-1 w-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+      <div className="h-1.5 w-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-80"></div>
 
       {/* Content Section with Subtle Gradient */}
-      <div className="p-4 space-y-3 flex-1 flex flex-col bg-white w-full max-w-full overflow-x-hidden">
+      <div className="p-4 space-y-3 flex-1 flex flex-col bg-gradient-to-br from-white via-blue-50/20 to-purple-50/10 w-full max-w-full overflow-x-hidden">
         {/* Header with Source and Time (moved to top right) */}
         <div className="flex items-start justify-between gap-3 w-full max-w-full overflow-x-hidden">
           <div className="flex-1 min-w-0 overflow-hidden">
@@ -245,17 +272,73 @@ function SearchResultCard({ result, isSelected, onSelect, index = 0 }: SearchRes
           </div>
         )}
 
+        {/* Tags Section */}
+        {article.tags && Object.values(article.tags).some((tagArray: any) => tagArray && tagArray.length > 0) && (
+          <div className="space-y-2 py-3 border-t border-blue-100 pt-3 w-full max-w-full overflow-x-hidden">
+            <div className="flex flex-wrap gap-2 w-full max-w-full">
+              {/* LOB Tags */}
+              {article.tags.lob && article.tags.lob.length > 0 && (
+                article.tags.lob.map((tag: string, idx: number) => (
+                  <span key={`lob-${idx}`} className="px-2.5 py-1 rounded-full liquid-glass-light text-slate-600 text-xs font-medium whitespace-nowrap border border-slate-200/40">
+                    {tag}
+                  </span>
+                ))
+              )}
+              {/* Perils Tags */}
+              {article.tags.perils && article.tags.perils.length > 0 && (
+                article.tags.perils.map((tag: string, idx: number) => (
+                  <span key={`perils-${idx}`} className="px-2.5 py-1 rounded-full liquid-glass-light text-slate-600 text-xs font-medium whitespace-nowrap border border-slate-200/40">
+                    {tag}
+                  </span>
+                ))
+              )}
+              {/* Regions Tags */}
+              {article.tags.regions && article.tags.regions.length > 0 && (
+                article.tags.regions.map((tag: string, idx: number) => (
+                  <span key={`regions-${idx}`} className="px-2.5 py-1 rounded-full liquid-glass-light text-slate-600 text-xs font-medium whitespace-nowrap border border-slate-200/40">
+                    {tag}
+                  </span>
+                ))
+              )}
+              {/* Companies Tags */}
+              {article.tags.companies && article.tags.companies.length > 0 && (
+                article.tags.companies.map((tag: string, idx: number) => (
+                  <span key={`companies-${idx}`} className="px-2.5 py-1 rounded-full liquid-glass-light text-slate-600 text-xs font-medium whitespace-nowrap border border-slate-200/40">
+                    {tag}
+                  </span>
+                ))
+              )}
+              {/* Trends Tags */}
+              {article.tags.trends && article.tags.trends.length > 0 && (
+                article.tags.trends.map((tag: string, idx: number) => (
+                  <span key={`trends-${idx}`} className="px-2.5 py-1 rounded-full liquid-glass-light text-slate-600 text-xs font-medium whitespace-nowrap border border-slate-200/40">
+                    {tag}
+                  </span>
+                ))
+              )}
+              {/* Regulations Tags */}
+              {article.tags.regulations && article.tags.regulations.length > 0 && (
+                article.tags.regulations.map((tag: string, idx: number) => (
+                  <span key={`regulations-${idx}`} className="px-2.5 py-1 rounded-full liquid-glass-light text-slate-600 text-xs font-medium whitespace-nowrap border border-slate-200/40">
+                    {tag}
+                  </span>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Bottom Action Buttons */}
-        <div className="flex gap-2 pt-4 mt-auto border-t border-blue-100 pt-3 w-full max-w-full overflow-x-hidden">
+        <div className="flex gap-2 pt-4 mt-auto border-t border-blue-100/50 pt-3 w-full max-w-full overflow-x-hidden">
           <button
             onClick={handleViewMore}
-            className="flex-1 px-3 py-2 text-xs font-semibold text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors duration-200 min-h-[44px] touch-action-manipulation"
+            className="flex-1 px-3 py-2 text-xs font-semibold text-blue-700 liquid-glass-light rounded-lg hover:border-blue-300/50 transition-all duration-200 min-h-[44px] touch-action-manipulation border border-blue-200/30"
           >
             View More
           </button>
           <button
             onClick={handleViewArticle}
-            className="flex-1 px-3 py-2 text-xs font-semibold text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors duration-200 flex items-center justify-center gap-1 min-h-[44px] touch-action-manipulation"
+            className="flex-1 px-3 py-2 text-xs font-semibold text-blue-700 liquid-glass-light rounded-lg hover:border-blue-300/50 transition-all duration-200 flex items-center justify-center gap-1 min-h-[44px] touch-action-manipulation border border-blue-200/30"
           >
             <span className="hidden sm:inline">View Article</span>
             <span className="sm:hidden">Article</span>

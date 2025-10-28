@@ -47,12 +47,12 @@ export function BriefPanel({
   const timeAgo = article.publishedAt ? getTimeAgo(new Date(article.publishedAt)) : '';
 
   return (
-    <div className="flex flex-col w-full max-w-full lg:w-1/2 bg-white lg:border-l border-blue-200/30 overflow-y-auto overflow-x-hidden animate-slideInRight">
+    <div className="flex flex-col w-full max-w-full lg:w-1/2 liquid-glass-ultra lg:border-l border-blue-200/20 overflow-y-auto overflow-x-hidden animate-slideInRight">
       {/* Header with Title and Metadata */}
-      <div className="sticky top-0 bg-white border-b border-blue-200/30 p-4 sm:p-6 shadow-sm z-10 w-full max-w-full overflow-x-hidden">
+      <div className="sticky top-0 liquid-glass-premium border-b border-blue-200/20 p-4 sm:p-6 shadow-sm z-10 w-full max-w-full overflow-x-hidden">
         <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-3 leading-tight break-words">{article.title}</h2>
         <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-slate-600 flex-wrap w-full max-w-full overflow-x-hidden">
-          <span className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 font-semibold text-xs truncate">
+          <span className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full liquid-glass-light text-blue-700 font-semibold text-xs truncate border border-blue-200/30">
             <svg className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -73,7 +73,7 @@ export function BriefPanel({
       <div className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto w-full max-w-full overflow-x-hidden">
         {/* Lead Quote with Enhanced Styling */}
         {article.leadQuote && (
-          <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl border-l-4 border-blue-500 p-5 shadow-sm hover:shadow-lg transition-all duration-300">
+          <div className="liquid-glass-premium rounded-2xl border-l-4 border-blue-500 p-5 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/30">
             <div className="flex items-start gap-3">
               <svg className="w-6 h-6 text-blue-500 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
@@ -85,7 +85,7 @@ export function BriefPanel({
 
         {/* Storm Name Badge */}
         {article.stormName && (
-          <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl px-5 py-3 border border-orange-200 flex items-center gap-2 hover:shadow-lg transition-all duration-300 hover:scale-105 w-fit">
+          <div className="liquid-glass-premium rounded-xl px-5 py-3 border border-orange-200/50 flex items-center gap-2 hover:shadow-lg transition-all duration-300 hover:scale-105 w-fit">
             <AlertTriangle size={16} className="text-orange-700" />
             <p className="text-sm font-bold text-orange-700">{article.stormName}</p>
           </div>

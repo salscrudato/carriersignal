@@ -99,15 +99,15 @@ export function CommandPalette({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-start justify-center pt-20"
+      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-md flex items-start justify-center pt-20"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden"
+        className="w-full max-w-2xl liquid-glass-ultra rounded-2xl shadow-2xl overflow-hidden border border-blue-200/30 animate-commandPaletteSlideIn"
         onClick={e => e.stopPropagation()}
       >
         {/* Search Input */}
-        <div className="border-b border-slate-200 p-4">
+        <div className="border-b border-blue-200/20 p-4 liquid-glass-premium">
           <div className="flex items-center gap-3">
             <Search size={20} className="text-slate-400" />
             <input
@@ -131,7 +131,7 @@ export function CommandPalette({
               <p className="text-slate-500">No articles found</p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-blue-100/30">
               {results.map((article, idx) => (
                 <button
                   key={article.id}
@@ -141,8 +141,8 @@ export function CommandPalette({
                   }}
                   className={`w-full text-left p-4 transition-all duration-200 ${
                     idx === selectedIndex
-                      ? 'bg-gradient-to-r from-blue-50 to-purple-50 border-l-4 border-blue-500'
-                      : 'hover:bg-slate-50'
+                      ? 'liquid-glass-premium border-l-4 border-blue-500'
+                      : 'hover:liquid-glass-light'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -162,7 +162,7 @@ export function CommandPalette({
                         {article.tags.companies.slice(0, 2).map(company => (
                           <span
                             key={company}
-                            className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded"
+                            className="text-xs liquid-glass-light text-slate-700 px-2 py-1 rounded border border-slate-200/30"
                           >
                             {company}
                           </span>
@@ -177,7 +177,7 @@ export function CommandPalette({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500 flex items-center justify-between">
+        <div className="border-t border-blue-200/20 liquid-glass-premium px-4 py-3 text-xs text-slate-500 flex items-center justify-between">
           <div className="flex gap-4">
             <span>↑↓ Navigate</span>
             <span>⏎ Select</span>

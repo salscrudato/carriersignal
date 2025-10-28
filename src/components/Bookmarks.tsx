@@ -73,7 +73,7 @@ export function Bookmarks({ onArticleSelect }: BookmarksProps) {
     return (
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="text-center">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center mx-auto mb-3 animate-pulse">
+          <div className="w-12 h-12 rounded-full liquid-glass-premium flex items-center justify-center mx-auto mb-3 animate-pulse border border-blue-200/30">
             <Bookmark size={24} className="text-blue-600" />
           </div>
           <p className="text-slate-500">Loading bookmarks...</p>
@@ -86,7 +86,7 @@ export function Bookmarks({ onArticleSelect }: BookmarksProps) {
     return (
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="text-center">
-          <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 rounded-full liquid-glass-light flex items-center justify-center mx-auto mb-4 border border-blue-200/30">
             <Bookmark size={32} className="text-slate-400" />
           </div>
           <h3 className="text-lg font-semibold text-slate-900 mb-1">No bookmarks yet</h3>
@@ -102,7 +102,7 @@ export function Bookmarks({ onArticleSelect }: BookmarksProps) {
         {bookmarks.map(bookmark => (
           <div
             key={bookmark.id}
-            className="p-4 rounded-lg border border-blue-200/30 hover:border-blue-300 hover:shadow-md transition-all duration-300 bg-white"
+            className="p-4 rounded-lg border border-blue-200/30 hover:border-blue-300/50 hover:shadow-md transition-all duration-300 liquid-glass-light micro-glow"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
@@ -126,14 +126,14 @@ export function Bookmarks({ onArticleSelect }: BookmarksProps) {
                   href={bookmark.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                  className="p-2 hover:liquid-glass-premium rounded-lg transition-all border border-blue-200/20 hover:border-blue-300/50"
                   title="Open in new tab"
                 >
                   <ExternalLink size={16} className="text-blue-600" />
                 </a>
                 <button
                   onClick={() => handleRemoveBookmark(bookmark.id)}
-                  className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                  className="p-2 hover:liquid-glass-premium rounded-lg transition-all border border-red-200/20 hover:border-red-300/50"
                   title="Remove bookmark"
                 >
                   <Trash2 size={16} className="text-red-600" />

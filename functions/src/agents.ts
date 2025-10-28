@@ -381,13 +381,16 @@ function ensureImpactCoherence(article: z.infer<typeof schema>): z.infer<typeof 
  * - Ensures impactScore and impactBreakdown are coherent
  */
 export function validateAndCleanArticle(article: z.infer<typeof schema>): z.infer<typeof schema> {
-  // Deduplicate citations (case-insensitive)
-  const uniqueCitations = Array.from(
-    new Set(article.citations.map(c => c.toLowerCase()))
-  ).map(c => article.citations.find(orig => orig.toLowerCase() === c)!);
+  // Deduplicate citations (case-insensitive), filtering out undefined/null values
+  const citationsToProcess = (article.citations || []).filter((c): c is string => c != null);
+  const uniqueLowercase = Array.from(new Set(citationsToProcess.map(c => c.toLowerCase())));
+  const uniqueCitations = uniqueLowercase
+    .map(lower => citationsToProcess.find(orig => orig.toLowerCase() === lower))
+    .filter((c): c is string => c != null);
 
   // Validate all citations are proper URLs
   const validCitations = uniqueCitations.filter(c => {
+    if (!c) return false;
     try {
       new URL(c);
       return true;

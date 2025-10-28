@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
+import { useEffect, useState, useCallback } from "react";
+import { collection, query, orderBy, limit, startAfter, getDocs } from "firebase/firestore";
 import { db } from "./firebase";
 import { Header } from "./components/Header";
 import { SearchFirst } from "./components/SearchFirst";
@@ -10,6 +10,7 @@ import { SkeletonGrid } from "./components/SkeletonLoader";
 import { CommandPalette } from "./components/CommandPalette";
 import { Bookmarks } from "./components/Bookmarks";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { useInfiniteScroll } from "./hooks/useInfiniteScroll";
 import "./index.css";
 
 type Article = {
@@ -74,36 +75,92 @@ export default function App() {
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [quickReadArticle, setQuickReadArticle] = useState<Article | null>(null);
 
-  // Real-time Firestore listener for latest 100 articles
-  useEffect(() => {
-    const q = query(
-      collection(db, "articles"),
-      orderBy("createdAt", "desc"),
-      limit(100)
-    );
+  // Pagination state
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [lastCursor, setLastCursor] = useState<any>(null);
+  const PAGE_SIZE = 20;
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
+  // Load initial articles with pagination
+  useEffect(() => {
+    const loadInitialArticles = async () => {
+      try {
+        const q = query(
+          collection(db, "articles"),
+          orderBy("createdAt", "desc"),
+          limit(PAGE_SIZE)
+        );
+
+        const snapshot = await getDocs(q);
         console.log(`[Firestore] Received ${snapshot.docs.length} articles`);
+
         const docs = snapshot.docs.map((doc) => ({
           ...doc.data(),
           createdAt: doc.data().createdAt?.toDate?.() || new Date(),
         })) as Article[];
 
         setArticles(docs);
+
+        // Set cursor for next page
+        if (snapshot.docs.length > 0) {
+          setLastCursor(snapshot.docs[snapshot.docs.length - 1]);
+          setHasMore(snapshot.docs.length === PAGE_SIZE);
+        } else {
+          setHasMore(false);
+        }
+
         setLoading(false);
-      },
-      (error) => {
+      } catch (error) {
         console.error("[Error] Error fetching articles:", error);
-        console.error("Error code:", error.code);
-        console.error("Error message:", error.message);
         setLoading(false);
       }
-    );
+    };
 
-    return () => unsubscribe();
+    loadInitialArticles();
   }, []);
+
+  // Load more articles (infinite scroll)
+  const loadMoreArticles = useCallback(async () => {
+    if (!hasMore || isLoadingMore || !lastCursor) return;
+
+    setIsLoadingMore(true);
+    try {
+      const q = query(
+        collection(db, "articles"),
+        orderBy("createdAt", "desc"),
+        startAfter(lastCursor),
+        limit(PAGE_SIZE)
+      );
+
+      const snapshot = await getDocs(q);
+
+      const newDocs = snapshot.docs.map((doc) => ({
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+      })) as Article[];
+
+      if (newDocs.length > 0) {
+        setArticles((prev) => [...prev, ...newDocs]);
+        setLastCursor(snapshot.docs[snapshot.docs.length - 1]);
+        setHasMore(newDocs.length === PAGE_SIZE);
+      } else {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error("[Error] Error loading more articles:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [hasMore, isLoadingMore, lastCursor]);
+
+  // Infinite scroll hook
+  const { sentinelRef } = useInfiniteScroll({
+    onLoadMore: loadMoreArticles,
+    isLoading: isLoadingMore,
+    hasMore,
+    threshold: 0.1,
+    rootMargin: '200px',
+  });
 
   // A1: Keyboard shortcuts for Command-K and Quick Read
   useEffect(() => {
@@ -152,6 +209,9 @@ export default function App() {
               selectedArticle={selectedArticle as any}
               sortMode={sortMode}
               onSortChange={setSortMode}
+              isLoadingMore={isLoadingMore}
+              hasMore={hasMore}
+              sentinelRef={sentinelRef}
             />
           </div>
 
