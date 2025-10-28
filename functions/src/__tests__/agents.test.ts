@@ -87,7 +87,7 @@ describe('Schema Validation', () => {
 
   it('should reject missing required fields', () => {
     const invalid = { ...validArticle };
-    delete (invalid as any).title;
+    delete (invalid as Record<string, unknown>).title;
     expect(() => schema.parse(invalid)).toThrow();
   });
 

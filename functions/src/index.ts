@@ -811,12 +811,12 @@ function cosineSimilarity(a: number[], b: number[]): number {
  * Balances relevance with diversity to avoid redundant results
  */
 function mmrRerank(
-  items: Array<{it: any; score: number}>,
+  items: Array<{it: Record<string, unknown>; score: number}>,
   qEmb: number[],
   topK: number,
   lambda: number = 0.7
-): Array<{it: any; score: number; mmrScore: number}> {
-  const selected: Array<{it: any; score: number; mmrScore: number}> = [];
+): Array<{it: Record<string, unknown>; score: number; mmrScore: number}> {
+  const selected: Array<{it: Record<string, unknown>; score: number; mmrScore: number}> = [];
   const remaining = [...items];
 
   while (selected.length < topK && remaining.length > 0) {
@@ -853,10 +853,10 @@ function mmrRerank(
  * Apply cluster diversity: limit to 1 article per clusterId
  */
 function applyClusterDiversity(
-  items: Array<{it: any; score: number; mmrScore?: number}>,
+  items: Array<{it: Record<string, unknown>; score: number; mmrScore?: number}>,
   maxPerCluster: number = 1
-): Array<{it: any; score: number; mmrScore?: number}> {
-  const clusterMap = new Map<string, Array<{it: any; score: number; mmrScore?: number}>>();
+): Array<{it: Record<string, unknown>; score: number; mmrScore?: number}> {
+  const clusterMap = new Map<string, Array<{it: Record<string, unknown>; score: number; mmrScore?: number}>>();
 
   for (const item of items) {
     const clusterId = item.it.clusterId || item.it.id;
@@ -866,7 +866,7 @@ function applyClusterDiversity(
     clusterMap.get(clusterId)!.push(item);
   }
 
-  const result: Array<{it: any; score: number; mmrScore?: number}> = [];
+  const result: Array<{it: Record<string, unknown>; score: number; mmrScore?: number}> = [];
   for (const cluster of clusterMap.values()) {
     // Take top N from each cluster (sorted by score)
     result.push(...cluster.sort((a, b) => (b.mmrScore ?? b.score) - (a.mmrScore ?? a.score)).slice(0, maxPerCluster));
@@ -879,15 +879,15 @@ function applyClusterDiversity(
  * Apply recency boost: recent articles get higher scores
  */
 function applyRecencyBoost(
-  items: Array<{it: any; score: number; mmrScore?: number}>,
+  items: Array<{it: Record<string, unknown>; score: number; mmrScore?: number}>,
   boostFactor: number = 0.1
-): Array<{it: any; score: number; mmrScore?: number; recencyBoostedScore?: number}> {
+): Array<{it: Record<string, unknown>; score: number; mmrScore?: number; recencyBoostedScore?: number}> {
   const now = Date.now();
   const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
 
   return items.map(item => {
-    const createdAt = item.it.createdAt?.toDate?.() || item.it.createdAt || new Date();
-    const age = now - (createdAt instanceof Date ? createdAt.getTime() : createdAt);
+    const createdAt = (item.it.createdAt as {toDate?: () => Date} | Date | number | undefined)?.toDate?.() || item.it.createdAt || new Date();
+    const age = now - (createdAt instanceof Date ? createdAt.getTime() : (createdAt as number));
     const recencyScore = Math.max(0, 1 - age / maxAge);
     const boostedScore = (item.mmrScore ?? item.score) + recencyScore * boostFactor;
 
@@ -899,17 +899,17 @@ function applyRecencyBoost(
  * Simple BM25-style keyword scoring for hybrid retrieval (D2)
  * Scores articles based on keyword matches in title, bullets, and tags
  */
-function scoreByKeywords(query: string, article: any): number {
+function scoreByKeywords(query: string, article: Record<string, unknown>): number {
   const queryTerms = query.toLowerCase().split(/\s+/).filter(t => t.length > 2);
   if (queryTerms.length === 0) return 0;
 
   let score = 0;
   const text = [
-    article.title || "",
-    (article.bullets5 || []).join(" "),
-    (article.tags?.trends || []).join(" "),
-    (article.tags?.regulations || []).join(" "),
-    (article.tags?.perils || []).join(" "),
+    (article.title as string) || "",
+    ((article.bullets5 as string[]) || []).join(" "),
+    ((article.tags as {trends?: string[]})?.trends || []).join(" "),
+    ((article.tags as {regulations?: string[]})?.regulations || []).join(" "),
+    ((article.tags as {perils?: string[]})?.perils || []).join(" "),
   ].join(" ").toLowerCase();
 
   for (const term of queryTerms) {
@@ -923,7 +923,7 @@ function scoreByKeywords(query: string, article: any): number {
 /**
  * Promote regulatory and CAT documents when relevant (D2)
  */
-function promoteRegulatoryAndCAT(items: Array<{it: any; score: number}>, query: string): Array<{it: any; score: number}> {
+function promoteRegulatoryAndCAT(items: Array<{it: Record<string, unknown>; score: number}>, query: string): Array<{it: Record<string, unknown>; score: number}> {
   const regulatoryKeywords = ["regulatory", "naic", "doi", "bulletin", "rule", "regulation", "compliance"];
   const catKeywords = ["hurricane", "storm", "catastrophe", "cat", "disaster", "wildfire", "earthquake"];
 
@@ -1004,10 +1004,9 @@ export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, asyn
     const embeddingMap = new Map(embeddingSnap.docs.map(d => [d.data().articleId, d.data().embedding]));
 
     // Merge embeddings with articles
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const items = articles
       .filter(a => embeddingMap.has(a.id)) // Only include articles with embeddings
-      .map(a => ({...a, embedding: embeddingMap.get(a.id)} as any));
+      .map(a => ({...a, embedding: embeddingMap.get(a.id)} as Record<string, unknown>));
 
     if (items.length === 0) {
       res.json({
@@ -1092,7 +1091,7 @@ export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, asyn
     const validArticleUrls = new Set(finalRanked.map(r => (r.it.canonicalUrl || r.it.url).toLowerCase()));
 
     // Extract URLs from answer text (both [URL] format and plain URLs)
-    const urlPattern = /\[?(https?:\/\/[^\s\[\]]+)\]?/gi;
+    const urlPattern = /\[?(https?:\/\/[^\s[\]]+)\]?/gi;
     const extractedUrls = new Set<string>();
     let match;
     while ((match = urlPattern.exec(answerText)) !== null) {
