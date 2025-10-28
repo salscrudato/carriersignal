@@ -12,6 +12,9 @@ module.exports = {
       },
     }],
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(parse5|jsdom)/)',
+  ],
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',

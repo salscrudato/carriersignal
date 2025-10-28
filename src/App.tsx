@@ -7,6 +7,9 @@ import { BriefPanel } from "./components/BriefPanel";
 import { Dashboard } from "./components/Dashboard";
 import { MobileNav } from "./components/MobileNav";
 import { SkeletonGrid } from "./components/SkeletonLoader";
+import { CommandPalette } from "./components/CommandPalette";
+import { Bookmarks } from "./components/Bookmarks";
+import { SettingsPanel } from "./components/SettingsPanel";
 import "./index.css";
 
 type Article = {
@@ -60,10 +63,17 @@ type Article = {
 };
 
 export default function App() {
+  // Core state
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
-  const [view, setView] = useState<'feed' | 'dashboard'>('feed');
+  const [view, setView] = useState<'feed' | 'dashboard' | 'bookmarks' | 'settings'>('feed');
+
+  // A1: Global UI state for enhanced experience
+  const [roles, setRoles] = useState<string[]>(['underwriting']); // Default role
+  const [sortMode, setSortMode] = useState<'smart' | 'recency'>('smart');
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [quickReadArticle, setQuickReadArticle] = useState<Article | null>(null);
 
   // Real-time Firestore listener for latest 100 articles
   useEffect(() => {
@@ -76,7 +86,7 @@ export default function App() {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        console.log(`📊 Firestore: Received ${snapshot.docs.length} articles`);
+        console.log(`[Firestore] Received ${snapshot.docs.length} articles`);
         const docs = snapshot.docs.map((doc) => ({
           ...doc.data(),
           createdAt: doc.data().createdAt?.toDate?.() || new Date(),
@@ -86,7 +96,7 @@ export default function App() {
         setLoading(false);
       },
       (error) => {
-        console.error("❌ Error fetching articles:", error);
+        console.error("[Error] Error fetching articles:", error);
         console.error("Error code:", error.code);
         console.error("Error message:", error.message);
         setLoading(false);
@@ -96,10 +106,29 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  // A1: Keyboard shortcuts for Command-K and Quick Read
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Command-K or Ctrl-K to open palette
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsPaletteOpen(!isPaletteOpen);
+      }
+      // Escape to close palette or quick read
+      if (e.key === 'Escape') {
+        setIsPaletteOpen(false);
+        setQuickReadArticle(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPaletteOpen]);
+
   // Render
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex flex-col">
+      <div className="min-h-screen bg-gradient-to-b from-white via-blue-50/30 to-purple-50/20 flex flex-col">
         <Header isLoading={true} />
         <SkeletonGrid />
       </div>
@@ -107,34 +136,39 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex flex-col">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-gradient-to-b from-white via-blue-50/30 to-purple-50/20 flex flex-col">
       {/* Professional Header */}
-      <Header isLoading={false} view={view} onViewChange={setView} />
+      <Header
+        isLoading={false}
+        roles={roles}
+        onRolesChange={setRoles}
+      />
 
       {/* Main Content Area */}
       {view === 'feed' ? (
-        <div className="flex-1 flex gap-0 overflow-hidden">
+        <div className="flex-1 flex gap-0 overflow-hidden w-full max-w-full">
           {/* Left: Search Results - Full Width on Mobile */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto w-full max-w-full overflow-x-hidden">
             <SearchFirst
-              articles={articles}
-              onArticleSelect={setSelectedArticle}
-              selectedArticle={selectedArticle}
+              articles={articles as any[]}
+              onArticleSelect={(article: any) => setSelectedArticle(article)}
+              selectedArticle={selectedArticle as any}
+              sortMode={sortMode}
+              onSortChange={setSortMode}
             />
           </div>
 
           {/* Right: Brief Panel (Desktop Only) */}
-          <div className="hidden lg:flex lg:w-1/3 border-l border-slate-200 overflow-y-auto bg-white flex-col">
+          <div className="hidden lg:flex lg:w-1/3 border-l border-blue-200/30 overflow-y-auto bg-white flex-col w-full max-w-full overflow-x-hidden">
             {selectedArticle ? (
               <BriefPanel
                 article={selectedArticle}
-                onClose={() => setSelectedArticle(null)}
               />
             ) : (
               <div className="flex-1 flex items-center justify-center p-6 text-center">
                 <div>
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center mx-auto mb-4 animate-subtleGlowPulse">
+                    <svg className="w-8 h-8 text-blue-600 animate-iconGlow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
@@ -145,11 +179,22 @@ export default function App() {
             )}
           </div>
         </div>
-      ) : (
+      ) : view === 'dashboard' ? (
         <div className="flex-1 overflow-y-auto">
           <Dashboard articles={articles} />
         </div>
-      )}
+      ) : view === 'bookmarks' ? (
+        <div className="flex-1 flex flex-col bg-gradient-to-b from-white via-blue-50/30 to-purple-50/20">
+          <Bookmarks onArticleSelect={setSelectedArticle} />
+        </div>
+      ) : view === 'settings' ? (
+        <div className="flex-1 flex flex-col bg-gradient-to-b from-white via-blue-50/30 to-purple-50/20">
+          <SettingsPanel
+            onRolesChange={setRoles}
+            onSortChange={setSortMode}
+          />
+        </div>
+      ) : null}
 
       {/* Mobile: Full-Screen Brief Panel Modal */}
       {selectedArticle && (
@@ -163,11 +208,36 @@ export default function App() {
           >
             <BriefPanel
               article={selectedArticle}
-              onClose={() => setSelectedArticle(null)}
             />
           </div>
         </div>
       )}
+
+      {/* Quick Read Modal */}
+      {quickReadArticle && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+          onClick={() => setQuickReadArticle(null)}
+        >
+          <div
+            className="w-full max-w-2xl bg-white rounded-2xl max-h-[90vh] overflow-y-auto shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Quick Read content will be rendered here by QuickReadModal component */}
+            <div className="p-6 text-center text-slate-500">
+              <p>Quick Read feature coming soon...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* A3: Command Palette */}
+      <CommandPalette
+        isOpen={isPaletteOpen}
+        onClose={() => setIsPaletteOpen(false)}
+        articles={articles as any[]}
+        onArticleSelect={(article: any) => setSelectedArticle(article)}
+      />
 
       {/* Mobile Navigation */}
       <MobileNav onViewChange={setView} currentView={view} />

@@ -1,8 +1,8 @@
 export function SkeletonLoader() {
   return (
-    <div className="liquid-glass-premium rounded-3xl border border-slate-200 overflow-hidden hover:shadow-xl transition-all duration-400 animate-slideInWithBounce">
-      {/* Premium accent line with shimmer */}
-      <div className="h-2 bg-gradient-to-r from-slate-200 via-slate-150 to-slate-100 opacity-60 animate-liquidGlassShimmer"></div>
+    <div className="liquid-glass-premium rounded-3xl border border-slate-200 overflow-hidden hover:shadow-xl transition-all duration-400 animate-slideInWithBounce animate-enhancedPremiumGlow">
+      {/* Premium accent line with shimmer and gradient */}
+      <div className="h-2 bg-gradient-to-r from-blue-300 via-purple-200 to-pink-200 opacity-80 animate-liquidGlassShimmer"></div>
 
       {/* Header with liquid glass effect */}
       <div className="px-7 py-6 border-b border-slate-100/50 bg-gradient-to-br from-white/40 to-slate-50/30 backdrop-blur-sm">
@@ -16,7 +16,7 @@ export function SkeletonLoader() {
       {/* Content */}
       <div className="px-7 py-6">
         {/* Key Points */}
-        <div className="mb-6 p-6 glass rounded-2xl border border-blue-200/50 bg-gradient-to-br from-blue-50/60 to-indigo-50/40 backdrop-blur-sm">
+        <div className="mb-6 p-6 glass rounded-2xl border border-blue-200/30 bg-gradient-to-br from-blue-50/60 to-purple-50/40 backdrop-blur-sm">
           <div className="h-3 bg-slate-200 rounded-lg w-1/6 mb-4 animate-shimmer"></div>
           <div className="space-y-3.5">
             <div className="h-4 bg-slate-100 rounded-lg w-full animate-shimmer"></div>

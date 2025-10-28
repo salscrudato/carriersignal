@@ -205,3 +205,88 @@ export function recordUserFeedback(
   };
 }
 
+/**
+ * Lexical search - simple keyword matching with fuzzy tolerance
+ */
+export function lexicalSearch(articles: Article[], query: string): Article[] {
+  if (!query || query.trim().length === 0) return articles;
+
+  const queryLower = query.toLowerCase();
+  const queryTerms = queryLower.split(/\s+/);
+
+  return articles.filter(article => {
+    const searchText = `${article.title} ${article.source} ${(article.tags?.lob || []).join(' ')} ${(article.tags?.perils || []).join(' ')}`.toLowerCase();
+
+    // Match if any query term is found
+    return queryTerms.some(term => searchText.includes(term));
+  });
+}
+
+/**
+ * Semantic search - match by tags and categories
+ */
+export function semanticSearch(articles: Article[], query: string): Article[] {
+  if (!query || query.trim().length === 0) return articles;
+
+  const queryLower = query.toLowerCase();
+
+  // Map common insurance terms to tags
+  const semanticMappings: Record<string, string[]> = {
+    'property': ['Property'],
+    'casualty': ['Casualty'],
+    'homeowners': ['Homeowners'],
+    'commercial': ['Commercial'],
+    'auto': ['Auto'],
+    'workers': ['Workers Comp'],
+    'liability': ['Liability'],
+    'hurricane': ['Hurricane'],
+    'wildfire': ['Wildfire'],
+    'flood': ['Flood'],
+    'earthquake': ['Earthquake'],
+    'rate': ['Rate Adequacy'],
+    'regulation': ['Regulatory'],
+    'compliance': ['Regulatory'],
+    'market': ['Market Capacity'],
+    'capacity': ['Market Capacity'],
+    'climate': ['Climate Risk'],
+    'inflation': ['Social Inflation'],
+  };
+
+  return articles.filter(article => {
+    // Check if query matches any semantic mapping
+    for (const [term, tags] of Object.entries(semanticMappings)) {
+      if (queryLower.includes(term)) {
+        // Check if article has any of the mapped tags
+        const hasTag = tags.some(tag =>
+          article.tags?.lob?.includes(tag) ||
+          article.tags?.perils?.includes(tag) ||
+          article.tags?.trends?.includes(tag)
+        );
+        if (hasTag) return true;
+      }
+    }
+
+    return false;
+  });
+}
+
+/**
+ * Combined search - lexical + semantic
+ */
+export function combinedSearch(articles: Article[], query: string): Article[] {
+  if (!query || query.trim().length === 0) return articles;
+
+  const lexicalResults = new Set(lexicalSearch(articles, query));
+  const semanticResults = new Set(semanticSearch(articles, query));
+
+  // Combine results, prioritizing lexical matches
+  const combined = Array.from(lexicalResults);
+  semanticResults.forEach(article => {
+    if (!lexicalResults.has(article)) {
+      combined.push(article);
+    }
+  });
+
+  return combined;
+}
+

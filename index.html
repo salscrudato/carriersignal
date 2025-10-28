@@ -2,34 +2,71 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="description" content="CarrierSignal - AI-curated insurance industry news feed for professionals. Stay informed with the latest P&C insurance news, analysis, and insights." />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0, user-scalable=yes, shrink-to-fit=no" />
+    <meta name="description" content="InsurNews - AI-curated insurance industry news feed for professionals. Stay informed with the latest P&C insurance news, analysis, and insights." />
     <meta name="keywords" content="insurance news, P&C insurance, industry insights, AI-curated, insurance professionals" />
     <meta name="theme-color" content="#2563eb" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="CarrierSignal" />
+    <meta name="apple-mobile-web-app-title" content="InsurNews" />
 
     <!-- Mobile Optimization -->
     <meta name="format-detection" content="telephone=no" />
     <meta name="format-detection" content="email=no" />
     <meta name="apple-touch-fullscreen" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- Prevent horizontal scrolling and optimize for mobile -->
+    <meta name="viewport-fit" content="cover" />
+    <meta name="x-ua-compatible" content="IE=edge" />
+
+    <!-- Disable pinch zoom on iOS (optional, use with caution) -->
+    <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" /> -->
+
+    <!-- Prevent text selection on long press (optional) -->
+    <style>
+      html, body {
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        user-select: none;
+      }
+    </style>
 
     <!-- Open Graph / Social Media -->
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="CarrierSignal - AI-Curated Insurance News" />
+    <meta property="og:title" content="InsurNews - AI-Curated Insurance News" />
     <meta property="og:description" content="AI-curated P&C insurance industry news for professionals" />
-    <meta property="og:site_name" content="CarrierSignal" />
+    <meta property="og:site_name" content="InsurNews" />
 
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <link rel="apple-touch-icon" href="/vite.svg" />
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
 
     <title>CarrierSignal - AI-Curated P&C Insurance News Feed</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').then(
+            (registration) => {
+              console.log('Service Worker registered:', registration);
+            },
+            (error) => {
+              console.log('Service Worker registration failed:', error);
+            }
+          );
+        });
+      }
+    </script>
   </body>
 </html>

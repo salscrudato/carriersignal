@@ -1,9 +1,39 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Public read, client writes blocked (only Cloud Functions can write)
-    match /{document=**} {
+    // Articles collection - public read, Cloud Functions write only
+    match /articles/{articleId} {
       allow read: if true;
+      allow write: if false; // Only Cloud Functions can write
+
+      // Article embeddings subcollection
+      match /embeddings/{embeddingId} {
+        allow read: if true;
+        allow write: if false;
+      }
+    }
+
+    // Article embeddings collection - public read, Cloud Functions write only
+    match /article_embeddings/{embeddingId} {
+      allow read: if true;
+      allow write: if false; // Only Cloud Functions can write
+    }
+
+    // Feed sources collection - public read, Cloud Functions write only
+    match /feed_sources/{feedId} {
+      allow read: if true;
+      allow write: if false; // Only Cloud Functions can write
+    }
+
+    // Rate limits collection - Cloud Functions write only, no client read
+    match /rate_limits/{rateLimitId} {
+      allow read: if false; // Clients cannot read rate limits
+      allow write: if false; // Only Cloud Functions can write
+    }
+
+    // Catch-all: deny all other access
+    match /{document=**} {
+      allow read: if false;
       allow write: if false;
     }
   }

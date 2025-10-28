@@ -5,58 +5,102 @@ import {initializeApp} from "firebase-admin/app";
 import {getFirestore} from "firebase-admin/firestore";
 import OpenAI from "openai";
 import Parser from "rss-parser";
-import {extractArticle, summarizeAndTag, embedForRAG, hashUrl, calculateSmartScore, normalizeRegions, normalizeCompanies, getCanonicalUrl, computeContentHash, detectStormName, isRegulatorySource, scoreArticleWithAI} from "./agents";
+import {extractArticle, summarizeAndTag, embedForRAG, hashUrl, calculateSmartScore, normalizeRegions, normalizeCompanies, getCanonicalUrl, computeContentHash, detectStormName, isRegulatorySource, scoreArticleWithAI, validateAndCleanArticle} from "./agents";
 
 initializeApp();
 const db = getFirestore();
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 
 /**
- * Simple in-memory rate limiter for askBrief endpoint
- * Tracks requests per IP with sliding window
+ * Firestore-backed rate limiter for askBrief endpoint
+ * Tracks requests per IP with sliding window and TTL expiration
  */
-const rateLimitMap = new Map<string, number[]>();
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const RATE_LIMIT_MAX_REQUESTS = 20; // 20 requests per hour per IP
 
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const requests = rateLimitMap.get(ip) || [];
+/**
+ * Check rate limit using Firestore with sliding window
+ * Uses hashed IP for privacy, TTL for automatic cleanup
+ */
+async function checkRateLimit(ip: string): Promise<boolean> {
+  try {
+    const hashedIp = hashUrl(ip); // Hash IP for privacy
+    const rateLimitRef = db.collection('rate_limits').doc(hashedIp);
+    const now = Date.now();
+    const windowStart = now - RATE_LIMIT_WINDOW_MS;
 
-  // Remove old requests outside the window
-  const recentRequests = requests.filter(timestamp => now - timestamp < RATE_LIMIT_WINDOW_MS);
+    // Get current rate limit record
+    const doc = await rateLimitRef.get();
+    let requests: number[] = [];
 
-  if (recentRequests.length >= RATE_LIMIT_MAX_REQUESTS) {
-    return false; // Rate limit exceeded
+    if (doc.exists) {
+      const data = doc.data();
+      requests = (data?.requests || []).filter((ts: number) => ts > windowStart);
+    }
+
+    // Check if limit exceeded
+    if (requests.length >= RATE_LIMIT_MAX_REQUESTS) {
+      console.log(`[RATE LIMIT] IP ${ip} exceeded limit: ${requests.length}/${RATE_LIMIT_MAX_REQUESTS}`);
+      return false;
+    }
+
+    // Add current request and update
+    requests.push(now);
+    await rateLimitRef.set({
+      requests,
+      lastRequest: new Date(),
+      expiresAt: new Date(now + RATE_LIMIT_WINDOW_MS + 60 * 60 * 1000), // TTL: window + 1 hour
+    });
+
+    return true;
+  } catch (error) {
+    console.error('[RATE LIMIT ERROR]', error);
+    // On error, allow request (fail open for availability)
+    return true;
   }
-
-  // Add current request
-  recentRequests.push(now);
-  rateLimitMap.set(ip, recentRequests);
-
-  return true; // OK to proceed
 }
 
 /**
- * Allowed origins for CORS (production domains)
- * In development, allow localhost
+ * CORS configuration - centralized from environment
+ * Supports comma-separated origins and wildcard for localhost
  */
-const ALLOWED_ORIGINS = [
-  'https://carriersignal.web.app',
-  'https://carriersignal.firebaseapp.com',
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://localhost:4173',
-];
+function getAllowedOrigins(): string[] {
+  const envOrigins = process.env.ALLOWED_ORIGINS || '';
 
+  if (envOrigins) {
+    return envOrigins.split(',').map(o => o.trim()).filter(o => o.length > 0);
+  }
+
+  // Default origins if env not set
+  return [
+    'https://carriersignal.web.app',
+    'https://carriersignal.firebaseapp.com',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:4173',
+  ];
+}
+
+/**
+ * Check if origin is allowed for CORS
+ * Supports wildcard matching for localhost development
+ */
 function checkCORS(origin: string | undefined): boolean {
   if (!origin) return false;
-  return ALLOWED_ORIGINS.some(allowed => origin.startsWith(allowed));
+
+  const allowedOrigins = getAllowedOrigins();
+
+  // Check for exact match or prefix match
+  return allowedOrigins.some(allowed => {
+    if (allowed === '*') return true; // Wildcard
+    if (allowed.includes('localhost') && origin.includes('localhost')) return true; // Localhost wildcard
+    return origin.startsWith(allowed);
+  });
 }
 
 /**
  * RSS Feed sources for batch processing
- * Using only Insurance Journal RSS feed as requested
+ * Configurable feed registry with categories, priority, and enabled flags
  */
 interface FeedSource {
   url: string;
@@ -65,22 +109,99 @@ interface FeedSource {
   enabled: boolean;
 }
 
-const FEED_SOURCES: FeedSource[] = [
-  // Insurance Journal - National news only
+// Default feed sources - can be overridden by Firestore configuration
+// Curated catalog of P&C insurance industry sources across multiple categories
+const DEFAULT_FEED_SOURCES: FeedSource[] = [
+  // ============================================================================
+  // NEWS FEEDS (General P&C Insurance Industry News)
+  // ============================================================================
   { url: "https://www.insurancejournal.com/rss/news/national/", category: 'news', priority: 1, enabled: true },
+  { url: "https://www.insurancejournal.com/rss/news/international/", category: 'news', priority: 2, enabled: true },
+  { url: "https://www.claimsjournal.com/rss/", category: 'news', priority: 2, enabled: true },
+  { url: "https://www.propertycasualty360.com/feed/", category: 'news', priority: 2, enabled: true },
+  { url: "https://www.riskandinsurance.com/feed/", category: 'news', priority: 3, enabled: true },
+  { url: "https://www.carriermanagement.com/feed/", category: 'news', priority: 3, enabled: true },
+  { url: "https://www.insurancebusinessmag.com/us/feed/", category: 'news', priority: 3, enabled: true },
+  { url: "https://www.insurancenewsnet.com/feed/", category: 'news', priority: 3, enabled: true },
+
+  // ============================================================================
+  // REGULATORY FEEDS (State DOI, NAIC, Regulatory Bulletins)
+  // ============================================================================
+  { url: "https://www.naic.org/rss/", category: 'regulatory', priority: 1, enabled: true },
+  // Note: Individual state DOI feeds would be added here as they become available
+  // Examples: CA DOI, FL DOI, TX DOI, NY DFS, etc.
+
+  // ============================================================================
+  // CATASTROPHE FEEDS (Named Storms, Natural Disasters, CAT Events)
+  // ============================================================================
+  { url: "https://www.insurancejournal.com/rss/news/catastrophes/", category: 'catastrophe', priority: 1, enabled: true },
+  // NOAA NHC and NWS feeds for hurricane/severe weather tracking
+  // Note: These feeds may require custom parsing due to non-standard RSS formats
+
+  // ============================================================================
+  // REINSURANCE FEEDS (Reinsurance Market News & Capacity)
+  // ============================================================================
+  { url: "https://www.insurancejournal.com/rss/news/reinsurance/", category: 'reinsurance', priority: 2, enabled: true },
+  // Artemis/ILS, The Insurer, and other reinsurance-specific sources
+  // Note: Some reinsurance sources may require authentication or have limited RSS availability
+
+  // ============================================================================
+  // TECHNOLOGY FEEDS (InsurTech, Industry Tech, Digital Transformation)
+  // ============================================================================
+  { url: "https://www.insurancejournal.com/rss/news/technology/", category: 'technology', priority: 3, enabled: true },
+  // Additional tech-focused insurance industry blogs and publications
 ];
 
-// For backward compatibility, extract URLs
-const FEEDS = FEED_SOURCES.filter(f => f.enabled).map(f => f.url);
+// Runtime cache for feeds (loaded from Firestore on startup)
+let cachedFeeds: FeedSource[] = DEFAULT_FEED_SOURCES;
+let feedsCacheTime = 0;
+const FEEDS_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+/**
+ * Load feeds from Firestore, with fallback to defaults
+ * Caches results for 1 hour to avoid excessive Firestore reads
+ */
+async function loadFeedsFromFirestore(): Promise<FeedSource[]> {
+  const now = Date.now();
+
+  // Return cached feeds if still valid
+  if (feedsCacheTime > 0 && now - feedsCacheTime < FEEDS_CACHE_TTL_MS) {
+    console.log('[FEEDS] Using cached feeds');
+    return cachedFeeds;
+  }
+
+  try {
+    const snapshot = await db.collection('feeds').get();
+    if (snapshot.empty) {
+      console.log('[FEEDS] No feeds in Firestore, using defaults');
+      cachedFeeds = DEFAULT_FEED_SOURCES;
+    } else {
+      cachedFeeds = snapshot.docs
+        .map(doc => doc.data() as FeedSource)
+        .filter(f => f.enabled);
+      console.log(`[FEEDS] Loaded ${cachedFeeds.length} enabled feeds from Firestore`);
+    }
+    feedsCacheTime = now;
+    return cachedFeeds;
+  } catch (error) {
+    console.warn('[FEEDS] Error loading from Firestore, using defaults:', error);
+    cachedFeeds = DEFAULT_FEED_SOURCES;
+    feedsCacheTime = now;
+    return cachedFeeds;
+  }
+}
+
+// For backward compatibility, extract URLs from default sources
+const FEEDS = DEFAULT_FEED_SOURCES.filter(f => f.enabled).map(f => f.url);
 
 /**
  * Initialize feeds collection in Firestore (one-time setup)
- * Call this manually or on first deploy
+ * Seeds from DEFAULT_FEED_SOURCES and can be called manually or on first deploy
  */
 async function initializeFeedsCollection() {
   const batch = db.batch();
 
-  for (const feed of FEED_SOURCES) {
+  for (const feed of DEFAULT_FEED_SOURCES) {
     const feedRef = db.collection('feeds').doc(hashUrl(feed.url));
     batch.set(feedRef, {
       ...feed,
@@ -90,7 +211,10 @@ async function initializeFeedsCollection() {
   }
 
   await batch.commit();
-  console.log(`[FEEDS] Initialized ${FEED_SOURCES.length} feeds in Firestore`);
+  console.log(`[FEEDS] Initialized ${DEFAULT_FEED_SOURCES.length} feeds in Firestore`);
+
+  // Clear cache to force reload
+  feedsCacheTime = 0;
 }
 
 
@@ -103,16 +227,28 @@ async function refreshFeedsLogic(apiKey: string) {
   const client = new OpenAI({apiKey});
   const parser = new Parser();
 
-  const results = {processed: 0, skipped: 0, errors: 0, feedsProcessed: 0};
+  // Generate unique batch ID for tracking
+  const batchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const results = {processed: 0, skipped: 0, errors: 0, feedsProcessed: 0, totalTokens: 0, totalLatencyMs: 0};
   const batchStartTime = Date.now();
 
-  for (const feedUrl of FEEDS) {
+  console.log(`[BATCH ${batchId}] Starting batch refresh...`);
+
+  // Load feeds dynamically from Firestore
+  const feeds = await loadFeedsFromFirestore();
+  const feedUrls = feeds.map(f => f.url);
+  console.log(`[BATCH ${batchId}] Loaded ${feedUrls.length} feeds from Firestore`);
+
+  for (const feedUrl of feedUrls) {
     const feedStartTime = Date.now();
+    const feedId = hashUrl(feedUrl);
     try {
-      console.log(`[FEED] Fetching feed: ${feedUrl}`);
+      console.log(`[BATCH ${batchId}] [FEED ${feedId}] Fetching feed: ${feedUrl}`);
       const feed = await parser.parseURL(feedUrl);
-      console.log(`[FEED] Found ${feed.items.length} items in feed: ${feedUrl}`);
+      const feedLatency = Date.now() - feedStartTime;
+      console.log(`[BATCH ${batchId}] [FEED ${feedId}] Found ${feed.items.length} items in ${feedLatency}ms: ${feedUrl}`);
       results.feedsProcessed++;
+      results.totalLatencyMs += feedLatency;
       updateFeedHealth(feedUrl, true); // Track successful fetch
 
       // Process articles in batches
@@ -121,10 +257,11 @@ async function refreshFeedsLogic(apiKey: string) {
       for (let i = 0; i < articles.length; i++) {
         const item = articles[i];
         const itemIndex = i + 1;
+        let articleStartTime = Date.now();
 
         try {
           if (!item.link) {
-            console.log(`[ARTICLE ${itemIndex}/${articles.length}] Skipping item without link in ${feedUrl}`);
+            console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Skipping item without link`);
             results.skipped++;
             continue;
           }
@@ -135,12 +272,13 @@ async function refreshFeedsLogic(apiKey: string) {
           const exists = (await docRef.get()).exists;
 
           if (exists) {
-            console.log(`[ARTICLE ${itemIndex}/${articles.length}] Article already exists: ${url}`);
+            console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Article already exists`);
             results.skipped++;
             continue;
           }
 
-          console.log(`[ARTICLE ${itemIndex}/${articles.length}] Processing: ${url}`);
+          articleStartTime = Date.now();
+          console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Processing: ${url}`);
 
           // Extract full content with retry logic
           let content: Awaited<ReturnType<typeof extractArticle>> | undefined;
@@ -167,7 +305,7 @@ async function refreshFeedsLogic(apiKey: string) {
           }
 
           // Summarize & classify
-          const brief = await summarizeAndTag(client, {
+          let brief = await summarizeAndTag(client, {
             url,
             source: (item.creator || feed.title || content.url || "").toString(),
             publishedAt: item.isoDate || item.pubDate || "",
@@ -175,13 +313,24 @@ async function refreshFeedsLogic(apiKey: string) {
             text: content.text,
           });
 
-          // Entity normalization
-          const regionsNormalized = brief.tags?.regions
+          // Post-parse validation: deduplicate citations, validate URLs
+          brief = validateAndCleanArticle(brief);
+
+          // Entity normalization (always set, with defaults)
+          const regionsNormalized = brief.tags?.regions && brief.tags.regions.length > 0
             ? normalizeRegions(brief.tags.regions)
             : [];
-          const companiesNormalized = brief.tags?.companies
+          const companiesNormalized = brief.tags?.companies && brief.tags.companies.length > 0
             ? normalizeCompanies(brief.tags.companies)
             : [];
+
+          // Verify normalization is always set
+          if (!Array.isArray(regionsNormalized)) {
+            console.warn(`[ARTICLE ${itemIndex}/${articles.length}] regionsNormalized is not an array, defaulting to []`);
+          }
+          if (!Array.isArray(companiesNormalized)) {
+            console.warn(`[ARTICLE ${itemIndex}/${articles.length}] companiesNormalized is not an array, defaulting to []`);
+          }
 
           // Deduplication: canonical URL and content hash
           const canonicalUrl = getCanonicalUrl(url, content.html);
@@ -239,11 +388,11 @@ async function refreshFeedsLogic(apiKey: string) {
             sentiment: brief.sentiment,
           });
 
+          // Store article metadata (without embedding for performance)
           await docRef.set({
             ...brief,
             publishedAt: item.isoDate || item.pubDate || "",
             createdAt: new Date(),
-            embedding: emb,
             smartScore,
             aiScore,
             regionsNormalized,
@@ -256,19 +405,40 @@ async function refreshFeedsLogic(apiKey: string) {
             batchProcessedAt: new Date(),
           });
 
-          console.log(`[ARTICLE ${itemIndex}/${articles.length}] Successfully processed: ${brief.title}`);
+          // Store embedding in separate collection for performance
+          await db.collection("article_embeddings").doc(id).set({
+            embedding: emb,
+            articleId: id,
+            createdAt: new Date(),
+          });
+
+          // Check link health (B2 - Link Health Checking)
+          // Perform lightweight HEAD check to verify article URL is accessible
+          const linkOk = await checkLinkHealth(canonicalUrl || url);
+
+          // Update article with link health status
+          await docRef.update({
+            linkOk,
+            lastCheckedAt: new Date(),
+          });
+
+          const articleLatency = Date.now() - articleStartTime;
+          results.totalLatencyMs += articleLatency;
+          console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Successfully processed in ${articleLatency}ms (linkOk: ${linkOk}): ${brief.title}`);
           results.processed++;
         } catch (error) {
-          console.error(`[ARTICLE ${itemIndex}/${articles.length}] Error processing article from ${feedUrl}:`, error);
+          const articleLatency = Date.now() - articleStartTime;
+          results.totalLatencyMs += articleLatency;
+          console.error(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Error after ${articleLatency}ms:`, error);
           results.errors++;
         }
       }
 
       const feedDuration = Date.now() - feedStartTime;
-      console.log(`[FEED] Completed in ${feedDuration}ms: ${feedUrl}`);
+      console.log(`[BATCH ${batchId}] [FEED ${feedId}] Completed in ${feedDuration}ms`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`[FEED ERROR] Error fetching feed ${feedUrl}:`, errorMessage);
+      console.error(`[BATCH ${batchId}] [FEED ${feedId}] Error fetching feed:`, errorMessage);
       updateFeedHealth(feedUrl, false, errorMessage); // Track failed fetch
       results.errors++;
       // Continue to next feed instead of failing entire batch
@@ -276,7 +446,7 @@ async function refreshFeedsLogic(apiKey: string) {
   }
 
   const totalDuration = Date.now() - batchStartTime;
-  console.log(`[BATCH SUMMARY] Total duration: ${totalDuration}ms, Feeds: ${results.feedsProcessed}, Processed: ${results.processed}, Skipped: ${results.skipped}, Errors: ${results.errors}`);
+  console.log(`[BATCH ${batchId}] SUMMARY | Duration: ${totalDuration}ms | Feeds: ${results.feedsProcessed} | Processed: ${results.processed} | Skipped: ${results.skipped} | Errors: ${results.errors} | AvgLatency: ${results.processed > 0 ? Math.round(results.totalLatencyMs / results.processed) : 0}ms`);
 
   return results;
 }
@@ -308,6 +478,33 @@ interface FeedHealth {
   lastFailureAt?: FirebaseFirestore.Timestamp | Date;
   lastError?: string;
   updatedAt: FirebaseFirestore.Timestamp | Date;
+}
+
+/**
+ * Check if a URL is accessible (B2 - Link Health Checking)
+ * Performs a lightweight HEAD request to verify link availability
+ * Returns true if status is 2xx or 3xx, false otherwise
+ */
+async function checkLinkHealth(url: string): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+    const response = await fetch(url, {
+      method: "HEAD",
+      redirect: "follow",
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
+    });
+
+    clearTimeout(timeoutId);
+    return response.ok || (response.status >= 300 && response.status < 400);
+  } catch (error) {
+    console.warn(`[LINK HEALTH] Failed to check ${url}:`, error instanceof Error ? error.message : String(error));
+    return false;
+  }
 }
 
 /**
@@ -440,7 +637,7 @@ export const initializeFeeds = onRequest(
       res.json({
         success: true,
         message: "Feeds collection initialized",
-        feedCount: FEED_SOURCES.length,
+        feedCount: DEFAULT_FEED_SOURCES.length,
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
@@ -517,13 +714,16 @@ export const testSingleArticle = onRequest(
       console.log(`[TEST] Extracted ${content.text?.length || 0} characters`);
 
       // Summarize
-      const brief = await summarizeAndTag(client, {
+      let brief = await summarizeAndTag(client, {
         url,
         source: (item.creator || feed.title || "").toString(),
         publishedAt: item.isoDate || item.pubDate || "",
         title: content.title,
         text: content.text,
       });
+
+      // Post-parse validation: deduplicate citations, validate URLs
+      brief = validateAndCleanArticle(brief);
 
       console.log(`[TEST] Summarized: ${brief.title}`);
 
@@ -596,8 +796,156 @@ export const feedHealthReport = onRequest({cors: true}, async (req, res) => {
   }
 });
 
-// 2) Ask‑the‑Brief (RAG over last N summaries; anonymous)
+/**
+ * Cosine similarity helper
+ */
+function cosineSimilarity(a: number[], b: number[]): number {
+  const dot = a.reduce((s, v, i) => s + v * b[i], 0);
+  const ma = Math.sqrt(a.reduce((s, v) => s + v * v, 0));
+  const mb = Math.sqrt(b.reduce((s, v) => s + v * v, 0));
+  return dot / (ma * mb);
+}
+
+/**
+ * Maximal Marginal Relevance (MMR) re-ranking
+ * Balances relevance with diversity to avoid redundant results
+ */
+function mmrRerank(
+  items: Array<{it: any; score: number}>,
+  qEmb: number[],
+  topK: number,
+  lambda: number = 0.7
+): Array<{it: any; score: number; mmrScore: number}> {
+  const selected: Array<{it: any; score: number; mmrScore: number}> = [];
+  const remaining = [...items];
+
+  while (selected.length < topK && remaining.length > 0) {
+    let bestIdx = 0;
+    let bestScore = -Infinity;
+
+    for (let i = 0; i < remaining.length; i++) {
+      const relevance = remaining[i].score;
+
+      // Diversity: penalize items similar to already-selected items
+      let diversity = 1.0;
+      if (selected.length > 0) {
+        const maxSimilarity = Math.max(
+          ...selected.map(s => cosineSimilarity(remaining[i].it.embedding, s.it.embedding))
+        );
+        diversity = 1.0 - maxSimilarity;
+      }
+
+      const mmrScore = lambda * relevance + (1 - lambda) * diversity;
+      if (mmrScore > bestScore) {
+        bestScore = mmrScore;
+        bestIdx = i;
+      }
+    }
+
+    const [selected_item] = remaining.splice(bestIdx, 1);
+    selected.push({...selected_item, mmrScore: bestScore});
+  }
+
+  return selected;
+}
+
+/**
+ * Apply cluster diversity: limit to 1 article per clusterId
+ */
+function applyClusterDiversity(
+  items: Array<{it: any; score: number; mmrScore?: number}>,
+  maxPerCluster: number = 1
+): Array<{it: any; score: number; mmrScore?: number}> {
+  const clusterMap = new Map<string, Array<{it: any; score: number; mmrScore?: number}>>();
+
+  for (const item of items) {
+    const clusterId = item.it.clusterId || item.it.id;
+    if (!clusterMap.has(clusterId)) {
+      clusterMap.set(clusterId, []);
+    }
+    clusterMap.get(clusterId)!.push(item);
+  }
+
+  const result: Array<{it: any; score: number; mmrScore?: number}> = [];
+  for (const cluster of clusterMap.values()) {
+    // Take top N from each cluster (sorted by score)
+    result.push(...cluster.sort((a, b) => (b.mmrScore ?? b.score) - (a.mmrScore ?? a.score)).slice(0, maxPerCluster));
+  }
+
+  return result;
+}
+
+/**
+ * Apply recency boost: recent articles get higher scores
+ */
+function applyRecencyBoost(
+  items: Array<{it: any; score: number; mmrScore?: number}>,
+  boostFactor: number = 0.1
+): Array<{it: any; score: number; mmrScore?: number; recencyBoostedScore?: number}> {
+  const now = Date.now();
+  const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+  return items.map(item => {
+    const createdAt = item.it.createdAt?.toDate?.() || item.it.createdAt || new Date();
+    const age = now - (createdAt instanceof Date ? createdAt.getTime() : createdAt);
+    const recencyScore = Math.max(0, 1 - age / maxAge);
+    const boostedScore = (item.mmrScore ?? item.score) + recencyScore * boostFactor;
+
+    return {...item, recencyBoostedScore: boostedScore};
+  });
+}
+
+/**
+ * Simple BM25-style keyword scoring for hybrid retrieval (D2)
+ * Scores articles based on keyword matches in title, bullets, and tags
+ */
+function scoreByKeywords(query: string, article: any): number {
+  const queryTerms = query.toLowerCase().split(/\s+/).filter(t => t.length > 2);
+  if (queryTerms.length === 0) return 0;
+
+  let score = 0;
+  const text = [
+    article.title || "",
+    (article.bullets5 || []).join(" "),
+    (article.tags?.trends || []).join(" "),
+    (article.tags?.regulations || []).join(" "),
+    (article.tags?.perils || []).join(" "),
+  ].join(" ").toLowerCase();
+
+  for (const term of queryTerms) {
+    const matches = (text.match(new RegExp(term, "g")) || []).length;
+    score += matches * 10; // Weight each match
+  }
+
+  return score;
+}
+
+/**
+ * Promote regulatory and CAT documents when relevant (D2)
+ */
+function promoteRegulatoryAndCAT(items: Array<{it: any; score: number}>, query: string): Array<{it: any; score: number}> {
+  const regulatoryKeywords = ["regulatory", "naic", "doi", "bulletin", "rule", "regulation", "compliance"];
+  const catKeywords = ["hurricane", "storm", "catastrophe", "cat", "disaster", "wildfire", "earthquake"];
+
+  const queryLower = query.toLowerCase();
+  const isRegulatoryQuery = regulatoryKeywords.some(kw => queryLower.includes(kw));
+  const isCATQuery = catKeywords.some(kw => queryLower.includes(kw));
+
+  return items.map(item => {
+    let boost = 1.0;
+    if (isRegulatoryQuery && item.it.regulatory) {
+      boost *= 1.5; // 50% boost for regulatory articles
+    }
+    if (isCATQuery && item.it.stormName) {
+      boost *= 1.5; // 50% boost for CAT articles
+    }
+    return {...item, score: item.score * boost};
+  });
+}
+
+// 2) Ask‑the‑Brief (RAG with hybrid retrieval, MMR, and cluster diversity)
 export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, async (req, res) => {
+  const startTime = Date.now();
   try {
     // CORS check
     const origin = req.headers.origin;
@@ -615,9 +963,10 @@ export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, asyn
       return;
     }
 
-    // Rate limiting
+    // Rate limiting (Firestore-backed)
     const ip = req.headers['x-forwarded-for']?.toString().split(',')[0] || req.ip || 'unknown';
-    if (!checkRateLimit(ip)) {
+    const rateLimitOk = await checkRateLimit(ip);
+    if (!rateLimitOk) {
       res.status(429).json({error: "Rate limit exceeded. Please try again later."});
       return;
     }
@@ -632,10 +981,46 @@ export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, asyn
 
     const client = new OpenAI({apiKey: OPENAI_API_KEY.value()});
 
-    // Fetch recent docs (keep it simple; Firestore has no native vector search)
+    // Fetch recent articles (keep it simple; Firestore has no native vector search)
     const snap = await db.collection("articles").orderBy("createdAt", "desc").limit(500).get();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const items = snap.docs.map((d) => ({id: d.id, ...d.data()} as any));
+    const articles = snap.docs.map((d) => ({id: d.id, ...d.data()} as any));
+
+    if (articles.length === 0) {
+      res.json({
+        answerText: "No articles found in context.",
+        bullets: [],
+        sources: [],
+        related: [],
+        usedArticles: [],
+        highlights: [],
+        latencyMs: Date.now() - startTime,
+      });
+      return;
+    }
+
+    // Fetch embeddings from separate collection
+    const embeddingSnap = await db.collection("article_embeddings").where("articleId", "in", articles.map(a => a.id)).get();
+    const embeddingMap = new Map(embeddingSnap.docs.map(d => [d.data().articleId, d.data().embedding]));
+
+    // Merge embeddings with articles
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const items = articles
+      .filter(a => embeddingMap.has(a.id)) // Only include articles with embeddings
+      .map(a => ({...a, embedding: embeddingMap.get(a.id)} as any));
+
+    if (items.length === 0) {
+      res.json({
+        answerText: "No articles with embeddings found in context.",
+        bullets: [],
+        sources: [],
+        related: [],
+        usedArticles: [],
+        highlights: [],
+        latencyMs: Date.now() - startTime,
+      });
+      return;
+    }
 
     // Embed the query (MUST match stored embedding dimensions: 512)
     const qEmb = (await client.embeddings.create({
@@ -644,149 +1029,234 @@ export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, asyn
       dimensions: 512,
     })).data[0].embedding;
 
-    // Cosine similarity (naive in-memory)
-    const cos = (a: number[], b: number[]) => {
-      const dot = a.reduce((s, v, i) => s + v * b[i], 0);
-      const ma = Math.sqrt(a.reduce((s, v) => s + v * v, 0));
-      const mb = Math.sqrt(b.reduce((s, v) => s + v * v, 0));
-      return dot / (ma * mb);
-    };
-    const ranked = items
-      .map((it) => ({it, score: cos(qEmb, it.embedding)}))
+    // Step 1: Hybrid retrieval - combine semantic and keyword scoring (D2)
+    const keywordScored = items.map((it) => ({
+      it,
+      semanticScore: cosineSimilarity(qEmb, it.embedding),
+      keywordScore: scoreByKeywords(q, it),
+    }));
+
+    // Normalize scores to 0-1 range
+    const maxKeywordScore = Math.max(...keywordScored.map(x => x.keywordScore), 1);
+    const hybridScored = keywordScored.map(x => ({
+      ...x,
+      score: (x.semanticScore * 0.6) + ((x.keywordScore / maxKeywordScore) * 0.4), // 60% semantic, 40% keyword
+    }));
+
+    // Step 2: Promote regulatory and CAT documents (D2)
+    const promoted = promoteRegulatoryAndCAT(hybridScored, q);
+
+    // Step 3: Cosine similarity ranking (top 20 for MMR)
+    const cosineSimilarityRanked = promoted
       .sort((a, b) => b.score - a.score)
+      .slice(0, 20);
+
+    // Step 4: MMR re-ranking for diversity
+    const mmrRanked = mmrRerank(cosineSimilarityRanked, qEmb, 12, 0.7);
+
+    // Step 5: Apply cluster diversity (max 1 per cluster)
+    const diverseRanked = applyClusterDiversity(mmrRanked, 1);
+
+    // Step 6: Apply recency boost
+    const finalRanked = applyRecencyBoost(diverseRanked, 0.1)
+      .sort((a, b) => (b.recencyBoostedScore ?? b.mmrScore ?? b.score) - (a.recencyBoostedScore ?? a.mmrScore ?? a.score))
       .slice(0, 8);
 
-    const context = ranked.map((r) =>
+    // Build context from top results
+    const context = finalRanked.map((r) =>
       `TITLE: ${r.it.title}\nBULLETS:\n- ${r.it.bullets5.join("\n- ")}\nWHY:\n${
         Object.entries(r.it.whyItMatters).map(([k, v]) => `${k.toUpperCase()}: ${v}`).join("\n")
-      }\nURL: ${r.it.url}`
+      }\nURL: ${r.it.canonicalUrl || r.it.url}`
     ).join("\n\n---\n\n");
 
+    // Generate answer with structured output
     const answer = await client.chat.completions.create({
       model: "gpt-4o-mini",
       temperature: 0.2,
-      max_tokens: 400,
+      max_tokens: 500,
       messages: [
         {
           role: "system",
-          content: "Answer using ONLY the provided context. If not found, say so. " +
-            "Provide short answer + 3 bullet rationale + cite URLs you used.",
+          content: "You are a P&C insurance analyst. Answer using ONLY the provided context. " +
+            "If information is not found, respond with 'Not found in current context.' " +
+            "Provide: 1) Short answer (1-2 sentences), 2) 3 bullet-point rationale, 3) Inline citations with [URL] format.",
         },
         {role: "user", content: `Question: ${q}\n\nContext:\n${context}`},
       ],
     });
 
-    const text = answer.choices[0]?.message?.content ?? "No answer.";
+    const answerText = answer.choices[0]?.message?.content ?? "Not found in current context.";
 
-    res.json({answer: text, sources: ranked.map((r) => ({url: r.it.url, title: r.it.title}))});
+    // GUARDRAIL: Extract URLs from answer and validate against source articles
+    // This prevents hallucinated links by only allowing URLs from the context
+    const validArticleUrls = new Set(finalRanked.map(r => (r.it.canonicalUrl || r.it.url).toLowerCase()));
+
+    // Extract URLs from answer text (both [URL] format and plain URLs)
+    const urlPattern = /\[?(https?:\/\/[^\s\[\]]+)\]?/gi;
+    const extractedUrls = new Set<string>();
+    let match;
+    while ((match = urlPattern.exec(answerText)) !== null) {
+      const url = match[1].toLowerCase();
+      // Only include URLs that are in our source articles
+      if (validArticleUrls.has(url)) {
+        extractedUrls.add(url);
+      } else {
+        console.warn(`[ASK BRIEF GUARDRAIL] Rejected hallucinated URL: ${url}`);
+      }
+    }
+
+    // Build citations from validated URLs
+    const citations = finalRanked
+      .filter(r => extractedUrls.has((r.it.canonicalUrl || r.it.url).toLowerCase()))
+      .map(r => ({
+        title: r.it.title,
+        url: r.it.canonicalUrl || r.it.url,
+      }));
+
+    // If no citations were extracted, include all source articles as fallback
+    if (citations.length === 0) {
+      citations.push(...finalRanked.map(r => ({
+        title: r.it.title,
+        url: r.it.canonicalUrl || r.it.url,
+      })));
+    }
+
+    const latencyMs = Date.now() - startTime;
+    console.log(`[ASK BRIEF] Query: "${q}" | Results: ${finalRanked.length} | Latency: ${latencyMs}ms`);
+
+    // D1: Structured JSON output with enhanced fields
+    res.json({
+      answerText,
+      bullets: finalRanked.slice(0, 3).map(r => r.it.bullets5[0] || ''),
+      sources: citations,
+      related: finalRanked.slice(0, 5).map(r => ({
+        title: r.it.title,
+        url: r.it.canonicalUrl || r.it.url,
+        clusterId: r.it.clusterId,
+      })),
+      usedArticles: finalRanked.map(r => r.it.id),
+      highlights: finalRanked.slice(0, 3).map(r => ({
+        quote: r.it.leadQuote || r.it.bullets5[0] || '',
+        url: r.it.canonicalUrl || r.it.url,
+      })),
+      latencyMs,
+    });
   } catch (e) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const error = e as any;
+    console.error('[ASK BRIEF ERROR]', error);
     res.status(500).json({error: error.message || "unknown_error"});
   }
 });
 
 /**
- * Hourly refresh of articles
- * Fetches new articles from Insurance Journal RSS feed
- * Runs every hour at minute 0
+ * Reader View Endpoint (B1)
+ *
+ * Fetches an article URL and returns sanitized HTML for display in a Quick Read modal.
+ * Strips tracking, injects canonical source attribution, and returns safe HTML.
+ *
+ * Query Parameters:
+ * - url: The article URL to fetch and sanitize
+ *
+ * Response:
+ * {
+ *   title: string,
+ *   byline?: string,
+ *   published?: string,
+ *   mainImage?: string,
+ *   html: string (sanitized)
+ * }
  */
-export const hourlyArticleRefresh = onSchedule("every 1 hours", async () => {
-  console.log("🔄 Starting hourly article refresh...");
+export const readerView = onRequest(
+  {cors: true, timeoutSeconds: 30},
+  async (req, res) => {
+    try {
+      const startTime = Date.now();
+      const url = req.query.url as string;
 
-  try {
-    const client = new OpenAI({apiKey: OPENAI_API_KEY.value()});
-    const parser = new Parser();
-
-    // Insurance Journal RSS feed only
-    const feedSources = [
-      "https://www.insurancejournal.com/rss/news/national/",
-    ];
-
-    const newArticles: Array<{
-      title: string;
-      url: string;
-      source: string;
-      publishedAt: string;
-      description: string;
-      content: string;
-      createdAt: number;
-      updatedAt: number;
-    }> = [];
-    const oneHourAgo = Date.now() - (60 * 60 * 1000);
-
-    // Fetch from all sources
-    for (const feedUrl of feedSources) {
-      try {
-        const feed = await parser.parseURL(feedUrl);
-
-        feed.items.forEach(item => {
-          const pubDate = item.pubDate ? new Date(item.pubDate).getTime() : Date.now();
-
-          // Only include articles from the last hour
-          if (pubDate >= oneHourAgo) {
-            newArticles.push({
-              title: item.title || "Untitled",
-              url: item.link || "",
-              source: feed.title || "Unknown Source",
-              publishedAt: new Date(pubDate).toISOString(),
-              description: item.content || item.summary || "",
-              content: item.content || item.summary || "",
-              createdAt: Date.now(),
-              updatedAt: Date.now(),
-            });
-          }
-        });
-      } catch (error) {
-        console.warn(`Failed to fetch from ${feedUrl}:`, error);
+      if (!url) {
+        res.status(400).json({error: "Missing 'url' query parameter"});
+        return;
       }
-    }
 
-    if (newArticles.length === 0) {
-      console.log("✓ No new articles found in the last hour");
-      return;
-    }
-
-    // Process and store new articles
-    const batch = db.batch();
-    let processedCount = 0;
-
-    for (const article of newArticles) {
+      // Validate URL format
       try {
-        // Check if article already exists
-        const existing = await db.collection("articles")
-          .where("url", "==", article.url)
-          .limit(1)
-          .get();
-
-        if (existing.empty) {
-          // Extract and process article
-          const extracted = await extractArticle(article.url);
-          const processed = await summarizeAndTag(client, { ...extracted, source: article.source });
-
-          const docRef = db.collection("articles").doc();
-          batch.set(docRef, {
-            ...article,
-            ...processed,
-            aiScore: Math.random() * 100,
-            impactScore: processed.impactScore || Math.random() * 100,
-          });
-
-          processedCount++;
-        }
-      } catch (error) {
-        console.warn(`Failed to process article ${article.url}:`, error);
+        new URL(url);
+      } catch {
+        res.status(400).json({error: "Invalid URL format"});
+        return;
       }
-    }
 
-    if (processedCount > 0) {
-      await batch.commit();
-      console.log(`✓ Added ${processedCount} new articles`);
-    }
+      console.log(`[READER VIEW] Fetching: ${url}`);
 
-    console.log("✓ Hourly refresh complete");
-  } catch (error) {
-    console.error("❌ Error during hourly refresh:", error);
+      // Extract article using existing utility
+      const content = await extractArticle(url);
+
+      if (!content || !content.html) {
+        res.status(404).json({error: "Could not extract article content"});
+        return;
+      }
+
+      // Sanitize HTML: remove scripts, tracking pixels, and dangerous elements
+      const sanitizedHtml = sanitizeHtml(content.html);
+
+      // Inject canonical source attribution at the end
+      const attributedHtml = `${sanitizedHtml}
+<div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; font-size: 0.875rem; color: #6b7280;">
+  <p><strong>Source:</strong> <a href="${url}" target="_blank" rel="noopener noreferrer">${new URL(url).hostname}</a></p>
+  <p style="margin-top: 0.5rem; font-size: 0.75rem; color: #9ca3af;">Read via CarrierSignal Quick Read</p>
+</div>`;
+
+      const latencyMs = Date.now() - startTime;
+
+      res.json({
+        title: content.title || "Article",
+        byline: content.author,
+        published: content.publishedAt,
+        mainImage: content.mainImage,
+        html: attributedHtml,
+        latencyMs,
+      });
+    } catch (error) {
+      console.error('[READER VIEW ERROR]', error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to fetch article",
+      });
+    }
   }
-});
+);
+
+/**
+ * Sanitize HTML for safe display
+ * Removes scripts, tracking pixels, and dangerous elements
+ * Preserves formatting and links
+ */
+function sanitizeHtml(html: string): string {
+  // Remove script tags and content
+  let sanitized = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
+
+  // Remove style tags and content
+  sanitized = sanitized.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "");
+
+  // Remove tracking pixels and iframes
+  sanitized = sanitized.replace(/<img[^>]*(?:tracking|pixel|beacon)[^>]*>/gi, "");
+  sanitized = sanitized.replace(/<iframe[^>]*>/gi, "");
+
+  // Remove event handlers
+  sanitized = sanitized.replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, "");
+  sanitized = sanitized.replace(/\s*on\w+\s*=\s*[^\s>]*/gi, "");
+
+  // Remove meta tags except for basic ones
+  sanitized = sanitized.replace(/<meta[^>]*(?:tracking|analytics|facebook|twitter)[^>]*>/gi, "");
+
+  // Remove noscript tags
+  sanitized = sanitized.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, "");
+
+  // Remove comments
+  sanitized = sanitized.replace(/<!--[\s\S]*?-->/g, "");
+
+  return sanitized;
+}
+
+
 

@@ -177,17 +177,21 @@ export function detectStormName(text: string): string | undefined {
  * Detect if article is from a regulatory source
  */
 export function isRegulatorySource(url: string, source: string): boolean {
-  const regulatoryKeywords = [
+  const regulatoryUrlKeywords = [
     'doi.', 'insurance.ca.gov', 'floir.com', 'tdi.texas.gov',
     'dfs.ny.gov', 'insurance.pa.gov', 'naic.org',
+  ];
+
+  const regulatorySourceKeywords = [
+    'naic', 'dfs', 'doi', 'department of insurance', 'insurance commissioner',
+    'state insurance', 'regulatory', 'regulator',
   ];
 
   const urlLower = url.toLowerCase();
   const sourceLower = source.toLowerCase();
 
-  return regulatoryKeywords.some(keyword =>
-    urlLower.includes(keyword) || sourceLower.includes(keyword)
-  );
+  return regulatoryUrlKeywords.some(keyword => urlLower.includes(keyword)) ||
+    regulatorySourceKeywords.some(keyword => sourceLower.includes(keyword));
 }
 
 /**
@@ -226,7 +230,8 @@ export function calculateSmartScore(params: {
   // Catastrophe/regulatory news: slower decay (72h half-life)
   // Market news: medium decay (48h half-life)
   // General news: faster decay (24h half-life)
-  const isCatastrophe = params.stormName || params.impactBreakdown?.catastrophe || 0 > 50;
+  // FIX: Correct boolean logic - was using truthy chain that misclassified
+  const isCatastrophe = !!params.stormName || (params.impactBreakdown?.catastrophe ?? 0) > 50;
   const isRegulatory = params.regulatory || (params.tags?.regulations && params.tags.regulations.length > 0);
 
   let halfLife = 24; // Default: 24 hours

@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Search, BarChart3, Bookmark, Settings, X } from 'lucide-react';
 
 interface MobileNavProps {
-  onViewChange?: (view: 'feed' | 'dashboard') => void;
-  currentView?: 'feed' | 'dashboard';
+  onViewChange?: (view: 'feed' | 'dashboard' | 'bookmarks' | 'settings') => void;
+  currentView?: 'feed' | 'dashboard' | 'bookmarks' | 'settings';
 }
 
 export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps) {
@@ -43,7 +43,7 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleNavClick = (view: 'feed' | 'dashboard') => {
+  const handleNavClick = (view: 'feed' | 'dashboard' | 'bookmarks' | 'settings') => {
     onViewChange?.(view);
     setIsOpen(false);
   };
@@ -65,7 +65,7 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
             isOpen ? 'translate-y-0' : 'translate-y-full'
           }`}
         >
-          <div className="bg-white border-t border-slate-200 rounded-t-3xl shadow-2xl">
+          <div className="bg-gradient-to-b from-white via-blue-50/30 to-purple-50/20 border-t border-blue-200/30 rounded-t-3xl shadow-2xl animate-enhancedPremiumGlow">
             {/* Handle Bar */}
             <div className="flex justify-center pt-3 pb-2">
               <div className="w-12 h-1 bg-slate-300 rounded-full" />
@@ -78,7 +78,7 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
                 onClick={() => handleNavClick('feed')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
                   currentView === 'feed'
-                    ? 'bg-blue-100 text-blue-700 shadow-md'
+                    ? 'bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 shadow-md'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
@@ -91,7 +91,7 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
                 onClick={() => handleNavClick('dashboard')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
                   currentView === 'dashboard'
-                    ? 'bg-indigo-100 text-indigo-700 shadow-md'
+                    ? 'bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 shadow-md'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
@@ -100,13 +100,27 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
               </button>
 
               {/* Bookmarks Button */}
-              <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all duration-300">
+              <button
+                onClick={() => handleNavClick('bookmarks')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                  currentView === 'bookmarks'
+                    ? 'bg-amber-100 text-amber-700 shadow-md'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
                 <Bookmark size={20} />
                 <span>Bookmarks</span>
               </button>
 
               {/* Settings Button */}
-              <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all duration-300">
+              <button
+                onClick={() => handleNavClick('settings')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                  currentView === 'settings'
+                    ? 'bg-blue-100 text-blue-700 shadow-md'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
                 <Settings size={20} />
                 <span>Settings</span>
               </button>

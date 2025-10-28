@@ -1,163 +1,201 @@
 /**
- * Unit tests for pure utility functions
+ * Unit tests for utils.ts
+ * Tests for normalization, scoring, and utility functions
  */
 
 import {
   normalizeRegions,
   normalizeCompanies,
+  calculateSmartScore,
   computeContentHash,
   detectStormName,
   isRegulatorySource,
-  calculateSmartScore,
   hashUrl,
 } from '../utils';
 
-describe('Utility Functions', () => {
-  describe('normalizeRegions', () => {
-    it('should normalize state names to ISO codes', () => {
-      const result = normalizeRegions(['California', 'florida', 'Texas']);
-      expect(result).toContain('US-CA');
-      expect(result).toContain('US-FL');
-      expect(result).toContain('US-TX');
-    });
-
-    it('should preserve already-normalized ISO codes', () => {
-      const result = normalizeRegions(['US-CA', 'US-FL']);
-      expect(result).toContain('US-CA');
-      expect(result).toContain('US-FL');
-    });
-
-    it('should handle mixed case and abbreviations', () => {
-      const result = normalizeRegions(['ca', 'FL', 'new york']);
-      expect(result).toContain('US-CA');
-      expect(result).toContain('US-FL');
-      expect(result).toContain('US-NY');
-    });
+describe('normalizeRegions', () => {
+  it('should normalize state names to ISO codes', () => {
+    expect(normalizeRegions(['Florida', 'California'])).toContain('US-FL');
+    expect(normalizeRegions(['Florida', 'California'])).toContain('US-CA');
   });
 
-  describe('normalizeCompanies', () => {
-    it('should normalize company names to canonical forms', () => {
-      const result = normalizeCompanies(['state farm', 'GEICO', 'progressive']);
-      expect(result).toContain('State Farm');
-      expect(result).toContain('GEICO');
-      expect(result).toContain('Progressive');
-    });
-
-    it('should preserve unknown company names', () => {
-      const result = normalizeCompanies(['Unknown Insurance Co']);
-      expect(result).toContain('Unknown Insurance Co');
-    });
+  it('should handle abbreviations', () => {
+    expect(normalizeRegions(['FL', 'CA', 'TX'])).toContain('US-FL');
+    expect(normalizeRegions(['FL', 'CA', 'TX'])).toContain('US-CA');
+    expect(normalizeRegions(['FL', 'CA', 'TX'])).toContain('US-TX');
   });
 
-  describe('computeContentHash', () => {
-    it('should generate consistent hash for same content', () => {
-      const text = 'This is a test article about insurance';
-      const hash1 = computeContentHash(text);
-      const hash2 = computeContentHash(text);
-      expect(hash1).toBe(hash2);
-    });
-
-    it('should generate different hash for different content', () => {
-      const hash1 = computeContentHash('Article one');
-      const hash2 = computeContentHash('Article two');
-      expect(hash1).not.toBe(hash2);
-    });
-
-    it('should be case-insensitive', () => {
-      const hash1 = computeContentHash('Insurance Article');
-      const hash2 = computeContentHash('insurance article');
-      expect(hash1).toBe(hash2);
-    });
+  it('should preserve already-normalized ISO codes', () => {
+    expect(normalizeRegions(['US-FL', 'US-CA'])).toContain('US-FL');
+    expect(normalizeRegions(['US-FL', 'US-CA'])).toContain('US-CA');
   });
 
-  describe('detectStormName', () => {
-    it('should detect hurricane names', () => {
-      const result = detectStormName('Hurricane Milton approaches Florida');
-      expect(result).toBe('Hurricane Milton');
-    });
+  it('should handle case-insensitivity', () => {
+    expect(normalizeRegions(['florida', 'CALIFORNIA'])).toContain('US-FL');
+    expect(normalizeRegions(['florida', 'CALIFORNIA'])).toContain('US-CA');
+  });
+});
 
-    it('should detect tropical storm names', () => {
-      const result = detectStormName('Tropical Storm Debby expected');
-      expect(result).toBe('Tropical Storm Debby');
-    });
-
-    it('should return undefined for no storm', () => {
-      const result = detectStormName('Regular insurance news article');
-      expect(result).toBeUndefined();
-    });
+describe('normalizeCompanies', () => {
+  it('should normalize company names', () => {
+    expect(normalizeCompanies(['state farm', 'allstate'])).toContain('State Farm');
+    expect(normalizeCompanies(['state farm', 'allstate'])).toContain('Allstate');
   });
 
-  describe('isRegulatorySource', () => {
-    it('should identify regulatory sources by URL', () => {
-      expect(isRegulatorySource('https://insurance.ca.gov/news', 'California DOI')).toBe(true);
-      expect(isRegulatorySource('https://floir.com/press', 'Florida OIR')).toBe(true);
-    });
-
-    it('should identify regulatory sources by source name', () => {
-      expect(isRegulatorySource('https://example.com', 'naic.org')).toBe(true);
-    });
-
-    it('should return false for non-regulatory sources', () => {
-      expect(isRegulatorySource('https://insurancejournal.com', 'Insurance Journal')).toBe(false);
-    });
+  it('should handle case-insensitivity', () => {
+    expect(normalizeCompanies(['STATE FARM', 'GEICO'])).toContain('State Farm');
+    expect(normalizeCompanies(['STATE FARM', 'GEICO'])).toContain('GEICO');
   });
 
-  describe('calculateSmartScore', () => {
-    it('should calculate score with impact and recency', () => {
-      const score = calculateSmartScore({
-        publishedAt: new Date().toISOString(),
-        impactScore: 80,
-        regulatory: false,
-      });
-      expect(score).toBeGreaterThan(0);
-      expect(score).toBeLessThanOrEqual(100);
-    });
+  it('should preserve unknown companies', () => {
+    expect(normalizeCompanies(['UnknownCorp'])).toContain('UnknownCorp');
+  });
+});
 
-    it('should boost regulatory articles', () => {
-      const now = new Date().toISOString();
-      const regularScore = calculateSmartScore({
-        publishedAt: now,
-        impactScore: 50,
-        regulatory: false,
-      });
-      const regulatoryScore = calculateSmartScore({
-        publishedAt: now,
-        impactScore: 50,
-        regulatory: true,
-      });
-      expect(regulatoryScore).toBeGreaterThan(regularScore);
+describe('calculateSmartScore', () => {
+  it('should return a score between 0 and 100', () => {
+    const score = calculateSmartScore({
+      impactScore: 50,
+      publishedAt: new Date().toISOString(),
     });
-
-    it('should decay score for older articles', () => {
-      const oldDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const newDate = new Date().toISOString();
-      const oldScore = calculateSmartScore({
-        publishedAt: oldDate,
-        impactScore: 80,
-        regulatory: false,
-      });
-      const newScore = calculateSmartScore({
-        publishedAt: newDate,
-        impactScore: 80,
-        regulatory: false,
-      });
-      expect(newScore).toBeGreaterThan(oldScore);
-    });
+    expect(score).toBeGreaterThanOrEqual(0);
+    expect(score).toBeLessThanOrEqual(100);
   });
 
-  describe('hashUrl', () => {
-    it('should generate consistent hash for same URL', () => {
-      const url = 'https://example.com/article';
-      const hash1 = hashUrl(url);
-      const hash2 = hashUrl(url);
-      expect(hash1).toBe(hash2);
+  it('should boost catastrophe articles with named storms', () => {
+    const withStorm = calculateSmartScore({
+      impactScore: 50,
+      stormName: 'Hurricane Milton',
+      publishedAt: new Date().toISOString(),
     });
+    const withoutStorm = calculateSmartScore({
+      impactScore: 50,
+      publishedAt: new Date().toISOString(),
+    });
+    expect(withStorm).toBeGreaterThan(withoutStorm);
+  });
 
-    it('should generate different hash for different URLs', () => {
-      const hash1 = hashUrl('https://example.com/article1');
-      const hash2 = hashUrl('https://example.com/article2');
-      expect(hash1).not.toBe(hash2);
+  it('should correctly detect catastrophe from impactBreakdown', () => {
+    const catScore = calculateSmartScore({
+      impactScore: 50,
+      impactBreakdown: { catastrophe: 75, market: 20, regulatory: 20, technology: 10 },
+      publishedAt: new Date().toISOString(),
     });
+    const nonCatScore = calculateSmartScore({
+      impactScore: 50,
+      impactBreakdown: { catastrophe: 30, market: 50, regulatory: 10, technology: 10 },
+      publishedAt: new Date().toISOString(),
+    });
+    expect(catScore).toBeGreaterThan(nonCatScore);
+  });
+
+  it('should boost regulatory articles', () => {
+    const regScore = calculateSmartScore({
+      impactScore: 50,
+      regulatory: true,
+      publishedAt: new Date().toISOString(),
+    });
+    const nonRegScore = calculateSmartScore({
+      impactScore: 50,
+      regulatory: false,
+      publishedAt: new Date().toISOString(),
+    });
+    expect(regScore).toBeGreaterThan(nonRegScore);
+  });
+
+  it('should apply risk pulse multiplier', () => {
+    const highRisk = calculateSmartScore({
+      impactScore: 50,
+      riskPulse: 'HIGH',
+      publishedAt: new Date().toISOString(),
+    });
+    const lowRisk = calculateSmartScore({
+      impactScore: 50,
+      riskPulse: 'LOW',
+      publishedAt: new Date().toISOString(),
+    });
+    expect(highRisk).toBeGreaterThan(lowRisk);
+  });
+
+  it('should apply recency decay', () => {
+    const now = new Date();
+    const recent = new Date(now.getTime() - 1 * 60 * 60 * 1000); // 1 hour ago
+    const old = new Date(now.getTime() - 72 * 60 * 60 * 1000); // 72 hours ago
+
+    const recentScore = calculateSmartScore({
+      impactScore: 50,
+      publishedAt: recent.toISOString(),
+    });
+    const oldScore = calculateSmartScore({
+      impactScore: 50,
+      publishedAt: old.toISOString(),
+    });
+    expect(recentScore).toBeGreaterThan(oldScore);
+  });
+});
+
+describe('detectStormName', () => {
+  it('should detect hurricane names', () => {
+    expect(detectStormName('Hurricane Milton struck Florida')).toBe('Hurricane Milton');
+  });
+
+  it('should detect tropical storm names', () => {
+    expect(detectStormName('Tropical Storm Debby affected the coast')).toBe('Tropical Storm Debby');
+  });
+
+  it('should return undefined if no storm detected', () => {
+    expect(detectStormName('Regular weather news')).toBeUndefined();
+  });
+});
+
+describe('isRegulatorySource', () => {
+  it('should detect regulatory URLs', () => {
+    expect(isRegulatorySource('https://insurance.ca.gov/bulletin', 'California DOI')).toBe(true);
+    expect(isRegulatorySource('https://dfs.ny.gov/news', 'NY DFS')).toBe(true);
+  });
+
+  it('should detect regulatory sources by name', () => {
+    expect(isRegulatorySource('https://example.com', 'NAIC')).toBe(true);
+  });
+
+  it('should return false for non-regulatory sources', () => {
+    expect(isRegulatorySource('https://insurancejournal.com', 'Insurance Journal')).toBe(false);
+  });
+});
+
+describe('computeContentHash', () => {
+  it('should generate consistent hashes for same content', () => {
+    const text = 'This is test content for hashing';
+    const hash1 = computeContentHash(text);
+    const hash2 = computeContentHash(text);
+    expect(hash1).toBe(hash2);
+  });
+
+  it('should generate different hashes for different content', () => {
+    const hash1 = computeContentHash('Content A');
+    const hash2 = computeContentHash('Content B');
+    expect(hash1).not.toBe(hash2);
+  });
+
+  it('should be case-insensitive', () => {
+    const hash1 = computeContentHash('Test Content');
+    const hash2 = computeContentHash('test content');
+    expect(hash1).toBe(hash2);
+  });
+});
+
+describe('hashUrl', () => {
+  it('should generate consistent hashes for same URL', () => {
+    const url = 'https://example.com/article';
+    const hash1 = hashUrl(url);
+    const hash2 = hashUrl(url);
+    expect(hash1).toBe(hash2);
+  });
+
+  it('should generate different hashes for different URLs', () => {
+    const hash1 = hashUrl('https://example.com/article1');
+    const hash2 = hashUrl('https://example.com/article2');
+    expect(hash1).not.toBe(hash2);
   });
 });
 

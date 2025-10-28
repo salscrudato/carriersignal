@@ -47,7 +47,7 @@ const schema = z.object({
   sentiment: z.enum(["POSITIVE", "NEGATIVE", "NEUTRAL"]),
   confidence: z.number().min(0).max(1),
   // v2 additions
-  citations: z.array(z.string()).max(10), // URLs cited in bullets
+  citations: z.array(z.string().url()).max(10), // URLs cited in bullets (must be valid URLs)
   impactScore: z.number().min(0).max(100), // Overall impact score
   impactBreakdown: z.object({
     market: z.number().min(0).max(100),
@@ -158,7 +158,7 @@ export async function summarizeAndTag(
         riskPulse: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
         sentiment: { type: "string", enum: ["POSITIVE", "NEGATIVE", "NEUTRAL"] },
         confidence: { type: "number", minimum: 0, maximum: 1 },
-        citations: { type: "array", items: { type: "string" }, maxItems: 10 },
+        citations: { type: "array", items: { type: "string", format: "uri" }, maxItems: 10 },
         impactScore: { type: "number", minimum: 0, maximum: 100 },
         impactBreakdown: {
           type: "object",
@@ -191,12 +191,12 @@ export async function summarizeAndTag(
     "Analyze articles through the P&C insurance lens focusing on:",
     "- Lines of Business: Personal Auto, Commercial Auto, Homeowners, Commercial Property, General Liability, Workers Comp, Professional Liability, Cyber, Umbrella/Excess",
     "- Perils: Hurricane, Wildfire, Earthquake, Flood, Tornado, Hail, Severe Weather, Cyber Attack, Litigation",
-    "- Regions: Use ISO 3166-2 codes (US-FL, US-CA, US-TX, etc.) for U.S. states; spell out countries",
-    "- Companies: Use exact legal names (State Farm, Allstate, Chubb, etc.)",
-    "- Key Trends: Climate Risk, Social Inflation, Nuclear Verdicts, GenAI, Litigation Funding, Tort Reform, Rate Adequacy, Reinsurance Hardening, Assignment of Benefits (AOB), Parametric Insurance, Telematics, ESG",
-    "- Regulations: NAIC Model Laws, DOI Bulletins, Rate Filings, Solvency Requirements, Data Privacy Laws, Climate Disclosure Rules",
+    "- Regions: Use ISO 3166-2 for US states (US-FL, US-CA, US-TX, etc.); spell out full country names (Canada, Mexico, etc.). NEVER use city names.",
+    "- Companies: Use exact legal names (State Farm, Allstate, Chubb, The Hanover, Cincinnati Insurance, Erie Insurance, Selective, Hiscox, etc.). Normalize variations.",
+    "- Key Trends (CONTROLLED LIST): Climate Risk, Social Inflation, GenAI, Litigation Funding, Tort Reform, Rate Adequacy, Reinsurance, Capacity Constraints, Nuclear Verdicts, AOB, Parametric Insurance, Telematics, ESG, Wildfire Mitigation",
+    "- Regulations: Name the specific rule/bulletin if explicit (e.g., 'Florida HB 221', 'NAIC Model Law'); otherwise use 'State DOI Bulletin', 'NAIC', etc.",
     "",
-    "# BULLET WRITING EXCELLENCE",
+    "# BULLET WRITING EXCELLENCE & FACTS & CITATIONS",
     "Create 3-5 executive summary bullets that tell a complete story:",
     "",
     "STRUCTURE:",
@@ -206,13 +206,21 @@ export async function summarizeAndTag(
     "• Bullet 4 (TRENDS/DRIVERS): Connect to broader trends or root causes (max 35 words, optional)",
     "• Bullet 5 (OUTLOOK/ACTION): Forward-looking implications or recommended actions (max 35 words, optional)",
     "",
+    "FACTS & CITATIONS REQUIREMENTS:",
+    "✓ EVERY quantitative claim (numbers, percentages, dollar amounts) MUST have a [n] citation marker",
+    "✓ EVERY specific data point MUST map to an item in the citations[] array",
+    "✓ If a specific number is not in the source, write 'no quantified data in source' instead of inventing",
+    "✓ Citations array must contain ONLY absolute URLs that actually support the bracketed claims",
+    "✓ Maximum 5 citations per article; prioritize sources that directly support key facts",
+    "✓ Do NOT cite the main article URL unless it contains external links to supporting sources",
+    "",
     "QUALITY STANDARDS:",
     "✓ Lead with impact, not background",
-    "✓ Use specific numbers, percentages, dollar amounts when available",
+    "✓ Use specific numbers, percentages, dollar amounts when available (with citations)",
     "✓ Avoid jargon unless industry-standard (combined ratio, loss ratio, CAT losses, etc.)",
     "✓ Each bullet should stand alone but flow sequentially",
     "✓ Use active voice and strong verbs",
-    "✓ Include [1], [2] citation markers for key facts",
+    "✓ Include [1], [2] citation markers for key facts (REQUIRED for all quantitative claims)",
     "",
     "EXAMPLES OF EXCELLENT BULLETS:",
     "✓ \"Florida's tort reforms reduced homeowners defense costs by 23% in Q3 2024, driving the state's combined ratio down to 94.2% from 108.5% in 2023, marking the first underwriting profit in three years.\"",
@@ -220,11 +228,17 @@ export async function summarizeAndTag(
     "✓ \"Third-party litigation funding in auto injury claims increased average settlement costs by 47% across 12 states, with Florida, Louisiana, and California seeing the highest impact on loss ratios.\"",
     "",
     "# WHY IT MATTERS (Role-Specific Insights)",
-    "Provide crisp, actionable insights for each role (20-200 chars):",
-    "• Underwriting: Impact on risk selection, pricing, appetite, or capacity",
-    "• Claims: Impact on loss costs, settlement strategies, litigation, or fraud",
-    "• Brokerage: Impact on market conditions, placement strategies, or client advisory",
-    "• Actuarial: Impact on loss projections, reserving, pricing models, or capital requirements",
+    "Provide crisp, actionable insights for each role (20-120 chars, MUST be actionable):",
+    "• Underwriting: What should underwriters watch/change/ask? Impact on risk selection, pricing, appetite, capacity, or underwriting guidelines",
+    "• Claims: What should claims teams prepare for? Impact on loss costs, settlement strategies, litigation trends, fraud patterns, or reserve adequacy",
+    "• Brokerage: What should brokers advise clients? Impact on market conditions, placement strategies, client risk profiles, or advisory opportunities",
+    "• Actuarial: What should actuaries model/adjust? Impact on loss projections, reserving, pricing models, capital requirements, or assumption changes",
+    "",
+    "ROLE-SPECIFIC EXAMPLES:",
+    "✓ Underwriting: 'Tighten underwriting for Florida homeowners; tort reforms reduce defense costs but exposure remains elevated.'",
+    "✓ Claims: 'Prepare for higher litigation costs in California; FAIR Plan claims surge 29.8% YoY, requiring enhanced reserve strategies.'",
+    "✓ Brokerage: 'Advise clients on residual market growth; placement challenges in FL/CA may require alternative risk transfer solutions.'",
+    "✓ Actuarial: 'Update loss projections for CA FAIR Plan; 29.8% exposure growth and $2.7B claims require revised catastrophe models.'",
     "",
     "# SCORING METHODOLOGY",
     "",
@@ -235,11 +249,12 @@ export async function summarizeAndTag(
     "• 30-49: Moderate (company news, incremental changes, niche topics)",
     "• 0-29: Low (tangential relevance, minor updates)",
     "",
-    "IMPACT BREAKDOWN (each 0-100):",
-    "• Market: Effect on rates, capacity, competition, M&A, financial results",
-    "• Regulatory: Effect on compliance, rate filings, solvency, market conduct",
-    "• Catastrophe: Effect on loss exposure, reinsurance, accumulation risk",
-    "• Technology: Effect on operations, underwriting, claims, distribution",
+    "IMPACT BREAKDOWN (each 0-100, MUST sum conceptually to overall impactScore):",
+    "• Market: Effect on rates, capacity, competition, M&A, financial results (0-100)",
+    "• Regulatory: Effect on compliance, rate filings, solvency, market conduct (0-100)",
+    "• Catastrophe: Effect on loss exposure, reinsurance, accumulation risk (0-100)",
+    "• Technology: Effect on operations, underwriting, claims, distribution (0-100)",
+    "NOTE: impactBreakdown values reflect emphasis areas, NOT a sum. Each is independent 0-100.",
     "",
     "RISK PULSE (Industry Disruption Potential):",
     "• HIGH: Severe disruption - immediate action required (major CAT, market exit, regulatory emergency)",
@@ -252,15 +267,20 @@ export async function summarizeAndTag(
     "• NEUTRAL: Informational without clear directional impact",
     "",
     "CONFIDENCE (0-1): Based on article quality, data specificity, source credibility",
-    "• 0.9-1.0: Authoritative source, specific data, clear P&C relevance",
-    "• 0.7-0.89: Credible source, some data, clear industry connection",
-    "• 0.5-0.69: General source, limited data, indirect relevance",
+    "• 0.9-1.0: Authoritative source (NAIC, DOI, major carrier), specific quantified data, direct P&C relevance",
+    "• 0.7-0.89: Credible source (industry publication), some quantified data, clear industry connection",
+    "• 0.5-0.69: General source (news outlet), limited data, indirect relevance",
     "• 0-0.49: Questionable source, vague claims, tangential connection",
+    "CONFIDENCE RATIONALE (≤200 chars): Explain WHY this confidence level (e.g., 'NAIC official source with specific loss data' or 'Industry blog with limited quantification')",
     "",
     "# OUTPUT REQUIREMENTS",
     "Return ONLY valid JSON matching the schema. Current date: " + currentDate,
     "Include all required fields: citations array, impactScore, impactBreakdown, confidenceRationale, leadQuote, disclosure.",
-    "Use citation markers [1], [2] in bullets. Extract leadQuote (key factual excerpt, max 300 chars). Note if article is promotional/opinionated in disclosure.",
+    "",
+    "LEAD QUOTE (≤300 chars): Extract an exact, short factual excerpt from the article (with quotation marks if direct quote). No opinions or synthesis.",
+    "DISCLOSURE (≤200 chars): Set to 'Vendor/Opinionated' if source is promotional or opinion-based; otherwise leave empty string ''.",
+    "CITATIONS: Array of absolute URLs that directly support bracketed claims in bullets. Maximum 5 items.",
+    "Use citation markers [1], [2] in bullets for ALL quantitative claims.",
     "URL: https://agencychecklists.com/2025/10/20/federal-report-2025-pc-sectors-decade-best-underwriting-profit-77765/",
     "SOURCE: Agency Checklists",
     "PUBLISHED: 2025-10-20",
@@ -311,6 +331,117 @@ export async function summarizeAndTag(
     console.error("Failed to summarize after retries:", error);
     throw error;
   }
+}
+
+/**
+ * Ensure impactScore and impactBreakdown are coherent
+ * - impactScore should be 0-100
+ * - impactBreakdown fields should be 0-100
+ * - impactBreakdown should sum to approximately impactScore (within tolerance)
+ */
+function ensureImpactCoherence(article: z.infer<typeof schema>): z.infer<typeof schema> {
+  const impactScore = Math.max(0, Math.min(100, article.impactScore || 0));
+
+  let impactBreakdown = article.impactBreakdown || {
+    market: 0,
+    regulatory: 0,
+    catastrophe: 0,
+    technology: 0,
+  };
+
+  // Ensure all breakdown fields are 0-100
+  impactBreakdown = {
+    market: Math.max(0, Math.min(100, impactBreakdown.market || 0)),
+    regulatory: Math.max(0, Math.min(100, impactBreakdown.regulatory || 0)),
+    catastrophe: Math.max(0, Math.min(100, impactBreakdown.catastrophe || 0)),
+    technology: Math.max(0, Math.min(100, impactBreakdown.technology || 0)),
+  };
+
+  // Check coherence: breakdown sum should be close to impactScore
+  const breakdownSum = (impactBreakdown.market + impactBreakdown.regulatory +
+                        impactBreakdown.catastrophe + impactBreakdown.technology) / 4;
+
+  if (Math.abs(breakdownSum - impactScore) > 20) {
+    console.warn(`[IMPACT COHERENCE] Breakdown average (${Math.round(breakdownSum)}) differs from impactScore (${impactScore}) by >20 points`);
+  }
+
+  return {
+    ...article,
+    impactScore,
+    impactBreakdown,
+  };
+}
+
+/**
+ * Post-parse validation for article data
+ * - Deduplicates citations (case-insensitive)
+ * - Validates all citations are proper URLs
+ * - Ensures bullets only use [1],[2] markers if citations exist
+ * - Removes citation markers from bullets if no valid citations
+ * - Ensures impactScore and impactBreakdown are coherent
+ */
+export function validateAndCleanArticle(article: z.infer<typeof schema>): z.infer<typeof schema> {
+  // Deduplicate citations (case-insensitive)
+  const uniqueCitations = Array.from(
+    new Set(article.citations.map(c => c.toLowerCase()))
+  ).map(c => article.citations.find(orig => orig.toLowerCase() === c)!);
+
+  // Validate all citations are proper URLs
+  const validCitations = uniqueCitations.filter(c => {
+    try {
+      new URL(c);
+      return true;
+    } catch {
+      console.warn(`Invalid citation URL: ${c}`);
+      return false;
+    }
+  });
+
+  // Clean bullets: remove citation markers if no valid citations exist
+  let cleanedBullets = article.bullets5;
+  if (validCitations.length === 0) {
+    cleanedBullets = article.bullets5.map(b => {
+      const hasMarkers = /\[\d+\]/.test(b);
+      if (hasMarkers) {
+        console.warn(`Removing citation markers from bullet: "${b}"`);
+        return b.replace(/\s*\[\d+\]\s*/g, ' ').trim();
+      }
+      return b;
+    });
+  } else {
+    // Validate that citation markers only reference valid citations
+    cleanedBullets = article.bullets5.map(b => {
+      const markers = b.match(/\[\d+\]/g) || [];
+      const validMarkers = markers.filter(m => {
+        const idx = parseInt(m.slice(1, -1), 10);
+        return idx > 0 && idx <= validCitations.length;
+      });
+
+      if (validMarkers.length < markers.length) {
+        console.warn(`Removing invalid citation markers from bullet: "${b}"`);
+        let cleaned = b;
+        markers.forEach(m => {
+          const idx = parseInt(m.slice(1, -1), 10);
+          if (idx < 1 || idx > validCitations.length) {
+            cleaned = cleaned.replace(m, '');
+          }
+        });
+        return cleaned.replace(/\s+/g, ' ').trim();
+      }
+      return b;
+    });
+  }
+
+  let result = {
+    ...article,
+    bullets5: cleanedBullets,
+    citations: validCitations,
+  };
+
+  // Ensure impactScore and impactBreakdown are coherent
+  result = ensureImpactCoherence(result);
+
+  return result;
 }
 
 export async function embedForRAG(client: OpenAI, text: string) {
@@ -414,6 +545,7 @@ export function isRegulatorySource(url: string, source: string): boolean {
  * AI-driven article scoring for P&C insurance professionals (v3 Enhanced)
  * Uses LLM to evaluate relevance, impact, and professional interest
  * Focuses on actionability and decision-making value
+ * Includes timeout, retry, and fallback logic
  */
 export async function scoreArticleWithAI(
   client: OpenAI,
@@ -430,7 +562,10 @@ export async function scoreArticleWithAI(
     sentiment?: string;
   }
 ): Promise<number> {
-  try {
+  const TIMEOUT_MS = 10000; // 10 second timeout
+  const MAX_RETRIES = 2;
+
+  const scoreWithTimeout = async (): Promise<number> => {
     const prompt = `You are a senior P&C insurance analyst evaluating article relevance for industry professionals (underwriters, claims adjusters, actuaries, brokers, risk managers).
 
 ARTICLE ANALYSIS:
@@ -509,25 +644,50 @@ DEPRIORITIZE:
 
 Respond with ONLY a single integer 0-100, no explanation or additional text.`;
 
-    const response = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.1, // Low temperature for consistent scoring
-      max_tokens: 10,
-      messages: [{ role: "user", content: prompt }],
-    });
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-    const scoreText = (response.choices[0].message.content || "50").trim();
-    const score = parseInt(scoreText, 10);
+    try {
+      const response = await client.chat.completions.create({
+        model: "gpt-4o-mini",
+        temperature: 0.1, // Low temperature for consistent scoring
+        max_tokens: 10,
+        messages: [{ role: "user", content: prompt }],
+      });
 
-    if (isNaN(score) || score < 0 || score > 100) {
-      console.warn(`[AI SCORE] Invalid score "${scoreText}", defaulting to 50`);
-      return 50;
+      clearTimeout(timeoutId);
+
+      const scoreText = (response.choices[0].message.content || "50").trim();
+      const score = parseInt(scoreText, 10);
+
+      if (isNaN(score) || score < 0 || score > 100) {
+        console.warn(`[AI SCORE] Invalid score "${scoreText}", defaulting to 50`);
+        return 50;
+      }
+
+      console.log(`[AI SCORE] "${article.title}" → ${score}/100`);
+      return score;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
     }
+  };
 
-    console.log(`[AI SCORE] "${article.title}" → ${score}/100`);
-    return score;
-  } catch (error) {
-    console.error('[AI SCORE ERROR]', error);
-    return 50; // Default fallback score
+  // Retry logic with exponential backoff
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await scoreWithTimeout();
+    } catch (error) {
+      if (attempt === MAX_RETRIES) {
+        console.error(`[AI SCORE] Failed after ${MAX_RETRIES + 1} attempts:`, error);
+        return 50; // Final fallback
+      }
+      const delay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
+      console.warn(`[AI SCORE] Attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
   }
+
+  return 50; // Should not reach here, but safety fallback
 }
