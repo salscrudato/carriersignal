@@ -194,28 +194,15 @@ function SearchResultCard({ result, isSelected, onSelect, index = 0 }: SearchRes
     >
       {/* Content Section */}
       <div className="p-4 space-y-3 flex-1 flex flex-col">
-        {/* Header with Source, Credibility, and Time */}
+        {/* Header with Source and Time (moved to top right) */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
-                {article.source}
-              </span>
-              <div className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${credibilityBadgeColor}`}>
-                <Shield size={12} />
-                {sourceCredibility.credibilityScore}
-              </div>
-              <span className="text-xs text-slate-500 font-medium">{timeAgo}</span>
-            </div>
+            <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full inline-block">
+              {article.source}
+            </span>
           </div>
-          {impactLevel && (
-            <div className={`text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${
-              impactLevel === 'High' ? 'bg-red-100 text-red-700' :
-              impactLevel === 'Medium' ? 'bg-amber-100 text-amber-700' :
-              'bg-green-100 text-green-700'
-            }`}>
-              {impactLevel}
-            </div>
+          {timeAgo && (
+            <span className="text-xs text-slate-500 font-medium flex-shrink-0">{timeAgo}</span>
           )}
         </div>
 
@@ -224,27 +211,30 @@ function SearchResultCard({ result, isSelected, onSelect, index = 0 }: SearchRes
           {article.title}
         </h3>
 
-        {/* Bullet Points - 3-5 key insights */}
+        {/* AI-Generated Summary - Expanded with larger font */}
         {article.bullets5 && article.bullets5.length > 0 && (
-          <div className="space-y-1.5 py-2 border-t border-slate-100 pt-3">
-            {article.bullets5.slice(0, 3).map((bullet: string, idx: number) => (
-              <div key={idx} className="flex gap-2 text-xs text-slate-700 leading-snug">
-                <span className="text-indigo-600 font-bold flex-shrink-0 mt-0.5">•</span>
-                <span className="flex-1 line-clamp-2">{bullet}</span>
+          <div className="space-y-3 py-3 border-t border-slate-100 pt-3">
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center flex-shrink-0">
+                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
               </div>
-            ))}
+              <span className="text-xs font-bold text-indigo-900 uppercase tracking-widest">AI-Generated Summary</span>
+            </div>
+            <div className="space-y-2">
+              {article.bullets5.slice(0, 3).map((bullet: string, idx: number) => (
+                <div key={idx} className="flex gap-2 text-sm text-slate-700 leading-relaxed">
+                  <span className="text-indigo-600 font-bold flex-shrink-0 mt-0.5">→</span>
+                  <span className="flex-1">{bullet}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Badges Row with Premium Styling */}
+        {/* Badges Row - Regulatory and Category Tags Only */}
         <div className="flex flex-wrap gap-2 pt-2 mt-auto border-t border-slate-100 pt-3">
-          {/* Score Badge - Prominent */}
-          {score > 0 && (
-            <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 rounded-full text-xs font-bold transition-all duration-300 hover:scale-110 hover:shadow-md">
-              <Zap size={12} /> {Math.round(score)}
-            </span>
-          )}
-
           {/* Regulatory Badge */}
           {article.regulatory && (
             <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-red-100 to-orange-100 text-red-700 rounded-full text-xs font-bold transition-all duration-300 hover:scale-110 hover:shadow-md">

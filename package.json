@@ -7,15 +7,19 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "populate": "tsx scripts/populateWeekData.ts",
+    "clear-db": "tsx scripts/clearDatabase.ts"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
     "firebase": "^12.4.0",
     "firebase-admin": "^13.5.0",
     "lucide-react": "^0.548.0",
+    "openai": "^6.7.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "rss-parser": "^3.13.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
@@ -30,6 +34,7 @@
     "globals": "^16.4.0",
     "tailwindcss": "^4.1.16",
     "terser": "^5.44.0",
+    "tsx": "^4.19.2",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.45.0",
     "vite": "^7.1.7"

@@ -6,7 +6,6 @@ import {getFirestore} from "firebase-admin/firestore";
 import OpenAI from "openai";
 import Parser from "rss-parser";
 import {extractArticle, summarizeAndTag, embedForRAG, hashUrl, calculateSmartScore, normalizeRegions, normalizeCompanies, getCanonicalUrl, computeContentHash, detectStormName, isRegulatorySource, scoreArticleWithAI} from "./agents";
-import {fetchNewsAPIArticles} from "./newsapi";
 
 initializeApp();
 const db = getFirestore();
@@ -46,6 +45,7 @@ const ALLOWED_ORIGINS = [
   'https://carriersignal.web.app',
   'https://carriersignal.firebaseapp.com',
   'http://localhost:5173',
+  'http://localhost:5174',
   'http://localhost:4173',
 ];
 
@@ -56,7 +56,7 @@ function checkCORS(origin: string | undefined): boolean {
 
 /**
  * RSS Feed sources for batch processing
- * Expanded to include regulatory, catastrophe, and specialized sources
+ * Using only Insurance Journal RSS feed as requested
  */
 interface FeedSource {
   url: string;
@@ -66,38 +66,8 @@ interface FeedSource {
 }
 
 const FEED_SOURCES: FeedSource[] = [
-  // Tier 1: Premium Insurance News (RSS)
+  // Insurance Journal - National news only
   { url: "https://www.insurancejournal.com/rss/news/national/", category: 'news', priority: 1, enabled: true },
-  { url: "https://www.insurancejournal.com/rss/news/international/", category: 'news', priority: 1, enabled: true },
-  { url: "https://www.claimsjournal.com/rss/news/national/", category: 'news', priority: 1, enabled: true },
-  { url: "https://www.claimsjournal.com/rss/news/international/", category: 'news', priority: 1, enabled: true },
-  { url: "https://riskandinsurance.com/feed/", category: 'news', priority: 1, enabled: true },
-  { url: "https://www.propertycasualty360.com/feed/", category: 'news', priority: 1, enabled: true },
-  { url: "https://www.insurancebusinessmag.com/us/rss/", category: 'news', priority: 1, enabled: true },
-  { url: "https://www.carriermanagement.com/feed/", category: 'news', priority: 1, enabled: true },
-  { url: "https://insurancenewsnet.com/feed", category: 'news', priority: 1, enabled: true },
-
-  // Tier 2: Industry Organizations
-  { url: "https://www.iii.org/rss/press-releases", category: 'news', priority: 2, enabled: true },
-  { url: "https://news.ambest.com/rss/presscenter.xml", category: 'news', priority: 2, enabled: true },
-
-  // Tier 3: Specialized Sources
-  { url: "https://www.reinsurancene.ws/feed/", category: 'reinsurance', priority: 2, enabled: true },
-  { url: "https://insurancethoughtleadership.com/feed/", category: 'news', priority: 2, enabled: true },
-  { url: "https://www.dig-in.com/insurance/feed", category: 'technology', priority: 2, enabled: true },
-  { url: "https://www.insuranceerm.com/feed/", category: 'news', priority: 2, enabled: true },
-  { url: "https://www.artemis.bm/feed/", category: 'reinsurance', priority: 2, enabled: true },
-
-  // Tier 4: Catastrophe & Weather
-  { url: "https://www.nhc.noaa.gov/index-at.xml", category: 'catastrophe', priority: 1, enabled: true }, // NOAA Hurricane Center
-  { url: "https://www.usgs.gov/feeds/earthquakes", category: 'catastrophe', priority: 1, enabled: true }, // USGS Earthquakes
-  { url: "https://www.fema.gov/about/news-multimedia/rss", category: 'catastrophe', priority: 2, enabled: true }, // FEMA News
-
-  // Tier 5: Regulatory (State DOI - top 5 states by premium)
-  // Note: Many state DOIs don't have RSS feeds, may need web scraping in future
-  { url: "https://www.insurance.ca.gov/0250-insurers/0300-insurers/news-release/rss.xml", category: 'regulatory', priority: 1, enabled: true }, // California DOI
-  { url: "https://www.floir.com/PressReleases/PressReleaseRSS.aspx", category: 'regulatory', priority: 1, enabled: true }, // Florida OIR
-  // Texas, New York, Pennsylvania DOIs don't have public RSS feeds
 ];
 
 // For backward compatibility, extract URLs
@@ -123,149 +93,7 @@ async function initializeFeedsCollection() {
   console.log(`[FEEDS] Initialized ${FEED_SOURCES.length} feeds in Firestore`);
 }
 
-/**
- * Process NewsAPI articles and add to Firestore
- */
-async function processNewsAPIArticles(client: OpenAI, results: { skipped: number; processed: number; errors: number }) {
-  try {
-    console.log('[NEWSAPI] Starting NewsAPI article fetch');
-    const newsapiStartTime = Date.now();
 
-    // Fetch from NewsAPI (page 1 only to avoid rate limits)
-    const newsapiArticles = await fetchNewsAPIArticles(1, 50);
-    console.log(`[NEWSAPI] Fetched ${newsapiArticles.length} articles`);
-
-    for (let i = 0; i < newsapiArticles.length; i++) {
-      const article = newsapiArticles[i];
-      const itemIndex = i + 1;
-
-      try {
-        // Check if article already exists
-        const existingDoc = await db.collection('articles')
-          .where('url', '==', article.url)
-          .limit(1)
-          .get();
-
-        if (!existingDoc.empty) {
-          console.log(`[NEWSAPI ${itemIndex}/${newsapiArticles.length}] Article already exists: ${article.title}`);
-          results.skipped++;
-          continue;
-        }
-
-        // Extract full content from URL
-        const content = { text: article.description || '', html: '', title: article.title, url: article.url };
-
-        if (article.content) {
-          content.text = article.content;
-        }
-
-        if (!content.text || content.text.length < 100) {
-          console.log(`[NEWSAPI ${itemIndex}/${newsapiArticles.length}] Article text too short: ${article.title}`);
-          results.skipped++;
-          continue;
-        }
-
-        // Summarize & classify
-        const brief = await summarizeAndTag(client, {
-          url: article.url,
-          source: article.source,
-          publishedAt: article.publishedAt,
-          title: article.title,
-          text: content.text,
-        });
-
-        // Entity normalization
-        const regionsNormalized = brief.tags?.regions
-          ? normalizeRegions(brief.tags.regions)
-          : [];
-        const companiesNormalized = brief.tags?.companies
-          ? normalizeCompanies(brief.tags.companies)
-          : [];
-
-        // Deduplication
-        const canonicalUrl = article.url;
-        const contentHash = computeContentHash(content.text);
-
-        const duplicateCheck = await db.collection('articles')
-          .where('contentHash', '==', contentHash)
-          .limit(1)
-          .get();
-
-        let clusterId = contentHash;
-        if (!duplicateCheck.empty) {
-          const existingDoc = duplicateCheck.docs[0];
-          clusterId = existingDoc.data().clusterId || contentHash;
-          console.log(`[NEWSAPI ${itemIndex}/${newsapiArticles.length}] Duplicate detected: ${article.title}`);
-        }
-
-        // Regulatory detection
-        const regulatory = isRegulatorySource(article.url, article.source) ||
-                          (brief.tags?.regulations && brief.tags.regulations.length > 0);
-
-        // Build embedding
-        const emb = await embedForRAG(
-          client,
-          `${brief.title}\n${brief.bullets5.join("\n")}\n${Object.values(brief.whyItMatters).join("\n")}`
-        );
-
-        // Calculate SmartScore
-        const smartScore = calculateSmartScore({
-          publishedAt: article.publishedAt,
-          impactScore: brief.impactScore,
-          tags: brief.tags,
-          regulatory,
-        });
-
-        // Detect storm name
-        const stormName = detectStormName(`${brief.title} ${content.text.slice(0, 1000)}`);
-
-        // AI-driven scoring for P&C professionals
-        const aiScore = await scoreArticleWithAI(client, {
-          title: brief.title,
-          bullets5: brief.bullets5,
-          whyItMatters: brief.whyItMatters,
-          tags: brief.tags,
-          impactScore: brief.impactScore,
-          publishedAt: article.publishedAt,
-          regulatory,
-          stormName,
-        });
-
-        // Save to Firestore
-        const docRef = db.collection('articles').doc(hashUrl(article.url));
-        await docRef.set({
-          ...brief,
-          publishedAt: article.publishedAt,
-          createdAt: new Date(),
-          embedding: emb,
-          smartScore,
-          aiScore,
-          regionsNormalized,
-          companiesNormalized,
-          canonicalUrl,
-          contentHash,
-          clusterId,
-          regulatory,
-          stormName: stormName || null,
-          newsapiSource: true,
-          batchProcessedAt: new Date(),
-        });
-
-        console.log(`[NEWSAPI ${itemIndex}/${newsapiArticles.length}] Successfully processed: ${brief.title}`);
-        results.processed++;
-      } catch (error) {
-        console.error(`[NEWSAPI ${itemIndex}/${newsapiArticles.length}] Error processing article:`, error);
-        results.errors++;
-      }
-    }
-
-    const newsapiDuration = Date.now() - newsapiStartTime;
-    console.log(`[NEWSAPI] Completed in ${newsapiDuration}ms: ${newsapiArticles.length} articles processed`);
-  } catch (error) {
-    console.error('[NEWSAPI ERROR]', error);
-    // Don't throw - NewsAPI failure shouldn't break RSS feed processing
-  }
-}
 
 /**
  * Shared logic for refreshing feeds with batch processing
@@ -386,15 +214,18 @@ async function refreshFeedsLogic(apiKey: string) {
             `${brief.title}\n${brief.bullets5.join("\n")}\n${Object.values(brief.whyItMatters).join("\n")}`
           );
 
-          // Calculate SmartScore v2
+          // Calculate SmartScore v3 (enhanced)
           const smartScore = calculateSmartScore({
             publishedAt: item.isoDate || item.pubDate || "",
             impactScore: brief.impactScore,
+            impactBreakdown: brief.impactBreakdown,
             tags: brief.tags,
             regulatory,
+            riskPulse: brief.riskPulse,
+            stormName,
           });
 
-          // AI-driven scoring for P&C professionals
+          // AI-driven scoring for P&C professionals (v3 enhanced)
           const aiScore = await scoreArticleWithAI(client, {
             title: brief.title,
             bullets5: brief.bullets5,
@@ -404,6 +235,8 @@ async function refreshFeedsLogic(apiKey: string) {
             publishedAt: item.isoDate || item.pubDate,
             regulatory,
             stormName,
+            riskPulse: brief.riskPulse,
+            sentiment: brief.sentiment,
           });
 
           await docRef.set({
@@ -441,9 +274,6 @@ async function refreshFeedsLogic(apiKey: string) {
       // Continue to next feed instead of failing entire batch
     }
   }
-
-  // Process NewsAPI articles (after RSS feeds)
-  await processNewsAPIArticles(client, results);
 
   const totalDuration = Date.now() - batchStartTime;
   console.log(`[BATCH SUMMARY] Total duration: ${totalDuration}ms, Feeds: ${results.feedsProcessed}, Processed: ${results.processed}, Skipped: ${results.skipped}, Errors: ${results.errors}`);
@@ -858,7 +688,7 @@ export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, asyn
 
 /**
  * Hourly refresh of articles
- * Fetches new articles from RSS feeds and adds them to the database
+ * Fetches new articles from Insurance Journal RSS feed
  * Runs every hour at minute 0
  */
 export const hourlyArticleRefresh = onSchedule("every 1 hours", async () => {
@@ -868,15 +698,9 @@ export const hourlyArticleRefresh = onSchedule("every 1 hours", async () => {
     const client = new OpenAI({apiKey: OPENAI_API_KEY.value()});
     const parser = new Parser();
 
-    // US-focused insurance news sources
+    // Insurance Journal RSS feed only
     const feedSources = [
       "https://www.insurancejournal.com/rss/news/national/",
-      "https://www.claimsjournal.com/rss/news/national/",
-      "https://riskandinsurance.com/feed/",
-      "https://www.propertycasualty360.com/feed/",
-      "https://www.insurancebusinessmag.com/us/rss/",
-      "https://www.carriermanagement.com/feed/",
-      "https://insurancenewsnet.com/feed",
     ];
 
     const newArticles: Array<{

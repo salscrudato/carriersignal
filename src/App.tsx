@@ -69,13 +69,14 @@ export default function App() {
   useEffect(() => {
     const q = query(
       collection(db, "articles"),
-      orderBy("publishedAt", "desc"),
+      orderBy("createdAt", "desc"),
       limit(100)
     );
 
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
+        console.log(`📊 Firestore: Received ${snapshot.docs.length} articles`);
         const docs = snapshot.docs.map((doc) => ({
           ...doc.data(),
           createdAt: doc.data().createdAt?.toDate?.() || new Date(),
@@ -85,7 +86,9 @@ export default function App() {
         setLoading(false);
       },
       (error) => {
-        console.error("Error fetching articles:", error);
+        console.error("❌ Error fetching articles:", error);
+        console.error("Error code:", error.code);
+        console.error("Error message:", error.message);
         setLoading(false);
       }
     );

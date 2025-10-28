@@ -191,32 +191,112 @@ export function isRegulatorySource(url: string, source: string): boolean {
 }
 
 /**
- * Calculate SmartScore v2
+ * Calculate SmartScore v3 - Enhanced for P&C Insurance Professionals
+ *
+ * Scoring Philosophy:
+ * - Balances recency with enduring relevance (breaking news vs. structural changes)
+ * - Prioritizes actionable intelligence over general news
+ * - Weights catastrophe, regulatory, and market-moving events heavily
+ * - Considers multi-dimensional impact (market, regulatory, catastrophe, technology)
  */
 export function calculateSmartScore(params: {
   publishedAt?: string;
   impactScore: number;
+  impactBreakdown?: {
+    market?: number;
+    regulatory?: number;
+    catastrophe?: number;
+    technology?: number;
+  };
   tags?: {
     regulations?: string[];
     perils?: string[];
+    lob?: string[];
+    trends?: string[];
   };
   regulatory?: boolean;
+  riskPulse?: 'LOW' | 'MEDIUM' | 'HIGH';
+  stormName?: string;
 }): number {
   const now = Date.now();
   const pubDate = params.publishedAt ? new Date(params.publishedAt).getTime() : now;
   const ageHours = Math.max(0, (now - pubDate) / (1000 * 60 * 60));
 
-  const recencyScore = Math.exp(-ageHours / 168) * 100;
-  const impactNormalized = params.impactScore;
+  // Enhanced recency decay with different curves for different content types
+  // Catastrophe/regulatory news: slower decay (72h half-life)
+  // Market news: medium decay (48h half-life)
+  // General news: faster decay (24h half-life)
+  const isCatastrophe = params.stormName || params.impactBreakdown?.catastrophe || 0 > 50;
+  const isRegulatory = params.regulatory || (params.tags?.regulations && params.tags.regulations.length > 0);
 
-  const regulatoryBoost = (params.regulatory || (params.tags?.regulations && params.tags.regulations.length > 0)) ? 1.2 : 1.0;
+  let halfLife = 24; // Default: 24 hours
+  if (isCatastrophe) halfLife = 72; // Catastrophe news stays relevant longer
+  else if (isRegulatory) halfLife = 48; // Regulatory news has medium longevity
 
-  const catPerils = ['Hurricane', 'Wildfire', 'Earthquake', 'Flood', 'Tornado', 'Severe Weather'];
-  const hasCatPeril = params.tags?.perils?.some(p => catPerils.includes(p)) || false;
-  const catastropheBoost = hasCatPeril ? 1.15 : 1.0;
+  const recencyScore = Math.exp(-ageHours / (halfLife * 1.44)) * 100; // 1.44 converts half-life to decay constant
 
-  const baseScore = (recencyScore * 0.4) + (impactNormalized * 0.6);
-  const smartScore = Math.min(100, baseScore * regulatoryBoost * catastropheBoost);
+  // Multi-dimensional impact scoring
+  const impactBreakdown = params.impactBreakdown || {
+    market: params.impactScore * 0.25,
+    regulatory: params.impactScore * 0.25,
+    catastrophe: params.impactScore * 0.25,
+    technology: params.impactScore * 0.25,
+  };
+
+  // Weight different impact dimensions based on P&C industry priorities
+  const weightedImpact =
+    (impactBreakdown.market || 0) * 0.30 +        // Market impact: 30% (rates, capacity, competition)
+    (impactBreakdown.regulatory || 0) * 0.35 +    // Regulatory: 35% (highest - directly affects operations)
+    (impactBreakdown.catastrophe || 0) * 0.25 +   // Catastrophe: 25% (loss events, exposure)
+    (impactBreakdown.technology || 0) * 0.10;     // Technology: 10% (innovation, but less immediate)
+
+  // Risk pulse multiplier (industry disruption potential)
+  const riskPulseMultiplier =
+    params.riskPulse === 'HIGH' ? 1.25 :
+    params.riskPulse === 'MEDIUM' ? 1.10 :
+    1.0;
+
+  // Regulatory boost (critical for compliance and operations)
+  const regulatoryBoost = isRegulatory ? 1.20 : 1.0;
+
+  // Catastrophe boost with graduated scale
+  const catPerils = ['Hurricane', 'Wildfire', 'Earthquake', 'Flood', 'Tornado', 'Severe Weather', 'Hail', 'Winter Storm', 'Convective Storm'];
+  const hasCatPeril = params.tags?.perils?.some(p =>
+    catPerils.some(cat => p.toLowerCase().includes(cat.toLowerCase()))
+  ) || false;
+
+  // Named storm gets higher boost
+  const catastropheBoost = params.stormName ? 1.30 : (hasCatPeril ? 1.15 : 1.0);
+
+  // High-value trend boost (emerging risks and opportunities)
+  const highValueTrends = [
+    'Climate Risk', 'Social Inflation', 'GenAI', 'Litigation Funding',
+    'Tort Reform', 'Rate Adequacy', 'Reinsurance', 'Capacity Constraints',
+    'Nuclear Verdicts', 'Assignment of Benefits', 'Parametric Insurance'
+  ];
+  const hasHighValueTrend = params.tags?.trends?.some(t =>
+    highValueTrends.some(hvt => t.toLowerCase().includes(hvt.toLowerCase()))
+  ) || false;
+  const trendBoost = hasHighValueTrend ? 1.10 : 1.0;
+
+  // Multi-LOB coverage boost (broader industry relevance)
+  const lobCount = params.tags?.lob?.length || 0;
+  const lobBoost = lobCount >= 3 ? 1.08 : (lobCount >= 2 ? 1.04 : 1.0);
+
+  // Calculate base score with enhanced weighting
+  // Recency: 35% (down from 40% to reduce recency bias)
+  // Impact: 65% (up from 60% to prioritize substance over timing)
+  const baseScore = (recencyScore * 0.35) + (weightedImpact * 0.65);
+
+  // Apply all multipliers
+  const smartScore = Math.min(100,
+    baseScore *
+    riskPulseMultiplier *
+    regulatoryBoost *
+    catastropheBoost *
+    trendBoost *
+    lobBoost
+  );
 
   return Math.round(smartScore * 10) / 10;
 }

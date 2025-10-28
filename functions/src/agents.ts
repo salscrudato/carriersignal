@@ -56,8 +56,8 @@ const schema = z.object({
     technology: z.number().min(0).max(100),
   }),
   confidenceRationale: z.string().max(200), // Why this confidence level
-  leadQuote: z.string().max(300).optional(), // Key factual excerpt
-  disclosure: z.string().max(200).optional(), // If promotional/opinionated
+  leadQuote: z.string().max(300), // Key factual excerpt (required for OpenAI structured output)
+  disclosure: z.string().max(200), // If promotional/opinionated (required for OpenAI structured output)
 });
 
 export function hashUrl(u: string) {
@@ -175,7 +175,7 @@ export async function summarizeAndTag(
         leadQuote: { type: "string", maxLength: 300 },
         disclosure: { type: "string", maxLength: 200 },
       },
-      required: ["title", "url", "source", "bullets5", "whyItMatters", "tags", "riskPulse", "sentiment", "confidence", "citations", "impactScore", "impactBreakdown", "confidenceRationale"],
+      required: ["title", "url", "source", "bullets5", "whyItMatters", "tags", "riskPulse", "sentiment", "confidence", "citations", "impactScore", "impactBreakdown", "confidenceRationale", "leadQuote", "disclosure"],
     },
     strict: true,
   } as const;
@@ -183,20 +183,84 @@ export async function summarizeAndTag(
   const currentDate = new Date().toISOString().split('T')[0]; // Use current date for timeliness
 
   const system = [
-    "You are a senior P&C insurance analyst with 20+ years experience in underwriting, claims, and actuarial modeling.",
-    "Analyze articles for relevance to U.S. P&C insurance: focus on lines like auto, property, casualty; perils like hurricane, cyber; regions (use ISO 3166-2 codes e.g., US-FL, US-CA); companies (exact names).",
-    "Add trends (e.g., 'GenAI', 'Climate Risk', 'Social Inflation', 'Tort Reform', 'Secondary Perils', 'Litigation Funding') and regulations (e.g., 'NAIC Bulletin', 'DOI Bulletin', 'Rate Filing').",
-    "CRITICAL: Create 3-5 precise, factual bullets (max 35 words each) that form a compelling 2-3 sentence executive summary when read sequentially.",
-    "First bullet should be the headline impact. Second bullet should provide key context/data. Remaining bullets should detail implications and trends.",
-    "Include quantitative data where present. Use [n] markers for citations that map to the citations array.",
-    "For 'whyItMatters', provide outcome-oriented role-specific impacts (20-200 chars each): Decision, Risk, Action for each role.",
-    "Assess riskPulse based on potential industry disruption: LOW (minor), MEDIUM (notable), HIGH (severe).",
-    "Determine sentiment: POSITIVE (good for industry), NEGATIVE (challenges), NEUTRAL (informational).",
-    "Provide confidence (0-1) based on article clarity and relevance to P&C, and explain in confidenceRationale (max 200 chars).",
-    "Calculate impactScore (0-100) and break down by market, regulatory, catastrophe, technology dimensions.",
-    "Include citations array with URLs referenced in bullets. Add leadQuote if there's a key factual excerpt. Add disclosure if article is promotional/opinionated.",
-    "Return ONLY valid JSON per schema. Use current date " + currentDate + " for context if needed.",
-    "Ensure bullets use [1], [2] citation markers. Include all v2 fields: citations, impactScore, impactBreakdown, confidenceRationale.",
+    "# ROLE & EXPERTISE",
+    "You are a senior P&C insurance analyst with 20+ years experience across underwriting, claims, actuarial science, and risk management.",
+    "You specialize in translating complex insurance news into actionable intelligence for industry professionals.",
+    "",
+    "# ANALYSIS FRAMEWORK",
+    "Analyze articles through the P&C insurance lens focusing on:",
+    "- Lines of Business: Personal Auto, Commercial Auto, Homeowners, Commercial Property, General Liability, Workers Comp, Professional Liability, Cyber, Umbrella/Excess",
+    "- Perils: Hurricane, Wildfire, Earthquake, Flood, Tornado, Hail, Severe Weather, Cyber Attack, Litigation",
+    "- Regions: Use ISO 3166-2 codes (US-FL, US-CA, US-TX, etc.) for U.S. states; spell out countries",
+    "- Companies: Use exact legal names (State Farm, Allstate, Chubb, etc.)",
+    "- Key Trends: Climate Risk, Social Inflation, Nuclear Verdicts, GenAI, Litigation Funding, Tort Reform, Rate Adequacy, Reinsurance Hardening, Assignment of Benefits (AOB), Parametric Insurance, Telematics, ESG",
+    "- Regulations: NAIC Model Laws, DOI Bulletins, Rate Filings, Solvency Requirements, Data Privacy Laws, Climate Disclosure Rules",
+    "",
+    "# BULLET WRITING EXCELLENCE",
+    "Create 3-5 executive summary bullets that tell a complete story:",
+    "",
+    "STRUCTURE:",
+    "• Bullet 1 (HEADLINE): Lead with the most critical finding - what happened and why it matters (max 40 words)",
+    "• Bullet 2 (DATA/CONTEXT): Provide quantitative evidence and key context (max 35 words)",
+    "• Bullet 3 (IMPLICATIONS): Explain market/industry implications (max 35 words)",
+    "• Bullet 4 (TRENDS/DRIVERS): Connect to broader trends or root causes (max 35 words, optional)",
+    "• Bullet 5 (OUTLOOK/ACTION): Forward-looking implications or recommended actions (max 35 words, optional)",
+    "",
+    "QUALITY STANDARDS:",
+    "✓ Lead with impact, not background",
+    "✓ Use specific numbers, percentages, dollar amounts when available",
+    "✓ Avoid jargon unless industry-standard (combined ratio, loss ratio, CAT losses, etc.)",
+    "✓ Each bullet should stand alone but flow sequentially",
+    "✓ Use active voice and strong verbs",
+    "✓ Include [1], [2] citation markers for key facts",
+    "",
+    "EXAMPLES OF EXCELLENT BULLETS:",
+    "✓ \"Florida's tort reforms reduced homeowners defense costs by 23% in Q3 2024, driving the state's combined ratio down to 94.2% from 108.5% in 2023, marking the first underwriting profit in three years.\"",
+    "✓ \"California FAIR Plan exposure surged 29.8% to $458 billion as major carriers non-renewed 2.1 million policies in wildfire-prone areas, creating a residual market crisis that threatens state solvency.\"",
+    "✓ \"Third-party litigation funding in auto injury claims increased average settlement costs by 47% across 12 states, with Florida, Louisiana, and California seeing the highest impact on loss ratios.\"",
+    "",
+    "# WHY IT MATTERS (Role-Specific Insights)",
+    "Provide crisp, actionable insights for each role (20-200 chars):",
+    "• Underwriting: Impact on risk selection, pricing, appetite, or capacity",
+    "• Claims: Impact on loss costs, settlement strategies, litigation, or fraud",
+    "• Brokerage: Impact on market conditions, placement strategies, or client advisory",
+    "• Actuarial: Impact on loss projections, reserving, pricing models, or capital requirements",
+    "",
+    "# SCORING METHODOLOGY",
+    "",
+    "IMPACT SCORE (0-100): Overall significance to P&C industry",
+    "• 90-100: Industry-transforming (major CAT, regulatory overhaul, market crisis)",
+    "• 70-89: Highly significant (large carrier action, state-level reform, emerging trend)",
+    "• 50-69: Notable (regional impact, specific LOB changes, tactical shifts)",
+    "• 30-49: Moderate (company news, incremental changes, niche topics)",
+    "• 0-29: Low (tangential relevance, minor updates)",
+    "",
+    "IMPACT BREAKDOWN (each 0-100):",
+    "• Market: Effect on rates, capacity, competition, M&A, financial results",
+    "• Regulatory: Effect on compliance, rate filings, solvency, market conduct",
+    "• Catastrophe: Effect on loss exposure, reinsurance, accumulation risk",
+    "• Technology: Effect on operations, underwriting, claims, distribution",
+    "",
+    "RISK PULSE (Industry Disruption Potential):",
+    "• HIGH: Severe disruption - immediate action required (major CAT, market exit, regulatory emergency)",
+    "• MEDIUM: Notable impact - strategic response needed (rate changes, capacity shifts, new regulations)",
+    "• LOW: Minor impact - monitoring sufficient (incremental changes, niche developments)",
+    "",
+    "SENTIMENT:",
+    "• POSITIVE: Favorable for industry profitability, stability, or growth",
+    "• NEGATIVE: Challenges to profitability, capacity, or operations",
+    "• NEUTRAL: Informational without clear directional impact",
+    "",
+    "CONFIDENCE (0-1): Based on article quality, data specificity, source credibility",
+    "• 0.9-1.0: Authoritative source, specific data, clear P&C relevance",
+    "• 0.7-0.89: Credible source, some data, clear industry connection",
+    "• 0.5-0.69: General source, limited data, indirect relevance",
+    "• 0-0.49: Questionable source, vague claims, tangential connection",
+    "",
+    "# OUTPUT REQUIREMENTS",
+    "Return ONLY valid JSON matching the schema. Current date: " + currentDate,
+    "Include all required fields: citations array, impactScore, impactBreakdown, confidenceRationale, leadQuote, disclosure.",
+    "Use citation markers [1], [2] in bullets. Extract leadQuote (key factual excerpt, max 300 chars). Note if article is promotional/opinionated in disclosure.",
     "URL: https://agencychecklists.com/2025/10/20/federal-report-2025-pc-sectors-decade-best-underwriting-profit-77765/",
     "SOURCE: Agency Checklists",
     "PUBLISHED: 2025-10-20",
@@ -261,17 +325,27 @@ export async function embedForRAG(client: OpenAI, text: string) {
 }
 
 /**
- * Calculate SmartScore v2: recency × relevance × impact × regulatory/catastrophe boosts
+ * Calculate SmartScore v3: Enhanced multi-dimensional scoring for P&C insurance
  * Returns a score 0-100 for ranking articles
  */
 export function calculateSmartScore(params: {
   publishedAt?: string;
   impactScore: number;
+  impactBreakdown?: {
+    market?: number;
+    regulatory?: number;
+    catastrophe?: number;
+    technology?: number;
+  };
   tags?: {
     regulations?: string[];
     perils?: string[];
+    lob?: string[];
+    trends?: string[];
   };
   regulatory?: boolean;
+  riskPulse?: 'LOW' | 'MEDIUM' | 'HIGH';
+  stormName?: string;
 }): number {
   return calculateSmartScoreUtil(params);
 }
@@ -337,8 +411,9 @@ export function isRegulatorySource(url: string, source: string): boolean {
 }
 
 /**
- * AI-driven article scoring for P&C insurance professionals
- * Uses LLM to evaluate relevance, impact, and interest for underwriters, claims, brokers, actuaries
+ * AI-driven article scoring for P&C insurance professionals (v3 Enhanced)
+ * Uses LLM to evaluate relevance, impact, and professional interest
+ * Focuses on actionability and decision-making value
  */
 export async function scoreArticleWithAI(
   client: OpenAI,
@@ -351,45 +426,92 @@ export async function scoreArticleWithAI(
     publishedAt?: string;
     regulatory?: boolean;
     stormName?: string;
+    riskPulse?: string;
+    sentiment?: string;
   }
 ): Promise<number> {
   try {
-    const prompt = `You are an expert P&C insurance analyst scoring articles for relevance and impact to insurance professionals.
+    const prompt = `You are a senior P&C insurance analyst evaluating article relevance for industry professionals (underwriters, claims adjusters, actuaries, brokers, risk managers).
 
-Article Title: ${article.title}
+ARTICLE ANALYSIS:
+Title: ${article.title}
 
-Key Points:
+Executive Summary:
 ${(article.bullets5 || []).map((b, i) => `${i + 1}. ${b}`).join('\n')}
 
 Professional Impact:
 ${Object.entries(article.whyItMatters || {})
-  .map(([role, impact]) => `- ${role}: ${impact}`)
+  .map(([role, impact]) => `• ${role.toUpperCase()}: ${impact}`)
   .join('\n')}
 
-Tags: ${JSON.stringify(article.tags || {})}
-Impact Score: ${article.impactScore || 0}/100
-Regulatory: ${article.regulatory ? 'Yes' : 'No'}
-Storm/Catastrophe: ${article.stormName || 'None'}
-Published: ${article.publishedAt || 'Unknown'}
+Metadata:
+• Tags: ${JSON.stringify(article.tags || {})}
+• Impact Score: ${article.impactScore || 0}/100
+• Risk Pulse: ${article.riskPulse || 'UNKNOWN'}
+• Sentiment: ${article.sentiment || 'NEUTRAL'}
+• Regulatory: ${article.regulatory ? 'Yes' : 'No'}
+• Named Storm: ${article.stormName || 'None'}
+• Published: ${article.publishedAt || 'Unknown'}
 
-Score this article on a scale of 0-100 for P&C insurance professionals based on:
-1. Relevance to underwriting, claims, risk management, or actuarial work (40%)
-2. Timeliness and recency (20%)
-3. Impact on market, regulations, or catastrophe exposure (30%)
-4. Actionability for insurance professionals (10%)
+SCORING CRITERIA (0-100):
 
-Consider:
-- Regulatory changes affecting P&C insurance
-- Catastrophe/peril developments
-- Market trends affecting rates or availability
-- Claims patterns or litigation trends
-- Technology/innovation in insurance
-- Competitive landscape changes
+Rate this article's value to P&C insurance professionals based on:
 
-Respond with ONLY a single number 0-100, no explanation.`;
+1. PROFESSIONAL RELEVANCE (35 points):
+   - Direct impact on underwriting decisions, pricing, or risk selection
+   - Affects claims handling, settlement strategies, or loss costs
+   - Influences actuarial models, reserving, or capital requirements
+   - Impacts brokerage placement, client advisory, or market access
+
+2. ACTIONABILITY (25 points):
+   - Provides specific data, metrics, or quantitative insights
+   - Enables immediate decision-making or strategic planning
+   - Offers competitive intelligence or market positioning insights
+   - Contains regulatory guidance or compliance requirements
+
+3. MARKET SIGNIFICANCE (25 points):
+   - Affects rates, capacity, or market availability
+   - Involves major carriers, significant market share, or systemic risk
+   - Represents emerging trends or structural market changes
+   - Impacts reinsurance, capital markets, or industry economics
+
+4. TIMELINESS & URGENCY (15 points):
+   - Breaking news requiring immediate attention
+   - Time-sensitive regulatory or catastrophe developments
+   - Evolving situations with ongoing implications
+   - Enduring relevance beyond immediate news cycle
+
+SCORING GUIDELINES:
+• 90-100: CRITICAL - Industry-transforming events (major CAT, regulatory overhaul, market crisis, carrier insolvency)
+• 75-89: HIGH VALUE - Significant developments (state reforms, large carrier actions, emerging trends, material rate changes)
+• 60-74: VALUABLE - Notable industry news (regional impacts, specific LOB changes, tactical intelligence)
+• 45-59: MODERATE - Relevant updates (company news, incremental changes, niche topics)
+• 30-44: LIMITED - Tangential relevance (peripheral topics, minor updates, low actionability)
+• 0-29: LOW - Minimal P&C relevance (general business news, unrelated topics)
+
+PRIORITIZE:
+✓ Catastrophe loss events and accumulation risk
+✓ Regulatory changes affecting rates, forms, or solvency
+✓ Litigation trends and nuclear verdicts
+✓ Market capacity shifts and carrier exits/entries
+✓ Rate adequacy and combined ratio impacts
+✓ Reinsurance market developments
+✓ Technology disruption (AI, telematics, parametric)
+✓ Climate risk and secondary perils
+✓ Social inflation and claims cost trends
+
+DEPRIORITIZE:
+✗ Generic business news without P&C angle
+✗ Promotional content or vendor marketing
+✗ Life/health insurance topics
+✗ International news without U.S. market impact
+✗ Tangential technology without insurance application
+
+Respond with ONLY a single integer 0-100, no explanation or additional text.`;
 
     const response = await client.chat.completions.create({
       model: "gpt-4o-mini",
+      temperature: 0.1, // Low temperature for consistent scoring
       max_tokens: 10,
       messages: [{ role: "user", content: prompt }],
     });
@@ -402,6 +524,7 @@ Respond with ONLY a single number 0-100, no explanation.`;
       return 50;
     }
 
+    console.log(`[AI SCORE] "${article.title}" → ${score}/100`);
     return score;
   } catch (error) {
     console.error('[AI SCORE ERROR]', error);
