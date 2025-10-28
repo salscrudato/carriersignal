@@ -223,20 +223,20 @@ interface MetricCardProps {
 
 function MetricCard({ icon, label, value, color }: MetricCardProps) {
   const colorClasses = {
-    blue: 'from-blue-50 to-purple-50 border-blue-200/40 text-blue-600',
-    red: 'from-red-50 to-rose-50 border-red-200/40 text-red-600',
-    orange: 'from-orange-50 to-amber-50 border-orange-200/40 text-orange-600',
+    blue: 'from-blue-50/60 to-purple-50/40 border-blue-200/50 text-blue-600',
+    red: 'from-red-50/60 to-rose-50/40 border-red-200/50 text-red-600',
+    orange: 'from-orange-50/60 to-amber-50/40 border-orange-200/50 text-orange-600',
   };
 
   return (
     <div className={`liquid-glass-premium rounded-xl border p-6 bg-gradient-to-br ${colorClasses[color]} hover:shadow-lg transition-all duration-300 animate-enhancedPremiumGlow elevated-glow`}>
       <div className="flex items-start justify-between mb-4">
-        <div className={`p-3 rounded-lg liquid-glass-light ${colorClasses[color].split(' ')[2]} animate-iconGlow shadow-md border border-white/50`}>
+        <div className={`p-3 rounded-lg liquid-glass-light ${colorClasses[color].split(' ')[2]} animate-iconGlow shadow-md border border-white/60`}>
           {icon}
         </div>
       </div>
       <p className="text-sm font-semibold text-slate-600 mb-1">{label}</p>
-      <p className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">{value}</p>
+      <p className="text-3xl font-bold bg-gradient-to-r from-slate-900 via-blue-700 to-slate-700 bg-clip-text text-transparent">{value}</p>
     </div>
   );
 }
@@ -250,15 +250,15 @@ interface InsightCardProps {
 
 function InsightCard({ title, icon, color, children }: InsightCardProps) {
   const colorClasses = {
-    blue: 'from-blue-50 to-purple-50 border-blue-200/40 text-blue-600',
-    red: 'from-red-50 to-rose-50 border-red-200/40 text-red-600',
-    green: 'from-green-50 to-emerald-50 border-green-200/40 text-green-600',
+    blue: 'from-blue-50/60 to-purple-50/40 border-blue-200/50 text-blue-600',
+    red: 'from-red-50/60 to-rose-50/40 border-red-200/50 text-red-600',
+    green: 'from-green-50/60 to-emerald-50/40 border-green-200/50 text-green-600',
   };
 
   return (
     <div className={`liquid-glass-premium rounded-xl border p-6 bg-gradient-to-br ${colorClasses[color]} hover:shadow-lg transition-all duration-300 animate-enhancedPremiumGlow elevated-glow`}>
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 rounded-lg liquid-glass-light animate-iconGlow shadow-md border border-white/50">
+        <div className="p-2 rounded-lg liquid-glass-light animate-iconGlow shadow-md border border-white/60">
           {icon}
         </div>
         <h3 className="text-lg font-bold text-slate-900">{title}</h3>

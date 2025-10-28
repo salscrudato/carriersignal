@@ -1,0 +1,112 @@
+# CarrierSignal - Code Inventory
+Generated: 2025-10-28T23:13:54.216Z
+Total Files: 60
+Total Size: 1007.83 KB
+
+================================================================================
+
+
+📁 .
+--------------------------------------------------------------------------------
+  📄 .env.example (389 B)
+  📄 .gitignore (307 B)
+  📄 DEPLOYMENT_CHECKLIST.md (4.21 KB)
+  📄 eslint.config.js (621 B)
+  📄 firebase.json (700 B)
+  📄 firestore.indexes.json (45 B)
+  📄 IMPLEMENTATION_SUMMARY.md (7.3 KB)
+  📄 index.html (2.94 KB)
+  📄 package-lock.json (232.05 KB)
+  📄 package.json (1.07 KB)
+  📄 PAGINATION_IMPLEMENTATION.md (6.44 KB)
+  📄 PAGINATION_QUICK_START.md (5.23 KB)
+  📄 tsconfig.app.json (732 B)
+  📄 tsconfig.json (119 B)
+  📄 tsconfig.node.json (653 B)
+  📄 vite.config.ts (674 B)
+
+📁 functions
+--------------------------------------------------------------------------------
+  📄 functions/.eslintrc.js (647 B)
+  📄 functions/.gitignore (26 B)
+  📄 functions/jest.config.js (632 B)
+  📄 functions/package-lock.json (348 KB)
+  📄 functions/package.json (1.18 KB)
+  📄 functions/tsconfig.json (414 B)
+
+📁 functions/lib
+--------------------------------------------------------------------------------
+  📄 functions/lib/agents.js (33.68 KB)
+  📄 functions/lib/index.js (49.87 KB)
+  📄 functions/lib/utils.js (11.15 KB)
+
+📁 functions/lib/__tests__
+--------------------------------------------------------------------------------
+  📄 functions/lib/__tests__/agents.test.js (8.05 KB)
+  📄 functions/lib/__tests__/integration.test.js (5.61 KB)
+  📄 functions/lib/__tests__/utils.test.js (7.47 KB)
+
+📁 functions/src
+--------------------------------------------------------------------------------
+  📄 functions/src/agents.ts (31.36 KB)
+  📄 functions/src/index.ts (45.85 KB)
+  📄 functions/src/utils.ts (10.24 KB)
+
+📁 functions/src/__tests__
+--------------------------------------------------------------------------------
+  📄 functions/src/__tests__/agents.test.ts (6.86 KB)
+  📄 functions/src/__tests__/integration.test.ts (4.71 KB)
+  📄 functions/src/__tests__/utils.test.ts (6.44 KB)
+
+📁 public
+--------------------------------------------------------------------------------
+  📄 public/manifest.json (2.25 KB)
+  📄 public/sw.js (2.79 KB)
+
+📁 scripts
+--------------------------------------------------------------------------------
+  📄 scripts/clearDatabase.ts (1.34 KB)
+  📄 scripts/generateCodeInventory.ts (4.4 KB)
+  📄 scripts/populateWeekData.ts (9.21 KB)
+
+📁 src
+--------------------------------------------------------------------------------
+  📄 src/App.tsx (9.94 KB)
+  📄 src/config.ts (6.26 KB)
+  📄 src/firebase.ts (580 B)
+  📄 src/index.css (50.08 KB)
+  📄 src/main.tsx (230 B)
+
+📁 src/components
+--------------------------------------------------------------------------------
+  📄 src/components/Bookmarks.tsx (5.2 KB)
+  📄 src/components/BriefPanel.tsx (11.51 KB)
+  📄 src/components/CommandPalette.tsx (6.38 KB)
+  📄 src/components/Dashboard.tsx (9.79 KB)
+  📄 src/components/Header.tsx (3.04 KB)
+  📄 src/components/InfiniteScrollLoader.tsx (4.9 KB)
+  📄 src/components/MobileNav.tsx (5.65 KB)
+  📄 src/components/SearchFirst.tsx (15.07 KB)
+  📄 src/components/SettingsPanel.tsx (3.52 KB)
+  📄 src/components/SkeletonLoader.tsx (2.55 KB)
+
+📁 src/constants
+--------------------------------------------------------------------------------
+  📄 src/constants/options.ts (663 B)
+
+📁 src/context
+--------------------------------------------------------------------------------
+  📄 src/context/PaginationContext.tsx (2.92 KB)
+
+📁 src/hooks
+--------------------------------------------------------------------------------
+  📄 src/hooks/useInfiniteScroll.ts (3.97 KB)
+
+📁 src/types
+--------------------------------------------------------------------------------
+  📄 src/types/index.ts (1.48 KB)
+
+📁 src/utils
+--------------------------------------------------------------------------------
+  📄 src/utils/common.ts (612 B)
+  📄 src/utils/rankingSystem.ts (8.01 KB)

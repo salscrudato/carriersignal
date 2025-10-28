@@ -47,9 +47,9 @@ export function BriefPanel({
   const timeAgo = article.publishedAt ? getTimeAgo(new Date(article.publishedAt)) : '';
 
   return (
-    <div className="flex flex-col w-full max-w-full lg:w-1/2 liquid-glass-ultra lg:border-l border-blue-200/20 overflow-y-auto overflow-x-hidden animate-slideInRight">
+    <div className="flex flex-col w-full max-w-full lg:w-1/2 liquid-glass-ultra lg:border-l border-blue-200/30 overflow-y-auto overflow-x-hidden animate-slideInRight">
       {/* Header with Title and Metadata */}
-      <div className="sticky top-0 liquid-glass-premium border-b border-blue-200/20 p-4 sm:p-6 shadow-sm z-10 w-full max-w-full overflow-x-hidden">
+      <div className="sticky top-0 liquid-glass-premium border-b border-blue-200/30 p-4 sm:p-6 shadow-sm z-10 w-full max-w-full overflow-x-hidden">
         <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-3 leading-tight break-words">{article.title}</h2>
         <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-slate-600 flex-wrap w-full max-w-full overflow-x-hidden">
           <span className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full liquid-glass-light text-blue-700 font-semibold text-xs truncate border border-blue-200/30">
@@ -73,9 +73,9 @@ export function BriefPanel({
       <div className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto w-full max-w-full overflow-x-hidden">
         {/* Lead Quote with Enhanced Styling */}
         {article.leadQuote && (
-          <div className="liquid-glass-premium rounded-2xl border-l-4 border-blue-500 p-5 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/30">
+          <div className="liquid-glass-premium rounded-2xl border-l-4 border-blue-500 p-5 shadow-sm hover:shadow-lg transition-all duration-300 border border-blue-200/40">
             <div className="flex items-start gap-3">
-              <svg className="w-6 h-6 text-blue-500 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6 text-blue-500 flex-shrink-0 mt-1 animate-iconGlow" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
               </svg>
               <p className="text-base italic text-slate-700 leading-relaxed font-medium">{article.leadQuote}</p>
@@ -94,9 +94,9 @@ export function BriefPanel({
 
         {/* AI-Generated Summary - Enhanced */}
         {article.bullets5 && article.bullets5.length > 0 && (
-          <div className="space-y-4 p-5 bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl border border-blue-200 shadow-sm hover:shadow-md transition-all duration-300">
+          <div className="space-y-4 p-5 liquid-glass-premium rounded-2xl border border-blue-200/40 shadow-sm hover:shadow-md transition-all duration-300">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center shadow-md">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-md animate-iconGlow">
                 <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 </svg>

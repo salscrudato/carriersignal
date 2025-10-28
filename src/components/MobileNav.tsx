@@ -65,10 +65,10 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
             isOpen ? 'translate-y-0' : 'translate-y-full'
           }`}
         >
-          <div className="liquid-glass-ultra border-t border-blue-200/20 rounded-t-3xl shadow-2xl animate-enhancedPremiumGlow">
-            {/* Handle Bar */}
+          <div className="liquid-glass-ultra border-t border-blue-200/30 rounded-t-3xl shadow-2xl animate-enhancedPremiumGlow">
+            {/* Handle Bar - Aurora Gradient */}
             <div className="flex justify-center pt-3 pb-2">
-              <div className="w-12 h-1 bg-gradient-to-r from-blue-300 to-purple-300 rounded-full" />
+              <div className="w-12 h-1.5 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 rounded-full opacity-70" />
             </div>
 
             {/* Navigation Items */}

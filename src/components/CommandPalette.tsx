@@ -99,17 +99,17 @@ export function CommandPalette({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-md flex items-start justify-center pt-20"
+      className="fixed inset-0 z-50 bg-black/45 backdrop-blur-lg flex items-start justify-center pt-20"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl liquid-glass-ultra rounded-2xl shadow-2xl overflow-hidden border border-blue-200/30 animate-commandPaletteSlideIn"
+        className="w-full max-w-2xl liquid-glass-ultra rounded-2xl shadow-2xl overflow-hidden border border-blue-200/40 animate-commandPaletteSlideIn"
         onClick={e => e.stopPropagation()}
       >
         {/* Search Input */}
-        <div className="border-b border-blue-200/20 p-4 liquid-glass-premium">
+        <div className="border-b border-blue-200/30 p-4 liquid-glass-premium">
           <div className="flex items-center gap-3">
-            <Search size={20} className="text-slate-400" />
+            <Search size={20} className="text-slate-400 animate-iconGlow" />
             <input
               ref={inputRef}
               type="text"
@@ -131,7 +131,7 @@ export function CommandPalette({
               <p className="text-slate-500">No articles found</p>
             </div>
           ) : (
-            <div className="divide-y divide-blue-100/30">
+            <div className="divide-y divide-blue-100/40">
               {results.map((article, idx) => (
                 <button
                   key={article.id}
@@ -141,8 +141,8 @@ export function CommandPalette({
                   }}
                   className={`w-full text-left p-4 transition-all duration-200 ${
                     idx === selectedIndex
-                      ? 'liquid-glass-premium border-l-4 border-blue-500'
-                      : 'hover:liquid-glass-light'
+                      ? 'liquid-glass-premium border-l-4 border-blue-500 bg-gradient-to-r from-blue-50/40 to-purple-50/20'
+                      : 'hover:liquid-glass-light hover:bg-gradient-to-r hover:from-blue-50/20 hover:to-purple-50/10'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">

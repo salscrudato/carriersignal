@@ -224,15 +224,15 @@ function SearchResultCard({ result, isSelected, onSelect, index = 0 }: SearchRes
       style={{ animationDelay: `${index * 50}ms` }}
       className={`w-full max-w-full rounded-xl border-2 transition-all duration-300 animate-slideInWithBounce overflow-hidden flex flex-col ${
         isSelected
-          ? 'liquid-glass-ultra border-blue-300/50 shadow-lg animate-premiumGlow elevated-glow'
-          : 'liquid-glass border-blue-200/30 hover:border-blue-300/50 hover:shadow-lg hover:scale-102 hover:animate-subtleGlowPulse micro-glow'
+          ? 'liquid-glass-ultra border-blue-300/60 shadow-lg animate-premiumGlow elevated-glow'
+          : 'liquid-glass border-blue-200/40 hover:border-blue-300/60 hover:shadow-lg hover:scale-102 hover:animate-subtleGlowPulse micro-glow'
       }`}
     >
-      {/* Gradient Accent Top - Blue to Purple to Pink */}
-      <div className="h-1.5 w-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-80"></div>
+      {/* Gradient Accent Top - Aurora Colors */}
+      <div className="h-2 w-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-85"></div>
 
       {/* Content Section with Subtle Gradient */}
-      <div className="p-4 space-y-3 flex-1 flex flex-col bg-gradient-to-br from-white via-blue-50/20 to-purple-50/10 w-full max-w-full overflow-x-hidden">
+      <div className="p-4 space-y-3 flex-1 flex flex-col bg-gradient-to-br from-white via-blue-50/25 to-purple-50/15 w-full max-w-full overflow-x-hidden">
         {/* Header with Source and Time (moved to top right) */}
         <div className="flex items-start justify-between gap-3 w-full max-w-full overflow-x-hidden">
           <div className="flex-1 min-w-0 overflow-hidden">

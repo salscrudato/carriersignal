@@ -9,7 +9,7 @@ export function Header({
 }: HeaderProps) {
   return (
     <header
-      className="sticky top-0 z-50 liquid-glass-premium border-b border-blue-200/20 transition-all duration-350 backdrop-blur-xl"
+      className="sticky top-0 z-50 liquid-glass-ultra border-b border-blue-200/20 transition-all duration-350 backdrop-blur-2xl"
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
 
@@ -17,8 +17,8 @@ export function Header({
         <div className="flex items-center justify-center h-16 sm:h-20 gap-4 touch-manipulation relative w-full max-w-full overflow-x-hidden">
           {/* Center: Logo & Branding - Centered */}
           <div className="flex items-center justify-center gap-2 group flex-shrink-0">
-            {/* Modern Shield Icon with Blue-Purple-Pink Glow */}
-            <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center shadow-lg group-hover:shadow-2xl group-hover:scale-110 transition-all duration-300 animate-deepGlow elevated-glow">
+            {/* Modern Shield Icon with Aurora Glow */}
+            <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg group-hover:shadow-2xl group-hover:scale-110 transition-all duration-300 animate-deepGlow elevated-glow">
               {/* Glow backdrop - subtle blue-purple-pink glow */}
               <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-400 via-purple-400 to-pink-400 opacity-0 group-hover:opacity-40 blur-xl transition-opacity duration-300"></div>
               <Shield size={16} className="text-white sm:w-5 sm:h-5 animate-iconGlow relative z-10" />
@@ -29,7 +29,7 @@ export function Header({
               <h1
                 className="text-sm sm:text-lg font-bold tracking-tight transition-all duration-350 group-hover:scale-105 whitespace-nowrap"
                 style={{
-                  background: 'linear-gradient(135deg, #2563eb 0%, #a855f7 50%, #ec4899 100%)',
+                  background: 'linear-gradient(135deg, #1e40af 0%, #2563eb 50%, #3b82f6 100%)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text',
