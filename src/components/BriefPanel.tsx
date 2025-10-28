@@ -83,31 +83,6 @@ export function BriefPanel({
           </div>
         )}
 
-        {/* Impact Score & Breakdown with Enhanced Styling */}
-        {article.impactScore !== undefined && (
-          <div className="space-y-4 p-5 bg-gradient-to-br from-white to-slate-50 rounded-2xl border border-blue-200/30 shadow-sm hover:shadow-md transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                Impact Score
-              </h3>
-              <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">{article.impactScore}</span>
-            </div>
-            {article.impactBreakdown && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {Object.entries(article.impactBreakdown).map(([key, value]) => (
-                  <div key={key} className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-3 text-center hover:shadow-md transition-all duration-300 hover:scale-105 border border-blue-100">
-                    <p className="text-xs font-bold text-blue-700 capitalize mb-1">{key}</p>
-                    <p className="text-2xl font-bold text-slate-900">{value}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Storm Name Badge */}
         {article.stormName && (
           <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl px-5 py-3 border border-orange-200 flex items-center gap-2 hover:shadow-lg transition-all duration-300 hover:scale-105 w-fit">
@@ -233,44 +208,7 @@ export function BriefPanel({
           </div>
         )}
 
-        {/* Citations - Enhanced */}
-        {article.citations && article.citations.length > 0 && (
-          <div className="space-y-4 p-5 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl border border-emerald-200 shadow-sm hover:shadow-md transition-all duration-300">
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.658 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-              </svg>
-              <h3 className="font-bold text-emerald-900 text-base">Source Citations</h3>
-            </div>
-            <div className="space-y-2">
-              {article.citations.map((citation, idx) => (
-                <a
-                  key={idx}
-                  href={citation}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-start gap-3 p-3 bg-white/60 rounded-lg hover:bg-white/80 transition-all duration-300 group"
-                >
-                  <ExternalLink size={16} className="text-emerald-600 flex-shrink-0 mt-0.5 group-hover:scale-110 transition-all" />
-                  <span className="text-sm text-emerald-700 font-medium break-all group-hover:text-emerald-900 transition-colors">{citation}</span>
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {/* Source Link - Enhanced */}
-        <div className="pt-2">
-          <a
-            href={article.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl shadow-md hover:shadow-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-300 group"
-          >
-            Read Full Article
-            <ExternalLink size={18} className="group-hover:translate-x-1 group-hover:scale-110 transition-all" />
-          </a>
-        </div>
       </div>
     </div>
   );
