@@ -70,7 +70,6 @@ export default function App() {
   const [view, setView] = useState<'feed' | 'dashboard' | 'bookmarks' | 'settings'>('feed');
 
   // A1: Global UI state for enhanced experience
-  const [roles, setRoles] = useState<string[]>(['underwriting']); // Default role
   const [sortMode, setSortMode] = useState<'smart' | 'recency'>('smart');
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [quickReadArticle, setQuickReadArticle] = useState<Article | null>(null);
@@ -140,8 +139,6 @@ export default function App() {
       {/* Professional Header */}
       <Header
         isLoading={false}
-        roles={roles}
-        onRolesChange={setRoles}
       />
 
       {/* Main Content Area */}
@@ -190,7 +187,6 @@ export default function App() {
       ) : view === 'settings' ? (
         <div className="flex-1 flex flex-col bg-gradient-to-b from-white via-blue-50/30 to-purple-50/20">
           <SettingsPanel
-            onRolesChange={setRoles}
             onSortChange={setSortMode}
           />
         </div>

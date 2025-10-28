@@ -1,25 +1,12 @@
-import { Shield, Zap, FileText, AlertCircle, Handshake, TrendingUp } from 'lucide-react';
-import { useState } from 'react';
+import { Shield } from 'lucide-react';
 
 interface HeaderProps {
   isLoading: boolean;
-  roles?: string[];
-  onRolesChange?: (roles: string[]) => void;
 }
-
-const ROLE_OPTIONS = [
-  { id: 'underwriting', label: 'Underwriting', icon: FileText },
-  { id: 'claims', label: 'Claims', icon: AlertCircle },
-  { id: 'brokerage', label: 'Brokerage', icon: Handshake },
-  { id: 'actuarial', label: 'Actuarial', icon: TrendingUp },
-];
 
 export function Header({
   isLoading,
-  roles = ['underwriting'],
-  onRolesChange,
 }: HeaderProps) {
-  const [showRoleMenu, setShowRoleMenu] = useState(false);
   return (
     <header
       className="sticky top-0 z-50 bg-white border-b border-blue-200/30 transition-all duration-350"
@@ -56,48 +43,8 @@ export function Header({
             </div>
           </div>
 
-          {/* Right: Role Selector, Density Toggle & Status */}
+          {/* Right: Status Indicators */}
           <div className="flex items-center gap-2 flex-shrink-0 absolute right-0">
-            {/* A2: Role Selector Dropdown */}
-            <div className="relative hidden sm:block">
-              <button
-                onClick={() => setShowRoleMenu(!showRoleMenu)}
-                className="flex items-center gap-1.5 px-3 py-1.5 glass rounded-lg hover:bg-blue-50/50 transition-all duration-300 text-xs font-semibold text-blue-700"
-              >
-                {(() => {
-                  const roleOption = ROLE_OPTIONS.find(r => r.id === roles[0]);
-                  const IconComponent = roleOption?.icon;
-                  return IconComponent ? <IconComponent size={16} /> : null;
-                })()}
-                <span className="hidden md:inline">{ROLE_OPTIONS.find(r => r.id === roles[0])?.label}</span>
-              </button>
-
-              {/* Role Menu Dropdown */}
-              {showRoleMenu && (
-                <div className="absolute right-0 mt-2 w-48 glass rounded-lg shadow-lg z-50 border border-blue-200/30">
-                  {ROLE_OPTIONS.map(role => {
-                    const IconComponent = role.icon;
-                    return (
-                      <button
-                        key={role.id}
-                        onClick={() => {
-                          onRolesChange?.([role.id]);
-                          setShowRoleMenu(false);
-                        }}
-                        className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
-                          roles.includes(role.id)
-                            ? 'bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700'
-                            : 'text-blue-700 hover:bg-blue-50'
-                        }`}
-                      >
-                        <IconComponent size={16} />
-                        <span>{role.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
 
             {isLoading && (
               <div className="flex items-center gap-2 px-3 py-1.5 glass rounded-full">
@@ -109,11 +56,7 @@ export function Header({
               </div>
             )}
 
-            {/* Professional Badge */}
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 glass rounded-full">
-              <Zap size={14} className="text-blue-600" />
-              <span className="text-xs font-bold text-blue-700">Pro</span>
-            </div>
+
           </div>
         </div>
       </div>

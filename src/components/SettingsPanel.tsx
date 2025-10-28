@@ -1,17 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Settings, Save, FileText, AlertCircle, Handshake, TrendingUp, Sparkles, Clock, Check } from 'lucide-react';
+import { Settings, Save, Sparkles, Clock, Check } from 'lucide-react';
 
 interface SettingsPanelProps {
-  onRolesChange?: (roles: string[]) => void;
   onSortChange?: (sort: 'smart' | 'recency') => void;
 }
-
-const ROLE_OPTIONS = [
-  { id: 'underwriting', label: 'Underwriting', icon: FileText },
-  { id: 'claims', label: 'Claims', icon: AlertCircle },
-  { id: 'brokerage', label: 'Brokerage', icon: Handshake },
-  { id: 'actuarial', label: 'Actuarial', icon: TrendingUp },
-];
 
 const SORT_OPTIONS = [
   { id: 'smart', label: 'AI Sort (AI + Recency)', icon: Sparkles },
@@ -19,39 +11,25 @@ const SORT_OPTIONS = [
 ];
 
 export function SettingsPanel({
-  onRolesChange,
   onSortChange,
 }: SettingsPanelProps) {
-  const [selectedRoles, setSelectedRoles] = useState<string[]>(['underwriting']);
   const [selectedSort, setSelectedSort] = useState<'smart' | 'recency'>('smart');
   const [saved, setSaved] = useState(false);
 
   // Load settings from localStorage
   useEffect(() => {
-    const roles = localStorage.getItem('carriersignal_roles');
     const sort = localStorage.getItem('carriersignal_sort') as any;
 
-    if (roles) setSelectedRoles(JSON.parse(roles));
     if (sort) setSelectedSort(sort);
   }, []);
 
   const handleSave = () => {
-    localStorage.setItem('carriersignal_roles', JSON.stringify(selectedRoles));
     localStorage.setItem('carriersignal_sort', selectedSort);
 
-    onRolesChange?.(selectedRoles);
     onSortChange?.(selectedSort);
 
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-  };
-
-  const toggleRole = (roleId: string) => {
-    setSelectedRoles(prev =>
-      prev.includes(roleId)
-        ? prev.filter(r => r !== roleId)
-        : [...prev, roleId]
-    );
   };
 
   return (
@@ -63,33 +41,6 @@ export function SettingsPanel({
             <Settings size={20} className="text-blue-600" />
           </div>
           <h2 className="text-2xl font-bold text-slate-900">Settings</h2>
-        </div>
-
-        {/* Roles Section */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-slate-900">Your Roles</h3>
-          <p className="text-sm text-slate-600">Select your roles to personalize insights</p>
-          <div className="grid grid-cols-2 gap-3">
-            {ROLE_OPTIONS.map(role => {
-              const IconComponent = role.icon;
-              return (
-                <button
-                  key={role.id}
-                  onClick={() => toggleRole(role.id)}
-                  className={`p-4 rounded-lg border-2 transition-all duration-200 text-left ${
-                    selectedRoles.includes(role.id)
-                      ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-purple-50'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
-                >
-                  <div className="mb-2 text-blue-600">
-                    <IconComponent size={24} />
-                  </div>
-                  <div className="font-semibold text-slate-900">{role.label}</div>
-                </button>
-              );
-            })}
-          </div>
         </div>
 
         {/* Sort Preference */}

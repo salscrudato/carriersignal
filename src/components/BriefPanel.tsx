@@ -1,4 +1,4 @@
-import { ExternalLink, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 interface Article {
   title: string;

@@ -10,8 +10,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Zap, Clock, Search, X, ExternalLink } from 'lucide-react';
-import { rankArticlesByAI, rankArticlesByRecency, combinedSearch } from '../utils/rankingSystem';
+import { Zap, Clock, ExternalLink } from 'lucide-react';
+import { rankArticlesByAI, rankArticlesByRecency } from '../utils/rankingSystem';
 
 interface Article {
   title: string;
@@ -53,19 +53,12 @@ export function SearchFirst({
 }: SearchFirstProps) {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [localSortBy, setLocalSortBy] = useState<'smart' | 'recency'>(sortMode || 'smart');
-  const [searchQuery, setSearchQuery] = useState('');
 
-  // Display articles with search and sorting
+  // Display articles with sorting
   useEffect(() => {
     const timer = setTimeout(() => {
-      // Apply search first
-      let searchedArticles: Article[] = articles;
-      if (searchQuery.trim()) {
-        searchedArticles = combinedSearch(articles as any, searchQuery) as Article[];
-      }
-
       // Map to results format
-      const results = searchedArticles.map(article => ({
+      const results = articles.map(article => ({
         article,
         score: article.aiScore || article.smartScore || 0,
         matchType: 'combined',
@@ -78,7 +71,7 @@ export function SearchFirst({
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [articles, localSortBy, searchQuery]);
+  }, [articles, localSortBy]);
 
   // Sorting function
   const applySorting = (results: any[], sortType: string) => {
@@ -104,30 +97,9 @@ export function SearchFirst({
 
   return (
     <div className="w-full max-w-full overflow-x-hidden space-y-0 flex flex-col h-full">
-      {/* Search Bar - Top */}
-      <div className="sticky top-0 z-50 bg-white border-b border-purple-200/50 shadow-sm p-3 sm:p-4 flex-shrink-0 w-full max-w-full overflow-x-hidden">
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-400" size={18} />
-          <input
-            type="text"
-            placeholder="Search articles..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full max-w-full pl-10 pr-10 py-2.5 rounded-lg bg-white border border-purple-200 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200 transition-all duration-300 text-sm"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-purple-400 hover:text-purple-600 touch-action-manipulation"
-            >
-              <X size={18} />
-            </button>
-          )}
-        </div>
-      </div>
 
       {/* Sort Controls Header - Mobile Optimized */}
-      <div className="sticky top-[60px] z-40 bg-white border-b border-purple-200/50 shadow-sm p-3 sm:p-4 flex-shrink-0 w-full max-w-full overflow-x-hidden">
+      <div className="sticky top-0 z-40 bg-white border-b border-purple-200/50 shadow-sm p-3 sm:p-4 flex-shrink-0 w-full max-w-full overflow-x-hidden">
         <div className="flex items-center gap-2 sm:gap-3 w-full max-w-full overflow-x-hidden">
           {/* Sort Buttons - Two Options Only */}
           <div className="flex items-center gap-1 sm:gap-1.5 bg-purple-50 rounded-lg p-1 border border-purple-200/50 flex-shrink-0">
