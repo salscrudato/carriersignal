@@ -830,7 +830,7 @@ function mmrRerank(
       let diversity = 1.0;
       if (selected.length > 0) {
         const maxSimilarity = Math.max(
-          ...selected.map(s => cosineSimilarity(remaining[i].it.embedding, s.it.embedding))
+          ...selected.map(s => cosineSimilarity(remaining[i].it.embedding as number[], s.it.embedding as number[]))
         );
         diversity = 1.0 - maxSimilarity;
       }
@@ -859,7 +859,7 @@ function applyClusterDiversity(
   const clusterMap = new Map<string, Array<{it: Record<string, unknown>; score: number; mmrScore?: number}>>();
 
   for (const item of items) {
-    const clusterId = item.it.clusterId || item.it.id;
+    const clusterId = (item.it.clusterId || item.it.id) as string;
     if (!clusterMap.has(clusterId)) {
       clusterMap.set(clusterId, []);
     }
@@ -886,8 +886,18 @@ function applyRecencyBoost(
   const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
 
   return items.map(item => {
-    const createdAt = (item.it.createdAt as {toDate?: () => Date} | Date | number | undefined)?.toDate?.() || item.it.createdAt || new Date();
-    const age = now - (createdAt instanceof Date ? createdAt.getTime() : (createdAt as number));
+    let createdAt: Date;
+    const rawDate = item.it.createdAt;
+    if (rawDate instanceof Date) {
+      createdAt = rawDate;
+    } else if (typeof rawDate === "object" && rawDate !== null && "toDate" in rawDate) {
+      createdAt = (rawDate as {toDate: () => Date}).toDate();
+    } else if (typeof rawDate === "number") {
+      createdAt = new Date(rawDate);
+    } else {
+      createdAt = new Date();
+    }
+    const age = now - createdAt.getTime();
     const recencyScore = Math.max(0, 1 - age / maxAge);
     const boostedScore = (item.mmrScore ?? item.score) + recencyScore * boostFactor;
 
@@ -1031,7 +1041,7 @@ export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, asyn
     // Step 1: Hybrid retrieval - combine semantic and keyword scoring (D2)
     const keywordScored = items.map((it) => ({
       it,
-      semanticScore: cosineSimilarity(qEmb, it.embedding),
+      semanticScore: cosineSimilarity(qEmb, it.embedding as number[]),
       keywordScore: scoreByKeywords(q, it),
     }));
 
@@ -1062,11 +1072,16 @@ export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, asyn
       .slice(0, 8);
 
     // Build context from top results
-    const context = finalRanked.map((r) =>
-      `TITLE: ${r.it.title}\nBULLETS:\n- ${r.it.bullets5.join("\n- ")}\nWHY:\n${
-        Object.entries(r.it.whyItMatters).map(([k, v]) => `${k.toUpperCase()}: ${v}`).join("\n")
-      }\nURL: ${r.it.canonicalUrl || r.it.url}`
-    ).join("\n\n---\n\n");
+    const context = finalRanked.map((r) => {
+      const title = r.it.title as string;
+      const bullets = (r.it.bullets5 as string[]) || [];
+      const whyItMatters = (r.it.whyItMatters as Record<string, unknown>) || {};
+      const canonicalUrl = r.it.canonicalUrl as string | undefined;
+      const url = r.it.url as string;
+      return `TITLE: ${title}\nBULLETS:\n- ${bullets.join("\n- ")}\nWHY:\n${
+        Object.entries(whyItMatters).map(([k, v]) => `${k.toUpperCase()}: ${v}`).join("\n")
+      }\nURL: ${canonicalUrl || url}`;
+    }).join("\n\n---\n\n");
 
     // Generate answer with structured output
     const answer = await client.chat.completions.create({
@@ -1088,7 +1103,11 @@ export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, asyn
 
     // GUARDRAIL: Extract URLs from answer and validate against source articles
     // This prevents hallucinated links by only allowing URLs from the context
-    const validArticleUrls = new Set(finalRanked.map(r => (r.it.canonicalUrl || r.it.url).toLowerCase()));
+    const validArticleUrls = new Set(finalRanked.map(r => {
+      const canonicalUrl = r.it.canonicalUrl as string | undefined;
+      const url = r.it.url as string;
+      return (canonicalUrl || url).toLowerCase();
+    }));
 
     // Extract URLs from answer text (both [URL] format and plain URLs)
     const urlPattern = /\[?(https?:\/\/[^\s[\]]+)\]?/gi;
@@ -1106,17 +1125,21 @@ export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, asyn
 
     // Build citations from validated URLs
     const citations = finalRanked
-      .filter(r => extractedUrls.has((r.it.canonicalUrl || r.it.url).toLowerCase()))
+      .filter(r => {
+        const canonicalUrl = r.it.canonicalUrl as string | undefined;
+        const url = r.it.url as string;
+        return extractedUrls.has((canonicalUrl || url).toLowerCase());
+      })
       .map(r => ({
-        title: r.it.title,
-        url: r.it.canonicalUrl || r.it.url,
+        title: r.it.title as string,
+        url: (r.it.canonicalUrl as string | undefined) || (r.it.url as string),
       }));
 
     // If no citations were extracted, include all source articles as fallback
     if (citations.length === 0) {
       citations.push(...finalRanked.map(r => ({
-        title: r.it.title,
-        url: r.it.canonicalUrl || r.it.url,
+        title: r.it.title as string,
+        url: (r.it.canonicalUrl as string | undefined) || (r.it.url as string),
       })));
     }
 
@@ -1126,17 +1149,17 @@ export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, asyn
     // D1: Structured JSON output with enhanced fields
     res.json({
       answerText,
-      bullets: finalRanked.slice(0, 3).map(r => r.it.bullets5[0] || ''),
+      bullets: finalRanked.slice(0, 3).map(r => ((r.it.bullets5 as string[]) || [])[0] || ''),
       sources: citations,
       related: finalRanked.slice(0, 5).map(r => ({
-        title: r.it.title,
-        url: r.it.canonicalUrl || r.it.url,
-        clusterId: r.it.clusterId,
+        title: r.it.title as string,
+        url: (r.it.canonicalUrl as string | undefined) || (r.it.url as string),
+        clusterId: r.it.clusterId as string | undefined,
       })),
-      usedArticles: finalRanked.map(r => r.it.id),
+      usedArticles: finalRanked.map(r => r.it.id as string),
       highlights: finalRanked.slice(0, 3).map(r => ({
-        quote: r.it.leadQuote || r.it.bullets5[0] || '',
-        url: r.it.canonicalUrl || r.it.url,
+        quote: (r.it.leadQuote as string | undefined) || ((r.it.bullets5 as string[]) || [])[0] || '',
+        url: (r.it.canonicalUrl as string | undefined) || (r.it.url as string),
       })),
       latencyMs,
     });
@@ -1211,7 +1234,6 @@ export const readerView = onRequest(
       res.json({
         title: content.title || "Article",
         byline: content.author,
-        published: content.publishedAt,
         mainImage: content.mainImage,
         html: attributedHtml,
         latencyMs,
