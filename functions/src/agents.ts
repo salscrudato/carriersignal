@@ -26,7 +26,7 @@ export type Article = {
 
 const schema = z.object({
   title: z.string(),
-  url: z.string().url(),
+  url: z.string(),
   source: z.string(),
   bullets5: z.array(z.string()).min(3).max(5),
   whyItMatters: z.object({
@@ -47,7 +47,7 @@ const schema = z.object({
   sentiment: z.enum(["POSITIVE", "NEGATIVE", "NEUTRAL"]),
   confidence: z.number().min(0).max(1),
   // v2 additions
-  citations: z.array(z.string().url()).max(10), // URLs cited in bullets (must be valid URLs)
+  citations: z.array(z.string()).max(10), // URLs cited in bullets
   impactScore: z.number().min(0).max(100), // Overall impact score
   impactBreakdown: z.object({
     market: z.number().min(0).max(100),
@@ -158,7 +158,7 @@ export async function summarizeAndTag(
         riskPulse: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
         sentiment: { type: "string", enum: ["POSITIVE", "NEGATIVE", "NEUTRAL"] },
         confidence: { type: "number", minimum: 0, maximum: 1 },
-        citations: { type: "array", items: { type: "string", format: "uri" }, maxItems: 10 },
+        citations: { type: "array", items: { type: "string" }, maxItems: 10 },
         impactScore: { type: "number", minimum: 0, maximum: 100 },
         impactBreakdown: {
           type: "object",

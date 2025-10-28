@@ -121,7 +121,7 @@ const DEFAULT_FEED_SOURCES: FeedSource[] = [
   { url: "https://www.propertycasualty360.com/feed/", category: 'news', priority: 2, enabled: true },
   { url: "https://www.riskandinsurance.com/feed/", category: 'news', priority: 3, enabled: true },
   { url: "https://www.carriermanagement.com/feed/", category: 'news', priority: 3, enabled: true },
-  { url: "https://www.insurancebusinessmag.com/us/feed/", category: 'news', priority: 3, enabled: true },
+  { url: "https://www.insurancebusinessmag.com/us/rss/", category: 'news', priority: 3, enabled: true },
   { url: "https://www.insurancenewsnet.com/feed/", category: 'news', priority: 3, enabled: true },
 
   // ============================================================================
