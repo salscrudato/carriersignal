@@ -28,11 +28,11 @@ export function Header({
               <h1
                 className="font-semibold tracking-wide transition-all duration-300 group-hover:scale-102 whitespace-nowrap"
                 style={{
-                  fontSize: 'clamp(0.45rem, 2vw, 0.65rem)',
+                  fontSize: 'clamp(0.9rem, 4vw, 1.2rem)',
                   fontFamily: '"Helvetica Neue", "Helvetica", "Arial", sans-serif',
                   fontWeight: 600,
                   letterSpacing: '0.02em',
-                  lineHeight: '1.1',
+                  lineHeight: '1.2',
                   background: 'linear-gradient(135deg, #5AA6FF 0%, #4A96EF 50%, #3B82F6 100%)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
