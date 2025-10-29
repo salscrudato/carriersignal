@@ -122,11 +122,11 @@ export const transitions = {
 } as const;
 
 export const blur = {
-  sm: 'blur(12px)',
-  md: 'blur(20px)',
-  lg: 'blur(32px)',
-  xl: 'blur(48px)',
-  '2xl': 'blur(56px)',
+  sm: 'blur(8px)',
+  md: 'blur(12px)',
+  lg: 'blur(16px)',
+  xl: 'blur(20px)',
+  '2xl': 'blur(24px)',
 } as const;
 
 export const zIndex = {
@@ -181,27 +181,27 @@ export const components = {
   },
 } as const;
 
-// Glass effect presets
+// Glass effect presets - CRISP & SHARP
 export const glass = {
   light: {
-    background: 'linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(249,251,255,0.75) 100%)',
-    backdropFilter: 'blur(20px) saturate(180%)',
-    border: '1px solid rgba(90,166,255,0.1)',
+    background: 'linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(249,251,255,0.88) 100%)',
+    backdropFilter: 'blur(8px) saturate(160%)',
+    border: '1px solid rgba(90,166,255,0.14)',
   },
   standard: {
-    background: 'linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(249,251,255,0.85) 100%)',
-    backdropFilter: 'blur(32px) saturate(220%) brightness(1.15)',
-    border: '1px solid rgba(90,166,255,0.16)',
+    background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(249,251,255,0.92) 100%)',
+    backdropFilter: 'blur(12px) saturate(180%) brightness(1.08)',
+    border: '1px solid rgba(90,166,255,0.18)',
   },
   premium: {
-    background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(249,251,255,0.88) 100%)',
-    backdropFilter: 'blur(48px) saturate(240%) brightness(1.25)',
-    border: '1px solid rgba(90,166,255,0.22)',
+    background: 'linear-gradient(135deg, rgba(255,255,255,0.97) 0%, rgba(249,251,255,0.94) 100%)',
+    backdropFilter: 'blur(16px) saturate(200%) brightness(1.12)',
+    border: '1px solid rgba(90,166,255,0.24)',
   },
   ultra: {
-    background: 'linear-gradient(135deg, rgba(255,255,255,0.97) 0%, rgba(249,251,255,0.92) 100%)',
-    backdropFilter: 'blur(56px) saturate(260%) brightness(1.3)',
-    border: '1px solid rgba(90,166,255,0.24)',
+    background: 'linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(249,251,255,0.96) 100%)',
+    backdropFilter: 'blur(20px) saturate(210%) brightness(1.15)',
+    border: '1px solid rgba(90,166,255,0.28)',
   },
 } as const;
 
