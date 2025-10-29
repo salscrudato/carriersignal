@@ -38,10 +38,13 @@ initializeFirebase();
 const db = admin.firestore();
 const parser = new Parser();
 
-// RSS Feed sources
+// RSS Feed sources - curated P&C insurance industry sources
 const FEED_SOURCES = [
-  { name: 'Insurance Journal', url: 'https://www.insurancejournal.com/feed/news/' },
-  { name: 'PropertyShark', url: 'https://www.propertyshark.com/rss/news/' },
+  { name: 'Insurance Journal - National', url: 'https://www.insurancejournal.com/rss/news/national/' },
+  { name: 'Insurance Journal - Catastrophes', url: 'https://www.insurancejournal.com/rss/news/catastrophes/' },
+  { name: 'Claims Journal', url: 'https://www.claimsjournal.com/rss/' },
+  { name: 'Property Casualty 360', url: 'https://www.propertycasualty360.com/feed/' },
+  { name: 'Risk and Insurance', url: 'https://www.riskandinsurance.com/feed/' },
 ];
 
 interface RawArticle {
@@ -62,30 +65,47 @@ async function fetchArticles(): Promise<RawArticle[]> {
   for (const feed of FEED_SOURCES) {
     try {
       console.log(`  Fetching from ${feed.name}...`);
+
+      // Add timeout and retry logic
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
       const parsedFeed = await parser.parseURL(feed.url);
+      clearTimeout(timeoutId);
 
-      if (parsedFeed.items) {
+      if (parsedFeed.items && parsedFeed.items.length > 0) {
+        console.log(`    Found ${parsedFeed.items.length} items`);
+
         for (const item of parsedFeed.items) {
-          const pubDate = new Date(item.pubDate || item.isoDate || new Date());
+          try {
+            const pubDate = new Date(item.pubDate || item.isoDate || new Date());
 
-          if (pubDate >= twoDaysAgo) {
-            const article: RawArticle = {
-              title: item.title || '',
-              url: item.link || '',
-              source: feed.name,
-              publishedAt: item.isoDate || item.pubDate || new Date().toISOString(),
-              description: item.contentSnippet || '',
-              content: (item as any).content || item.content || (item as any).description || '',
-            };
+            if (pubDate >= twoDaysAgo) {
+              const article: RawArticle = {
+                title: item.title || '',
+                url: item.link || '',
+                source: feed.name,
+                publishedAt: item.isoDate || item.pubDate || new Date().toISOString(),
+                description: item.contentSnippet || '',
+                content: (item as any).content || item.content || (item as any).description || '',
+              };
 
-            if (article.title && article.url) {
-              allArticles.push(article);
+              if (article.title && article.url) {
+                allArticles.push(article);
+              }
             }
+          } catch (itemError) {
+            // Skip individual items that fail to parse
+            continue;
           }
         }
+        console.log(`    ✅ Added ${allArticles.length} articles from ${feed.name}`);
+      } else {
+        console.log(`    ⚠️  No items found in feed`);
       }
     } catch (error) {
       console.error(`  ❌ Error fetching from ${feed.name}:`, error instanceof Error ? error.message : error);
+      // Continue with next feed on error
     }
   }
 
