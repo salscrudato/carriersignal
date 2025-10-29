@@ -92,7 +92,7 @@ export function Modal({
     >
       <div
         ref={modalRef}
-        className={`w-full ${sizeClasses[size]} liquid-glass-ultra rounded-2xl shadow-2xl border border-[#C7D2E1]/30 animate-scaleIn max-h-[90vh] flex flex-col focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF]`}
+        className={`w-full ${sizeClasses[size]} liquid-glass-ultra rounded-2xl shadow-2xl border border-[#C7D2E1]/30 animate-scaleIn max-h-[90vh] flex flex-col focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF] relative`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -100,22 +100,22 @@ export function Modal({
         aria-describedby={description ? descriptionId : undefined}
         tabIndex={-1}
       >
-        {(title || closeButton) && (
-          <div className="flex items-center justify-between p-6 border-b border-[#C7D2E1]/20 flex-shrink-0">
-            {title && (
-              <h2 id="modal-title" className="text-xl font-semibold text-[#0F172A]">
-                {title}
-              </h2>
-            )}
-            {closeButton && (
-              <button
-                onClick={onClose}
-                className="ml-auto p-2 hover:bg-[#E8F2FF] rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF] min-h-[44px] min-w-[44px] flex items-center justify-center"
-                aria-label="Close modal"
-              >
-                <X size={20} className="text-[#64748B]" />
-              </button>
-            )}
+        {/* Close Button - Top Right Corner */}
+        {closeButton && (
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 p-2 hover:bg-[#E8F2FF] rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF] min-h-[44px] min-w-[44px] flex items-center justify-center z-10"
+            aria-label="Close modal"
+          >
+            <X size={20} className="text-[#64748B] hover:text-[#0F172A]" />
+          </button>
+        )}
+
+        {title && (
+          <div className="flex items-center justify-between p-6 border-b border-[#C7D2E1]/20 flex-shrink-0 pr-16">
+            <h2 id="modal-title" className="text-xl font-semibold text-[#0F172A]">
+              {title}
+            </h2>
           </div>
         )}
         {description && (
