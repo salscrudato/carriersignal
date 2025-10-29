@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Header } from "./components/Header";
 import { SearchFirst } from "./components/SearchFirst";
 import { BriefPanel } from "./components/BriefPanel";
@@ -8,7 +8,6 @@ import { SkeletonGrid } from "./components/SkeletonLoader";
 import { CommandPalette } from "./components/CommandPalette";
 import { Bookmarks } from "./components/Bookmarks";
 import { SettingsPanel } from "./components/SettingsPanel";
-import { useSimpleInfiniteScroll } from "./hooks/useSimpleInfiniteScroll";
 import { useArticles } from "./hooks/useArticles";
 import { useUI } from "./context/UIContext";
 import { ErrorBoundary } from "./utils/errorBoundary";
@@ -31,17 +30,30 @@ function AppContent() {
   });
 
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const lastLoadTimeRef = useRef(0);
+  const DEBOUNCE_MS = 300;
 
-  // Infinite scroll hook - using simple scroll-based approach
-  const { containerRef: sentinelRef } = useSimpleInfiniteScroll({
-    onLoadMore: loadMore,
-    isLoading: isLoadingMore,
-    hasMore,
-    enabled: true,
-    scrollContainer: scrollContainerRef.current,
-    threshold: 500, // pixels from bottom
-  });
+  // Handle scroll events for infinite loading
+  const handleScroll = useCallback((e: Event) => {
+    if (isLoadingMore || !hasMore) return;
+
+    const now = Date.now();
+    if (now - lastLoadTimeRef.current < DEBOUNCE_MS) return;
+
+    const container = e.target as HTMLDivElement;
+    if (!container) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
+
+    console.log('[App] Scroll event - distance from bottom:', distanceFromBottom, 'isLoadingMore:', isLoadingMore, 'hasMore:', hasMore);
+
+    if (distanceFromBottom < 500) {
+      lastLoadTimeRef.current = now;
+      console.log('[App] ✅ Loading more articles');
+      loadMore();
+    }
+  }, [isLoadingMore, hasMore, loadMore]);
 
   // Log errors and pagination state
   useEffect(() => {
@@ -50,15 +62,7 @@ function AppContent() {
     }
   }, [error]);
 
-  // Debug logging for pagination
-  useEffect(() => {
-    console.log('[App] Pagination state:', {
-      articlesCount: articles.length,
-      isLoadingMore,
-      hasMore,
-      loading,
-    });
-  }, [articles.length, isLoadingMore, hasMore, loading]);
+
 
   // Manual test button for pagination
   const handleManualLoadMore = async () => {
@@ -101,27 +105,24 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-gradient-to-b from-white via-[#F9FBFF]/30 to-[#E8F2FF]/20 flex flex-col">
+    <div className="h-screen w-full max-w-full overflow-x-hidden bg-gradient-to-b from-white via-[#F9FBFF]/30 to-[#E8F2FF]/20 flex flex-col">
       {/* Professional Header */}
       <Header isLoading={false} />
 
       {/* Main Content Area */}
       {view === 'feed' ? (
-        <div className="flex-1 flex gap-0 overflow-hidden w-full max-w-full">
+        <div className="flex-1 flex gap-0 w-full max-w-full min-h-0">
           {/* Left: Search Results - Full Width */}
-          <div className="flex-1 overflow-y-auto w-full max-w-full overflow-x-hidden">
-            <SearchFirst
-              articles={articles}
-              onArticleSelect={setSelectedArticle}
-              selectedArticle={selectedArticle}
-              sortMode={sortMode}
-              onSortChange={setSortMode}
-              isLoadingMore={isLoadingMore}
-              hasMore={hasMore}
-              sentinelRef={sentinelRef}
-              scrollContainerRef={scrollContainerRef}
-            />
-          </div>
+          <SearchFirst
+            articles={articles}
+            onArticleSelect={setSelectedArticle}
+            selectedArticle={selectedArticle}
+            sortMode={sortMode}
+            onSortChange={setSortMode}
+            isLoadingMore={isLoadingMore}
+            hasMore={hasMore}
+            onScroll={handleScroll}
+          />
         </div>
       ) : view === 'dashboard' ? (
         <div className="flex-1 overflow-y-auto">

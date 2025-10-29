@@ -45,7 +45,7 @@ interface SearchFirstProps {
   isLoadingMore?: boolean;
   hasMore?: boolean;
   sentinelRef?: React.RefObject<HTMLDivElement | null>;
-  scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
+  onScroll?: (e: Event) => void;
 }
 
 export function SearchFirst({
@@ -56,46 +56,53 @@ export function SearchFirst({
   onSortChange,
   isLoadingMore = false,
   hasMore = true,
-  scrollContainerRef,
+  onScroll,
 }: SearchFirstProps) {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [localSortBy, setLocalSortBy] = useState<'smart' | 'recency'>(sortMode || 'smart');
-  const localScrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Display articles with sorting
   useEffect(() => {
-    const timer = setTimeout(() => {
-      // Map to results format
-      let results = articles.map(article => ({
-        article,
-        score: article.aiScore || article.smartScore || 0,
-        matchType: 'combined',
-        highlights: [],
-      }));
+    // Map to results format
+    let results = articles.map(article => ({
+      article,
+      score: article.aiScore || article.smartScore || 0,
+      matchType: 'combined',
+      highlights: [],
+    }));
 
-      // Sort based on localSortBy
-      // Note: Articles come pre-sorted from backend, but we ensure consistency here
-      if (localSortBy === 'smart') {
-        results.sort((a, b) => (b.article.aiScore || b.article.smartScore || 0) - (a.article.aiScore || a.article.smartScore || 0));
-      } else if (localSortBy === 'recency') {
-        results.sort((a, b) => {
-          const getTime = (date: any) => {
-            if (!date) return 0;
-            if (date instanceof Date) return date.getTime();
-            if (typeof date === 'object' && 'toDate' in date) return date.toDate().getTime();
-            return new Date(date).getTime();
-          };
-          const dateA = getTime((a.article as any).createdAt);
-          const dateB = getTime((b.article as any).createdAt);
-          return dateB - dateA;
-        });
-      }
+    // Sort based on localSortBy
+    // Note: Articles come pre-sorted from backend, but we ensure consistency here
+    if (localSortBy === 'smart') {
+      results.sort((a, b) => (b.article.aiScore || b.article.smartScore || 0) - (a.article.aiScore || a.article.smartScore || 0));
+    } else if (localSortBy === 'recency') {
+      results.sort((a, b) => {
+        const getTime = (date: any) => {
+          if (!date) return 0;
+          if (date instanceof Date) return date.getTime();
+          if (typeof date === 'object' && 'toDate' in date) return date.toDate().getTime();
+          return new Date(date).getTime();
+        };
+        const dateA = getTime((a.article as any).createdAt);
+        const dateB = getTime((b.article as any).createdAt);
+        return dateB - dateA;
+      });
+    }
 
-      setSearchResults(results);
-    }, 300);
-
-    return () => clearTimeout(timer);
+    setSearchResults(results);
   }, [articles, localSortBy]);
+
+  // Attach scroll listener to the scrollable container
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || !onScroll) return;
+
+    container.addEventListener('scroll', onScroll);
+    return () => container.removeEventListener('scroll', onScroll);
+  }, [onScroll]);
+
+
 
 
 
@@ -152,14 +159,7 @@ export function SearchFirst({
       </div>
 
       {/* Results - Scrollable */}
-      <div
-        ref={(el) => {
-          localScrollContainerRef.current = el;
-          if (scrollContainerRef) {
-            scrollContainerRef.current = el;
-          }
-        }}
-        className="flex-1 overflow-y-auto w-full max-w-full overflow-x-hidden">
+      <div ref={scrollContainerRef} className="flex-1 w-full max-w-full overflow-y-auto overflow-x-hidden">
         <div className="w-full max-w-full px-4 pb-20 pt-4 overflow-x-hidden">
           <div className="space-y-3 w-full max-w-full">
             {searchResults.map((result, idx) => (
