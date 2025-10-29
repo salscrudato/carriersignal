@@ -9,6 +9,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import Parser from 'rss-parser';
 import { computeSmartScore } from '../src/ranking/smartScore';
+import { Readability } from '@mozilla/readability';
+import { JSDOM } from 'jsdom';
 
 // Initialize Firebase Admin
 function initializeFirebase() {
@@ -38,6 +40,47 @@ initializeFirebase();
 const db = admin.firestore();
 const parser = new Parser();
 
+/**
+ * Extract full article content from URL using Readability
+ */
+async function extractArticleContent(url: string | null | undefined): Promise<{ content: string; html: string } | null> {
+  if (!url) return null;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const html = await response.text();
+    const dom = new JSDOM(html, { url });
+    const reader = new Readability(dom.window.document);
+    const article = reader.parse();
+
+    if (!article) {
+      return null;
+    }
+
+    return {
+      content: article.textContent || '',
+      html: article.content || '',
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
 // RSS Feed sources - curated P&C insurance industry sources
 const FEED_SOURCES = [
   { name: 'Insurance Journal - National', url: 'https://www.insurancejournal.com/rss/news/national/' },
@@ -54,6 +97,7 @@ interface RawArticle {
   publishedAt: string;
   description: string;
   content: string;
+  html?: string;
 }
 
 async function fetchArticles(): Promise<RawArticle[]> {
@@ -81,13 +125,17 @@ async function fetchArticles(): Promise<RawArticle[]> {
             const pubDate = new Date(item.pubDate || item.isoDate || new Date());
 
             if (pubDate >= twoDaysAgo) {
+              // Try to extract full content from the article URL
+              const extractedContent = await extractArticleContent(item.link || '');
+
               const article: RawArticle = {
                 title: item.title || '',
                 url: item.link || '',
                 source: feed.name,
                 publishedAt: item.isoDate || item.pubDate || new Date().toISOString(),
                 description: item.contentSnippet || '',
-                content: (item as any).content || item.content || (item as any).description || '',
+                content: extractedContent?.content || (item as any).content || item.content || (item as any).description || '',
+                html: extractedContent?.html || '',
               };
 
               if (article.title && article.url) {
@@ -161,7 +209,7 @@ async function upsertArticles(articles: RawArticle[]) {
       const existingDoc = await docRef.get();
       const isNew = !existingDoc.exists;
 
-      const docData = {
+      const docData: any = {
         title: article.title,
         url: article.url,
         source: article.source,
@@ -172,6 +220,11 @@ async function upsertArticles(articles: RawArticle[]) {
         scoreFeatures: scoreResult.scoreFeatures,
         updatedAt: new Date(),
       };
+
+      // Add html if available
+      if (article.html) {
+        docData.html = article.html;
+      }
 
       // Only set createdAt if this is a new document
       if (isNew) {
