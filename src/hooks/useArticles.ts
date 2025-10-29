@@ -12,7 +12,7 @@ import { logger } from '../utils/logger';
 
 interface UseArticlesOptions {
   pageSize?: number;
-  sortBy?: 'createdAt' | 'smartScore' | 'aiScore';
+  sortBy?: 'createdAt' | 'publishedAt' | 'smartScore' | 'aiScore';
   sortOrder?: 'asc' | 'desc';
 }
 
@@ -101,12 +101,6 @@ export function useArticles({
       return;
     }
 
-    // Don't load if no more articles
-    if (!hasMore) {
-      console.log('[useArticles] No more articles available');
-      return;
-    }
-
     // Don't load if we don't have a cursor
     if (!lastCursorRef.current) {
       console.log('[useArticles] No cursor available, skipping loadMore');
@@ -166,7 +160,7 @@ export function useArticles({
       isLoadingRef.current = false;
       setIsLoadingMore(false);
     }
-  }, [pageSize, sortBy, sortOrder, hasMore]);
+  }, [pageSize, sortBy, sortOrder]);
 
   const refresh = useCallback(async () => {
     lastCursorRef.current = null;
@@ -175,6 +169,12 @@ export function useArticles({
   }, [loadInitial]);
 
   useEffect(() => {
+    // Reset pagination state when sort changes
+    lastCursorRef.current = null;
+    pageCountRef.current = 0;
+    setArticles([]);
+    setHasMore(true);
+
     loadInitial();
 
     // Cleanup prefetch timeout on unmount
