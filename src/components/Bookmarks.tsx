@@ -147,3 +147,4 @@ export function Bookmarks({ onArticleSelect }: BookmarksProps) {
   );
 }
 
+export default Bookmarks;

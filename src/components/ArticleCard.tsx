@@ -5,7 +5,7 @@
  */
 
 import { Bookmark, Share2, TrendingUp, AlertCircle, ChevronDown, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import type { Article } from '../types';
 import { Badge } from './primitives/Badge';
 import { GlassCard } from './primitives/GlassCard';
@@ -22,7 +22,7 @@ interface ArticleCardProps {
   ariaLabel?: string;
 }
 
-export function ArticleCard({
+function ArticleCardComponent({
   article,
   isSelected = false,
   isLoading = false,
@@ -206,3 +206,10 @@ export function ArticleCard({
   );
 }
 
+export const ArticleCard = memo(ArticleCardComponent, (prev, next) => {
+  return (
+    prev.article.id === next.article.id &&
+    prev.isSelected === next.isSelected &&
+    prev.isLoading === next.isLoading
+  );
+});

@@ -1,4 +1,5 @@
 import { TrendingUp, AlertTriangle, Zap, BarChart3, Globe, Shield, Cloud, FileText, Clock } from 'lucide-react';
+import { useMemo } from 'react';
 
 interface Article {
   title: string;
@@ -19,64 +20,72 @@ interface DashboardProps {
 }
 
 export function Dashboard({ articles }: DashboardProps) {
-  // Calculate statistics
-  const stats = {
+  // Calculate statistics with useMemo
+  const stats = useMemo(() => ({
     totalArticles: articles.length,
     highImpact: articles.filter(a => (a.impactScore || 0) > 75).length,
     regulatory: articles.filter(a => a.regulatory).length,
     catastrophes: articles.filter(a => a.stormName).length,
-  };
+  }), [articles]);
 
-  // Extract top trends
-  const trends = new Map<string, number>();
-  articles.forEach(article => {
-    article.tags?.trends?.forEach(trend => {
-      trends.set(trend, (trends.get(trend) || 0) + 1);
+  // Extract top trends with useMemo
+  const topTrends = useMemo(() => {
+    const trends = new Map<string, number>();
+    articles.forEach(article => {
+      article.tags?.trends?.forEach(trend => {
+        trends.set(trend, (trends.get(trend) || 0) + 1);
+      });
     });
-  });
-  const topTrends = Array.from(trends.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
+    return Array.from(trends.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+  }, [articles]);
 
-  // Extract top perils
-  const perils = new Map<string, number>();
-  articles.forEach(article => {
-    article.tags?.perils?.forEach(peril => {
-      perils.set(peril, (perils.get(peril) || 0) + 1);
+  // Extract top perils with useMemo
+  const topPerils = useMemo(() => {
+    const perils = new Map<string, number>();
+    articles.forEach(article => {
+      article.tags?.perils?.forEach(peril => {
+        perils.set(peril, (perils.get(peril) || 0) + 1);
+      });
     });
-  });
-  const topPerils = Array.from(perils.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
+    return Array.from(perils.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+  }, [articles]);
 
-  // Extract top LOBs
-  const lobs = new Map<string, number>();
-  articles.forEach(article => {
-    article.tags?.lob?.forEach(lob => {
-      lobs.set(lob, (lobs.get(lob) || 0) + 1);
+  // Extract top LOBs with useMemo
+  const topLobs = useMemo(() => {
+    const lobs = new Map<string, number>();
+    articles.forEach(article => {
+      article.tags?.lob?.forEach(lob => {
+        lobs.set(lob, (lobs.get(lob) || 0) + 1);
+      });
     });
-  });
-  const topLobs = Array.from(lobs.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
+    return Array.from(lobs.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+  }, [articles]);
 
-  // Extract top regions
-  const regions = new Map<string, number>();
-  articles.forEach(article => {
-    article.tags?.regions?.forEach(region => {
-      regions.set(region, (regions.get(region) || 0) + 1);
+  // Extract top regions with useMemo
+  const topRegions = useMemo(() => {
+    const regions = new Map<string, number>();
+    articles.forEach(article => {
+      article.tags?.regions?.forEach(region => {
+        regions.set(region, (regions.get(region) || 0) + 1);
+      });
     });
-  });
-  const topRegions = Array.from(regions.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
+    return Array.from(regions.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+  }, [articles]);
 
-  // Extract catastrophes (storms)
-  const storms = articles
+  // Extract catastrophes (storms) with useMemo
+  const storms = useMemo(() => articles
     .filter(a => a.stormName)
     .map(a => a.stormName)
     .filter((s, i, arr) => arr.indexOf(s) === i)
-    .slice(0, 5);
+    .slice(0, 5), [articles]);
 
   // Extract regulatory items (this week)
   const regulatoryItems = articles
@@ -213,6 +222,8 @@ export function Dashboard({ articles }: DashboardProps) {
     </div>
   );
 }
+
+export default Dashboard;
 
 interface MetricCardProps {
   icon: React.ReactNode;

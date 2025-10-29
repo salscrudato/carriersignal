@@ -13,6 +13,15 @@ import {
   hashUrl as hashUrlUtil,
 } from "./utils";
 
+// Re-export utility functions directly
+export const hashUrl = hashUrlUtil;
+export const calculateSmartScore = calculateSmartScoreUtil;
+export const normalizeRegions = normalizeRegionsUtil;
+export const normalizeCompanies = normalizeCompaniesUtil;
+export const computeContentHash = computeContentHashUtil;
+export const detectStormName = detectStormNameUtil;
+export const isRegulatorySource = isRegulatorySourceUtil;
+
 export type Article = {
   url: string;
   source: string;
@@ -59,10 +68,6 @@ const schema = z.object({
   leadQuote: z.string().max(300), // Key factual excerpt (required for OpenAI structured output)
   disclosure: z.string().max(200), // If promotional/opinionated (required for OpenAI structured output)
 });
-
-export function hashUrl(u: string) {
-  return hashUrlUtil(u);
-}
 
 export async function extractArticle(url: string) {
   // Validate URL format before attempting fetch
@@ -628,48 +633,6 @@ export async function embedForRAG(client: OpenAI, text: string): Promise<number[
 }
 
 /**
- * Calculate SmartScore v3: Enhanced multi-dimensional scoring for P&C insurance
- * Returns a score 0-100 for ranking articles
- */
-export function calculateSmartScore(params: {
-  publishedAt?: string;
-  impactScore: number;
-  impactBreakdown?: {
-    market?: number;
-    regulatory?: number;
-    catastrophe?: number;
-    technology?: number;
-  };
-  tags?: {
-    regulations?: string[];
-    perils?: string[];
-    lob?: string[];
-    trends?: string[];
-  };
-  regulatory?: boolean;
-  riskPulse?: 'LOW' | 'MEDIUM' | 'HIGH';
-  stormName?: string;
-}): number {
-  return calculateSmartScoreUtil(params);
-}
-
-
-
-/**
- * Normalize regions to ISO 3166-2 codes
- */
-export function normalizeRegions(regions: string[]): string[] {
-  return normalizeRegionsUtil(regions);
-}
-
-/**
- * Normalize company names to canonical forms
- */
-export function normalizeCompanies(companies: string[]): string[] {
-  return normalizeCompaniesUtil(companies);
-}
-
-/**
  * Generate canonical URL (respect og:url if present)
  */
 export function getCanonicalUrl(url: string, html?: string): string {
@@ -689,28 +652,6 @@ export function getCanonicalUrl(url: string, html?: string): string {
   }
 
   return url;
-}
-
-/**
- * Compute content hash for deduplication (simhash-style)
- */
-export function computeContentHash(text: string): string {
-  return computeContentHashUtil(text);
-}
-
-/**
- * Detect storm/hurricane names from text
- * Returns storm name if found (e.g., "Hurricane Milton", "Tropical Storm Debby")
- */
-export function detectStormName(text: string): string | undefined {
-  return detectStormNameUtil(text);
-}
-
-/**
- * Detect if article is from a regulatory source (DOI bulletin, etc.)
- */
-export function isRegulatorySource(url: string, source: string): boolean {
-  return isRegulatorySourceUtil(url, source);
 }
 
 /**

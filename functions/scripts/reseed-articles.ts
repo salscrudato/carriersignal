@@ -8,7 +8,7 @@ import * as admin from 'firebase-admin';
 import * as fs from 'fs';
 import * as path from 'path';
 import Parser from 'rss-parser';
-import { computeSmartScore } from '../src/ranking/smartScore';
+import { calculateSmartScore } from '../src/utils';
 import { Readability } from '@mozilla/readability';
 import { JSDOM } from 'jsdom';
 
@@ -214,14 +214,13 @@ async function upsertArticles(articles: RawArticle[]) {
   for (const article of articles) {
     try {
       // Compute SmartScore
-      const scoreResult = computeSmartScore(
-        article.url,
-        article.title,
-        article.content,
-        article.publishedAt,
-        0.75, // Default P&C relevance
-        1.0   // Default source credibility
-      );
+      const smartScore = calculateSmartScore({
+        publishedAt: article.publishedAt,
+        impactScore: 50, // Default impact score
+        tags: {},
+        regulatory: false,
+        riskPulse: 'MEDIUM'
+      });
 
       const docId = Buffer.from(article.url).toString('base64').substring(0, 20);
       const docRef = db.collection('articles').doc(docId);
@@ -237,8 +236,7 @@ async function upsertArticles(articles: RawArticle[]) {
         publishedAt: article.publishedAt,
         description: article.description,
         content: article.content,
-        smartScore: scoreResult.smartScore,
-        scoreFeatures: scoreResult.scoreFeatures,
+        smartScore: smartScore,
         updatedAt: new Date(),
       };
 

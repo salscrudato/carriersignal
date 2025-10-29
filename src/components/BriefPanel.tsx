@@ -1,4 +1,4 @@
-import { AlertTriangle, ExternalLink, Eye } from 'lucide-react';
+import { AlertTriangle, Eye, X } from 'lucide-react';
 
 interface Article {
   title: string;
@@ -31,11 +31,13 @@ interface Article {
 interface BriefPanelProps {
   article: Article | null;
   onReaderView?: (url: string) => void;
+  onClose?: () => void;
 }
 
 export function BriefPanel({
   article,
   onReaderView,
+  onClose,
 }: BriefPanelProps) {
   if (!article) {
     return (
@@ -65,16 +67,16 @@ export function BriefPanel({
                 <Eye size={18} className="text-[#5AA6FF]" />
               </button>
             )}
-            <a
-              href={article.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 rounded-lg hover:bg-[#E8F2FF] transition-colors"
-              aria-label="Open original article"
-              title="Open original"
-            >
-              <ExternalLink size={18} className="text-[#5AA6FF]" />
-            </a>
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="p-2 rounded-lg hover:bg-[#E8F2FF] transition-colors"
+                aria-label="Close modal"
+                title="Close"
+              >
+                <X size={18} className="text-[#5AA6FF]" />
+              </button>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-[#64748B] flex-wrap w-full max-w-full overflow-x-hidden">

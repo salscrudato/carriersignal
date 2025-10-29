@@ -1,19 +1,21 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, lazy, Suspense } from "react";
 import { Header } from "./components/Header";
 import { SearchFirst } from "./components/SearchFirst";
 import { BriefPanel } from "./components/BriefPanel";
-import { Dashboard } from "./components/Dashboard";
 import { MobileNav } from "./components/MobileNav";
 import { SkeletonGrid } from "./components/SkeletonLoader";
 import { CommandPalette } from "./components/CommandPalette";
-import { Bookmarks } from "./components/Bookmarks";
-import { SettingsPanel } from "./components/SettingsPanel";
 import { useArticles } from "./hooks/useArticles";
 import { useUI } from "./context/UIContext";
 import { ErrorBoundary } from "./utils/errorBoundary";
 import { logger } from "./utils/logger";
 import type { Article } from "./types";
 import "./index.css";
+
+// Lazy load components for code splitting
+const Dashboard = lazy(() => import("./components/Dashboard"));
+const Bookmarks = lazy(() => import("./components/Bookmarks"));
+const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
 
 function AppContent() {
   // Use context for UI state
@@ -36,28 +38,34 @@ function AppContent() {
 
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const lastLoadTimeRef = useRef(0);
+  const rafIdRef = useRef<number | undefined>(undefined);
   const DEBOUNCE_MS = 300;
 
-  // Handle scroll events for infinite loading
+  // Handle scroll events for infinite loading with RAF for smooth scrolling
   const handleScroll = useCallback((e: Event) => {
     if (isLoadingMore || !hasMore) return;
 
-    const now = Date.now();
-    if (now - lastLoadTimeRef.current < DEBOUNCE_MS) return;
+    // Cancel previous RAF to avoid multiple pending updates
+    if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
 
-    const container = e.target as HTMLDivElement;
-    if (!container) return;
+    rafIdRef.current = requestAnimationFrame(() => {
+      const now = Date.now();
+      if (now - lastLoadTimeRef.current < DEBOUNCE_MS) return;
 
-    const { scrollTop, scrollHeight, clientHeight } = container;
-    const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
+      const container = e.target as HTMLDivElement;
+      if (!container) return;
 
-    console.log('[App] Scroll event - distance from bottom:', distanceFromBottom, 'isLoadingMore:', isLoadingMore, 'hasMore:', hasMore);
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
 
-    if (distanceFromBottom < 500) {
-      lastLoadTimeRef.current = now;
-      console.log('[App] ✅ Loading more articles');
-      loadMore();
-    }
+      console.log('[App] Scroll event - distance from bottom:', distanceFromBottom, 'isLoadingMore:', isLoadingMore, 'hasMore:', hasMore);
+
+      if (distanceFromBottom < 500) {
+        lastLoadTimeRef.current = now;
+        console.log('[App] ✅ Loading more articles');
+        void loadMore();
+      }
+    });
   }, [isLoadingMore, hasMore, loadMore]);
 
   // Log errors and pagination state
@@ -163,11 +171,15 @@ function AppContent() {
         </div>
       ) : view === 'bookmarks' ? (
         <div className="flex-1 flex flex-col bg-gradient-to-b from-white via-[#F9FBFF]/30 to-[#E8F2FF]/20">
-          <Bookmarks onArticleSelect={setSelectedArticle} />
+          <Suspense fallback={<SkeletonGrid />}>
+            <Bookmarks onArticleSelect={setSelectedArticle} />
+          </Suspense>
         </div>
       ) : view === 'settings' ? (
         <div className="flex-1 flex flex-col bg-gradient-to-b from-white via-[#F9FBFF]/30 to-[#E8F2FF]/20">
-          <SettingsPanel onSortChange={setSortMode} />
+          <Suspense fallback={<SkeletonGrid />}>
+            <SettingsPanel onSortChange={setSortMode} />
+          </Suspense>
         </div>
       ) : null}
 
@@ -182,7 +194,7 @@ function AppContent() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="overflow-y-auto flex-1">
-              <BriefPanel article={selectedArticle} />
+              <BriefPanel article={selectedArticle} onClose={() => setSelectedArticle(null)} />
             </div>
           </div>
         </div>

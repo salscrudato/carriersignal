@@ -298,20 +298,26 @@ async function refreshFeedsLogic(apiKey: string) {
       recordFeedSuccess(feedUrl); // Update circuit breaker
       updateFeedHealth(feedUrl, true); // Track successful fetch
 
-      // Process articles in batches
+      // Process articles in parallel batches (5 at a time)
       const articles = feed.items.slice(0, BATCH_CONFIG.batchSize);
+      const PARALLEL_BATCH_SIZE = 5;
 
-      for (let i = 0; i < articles.length; i++) {
-        const item = articles[i];
-        const itemIndex = i + 1;
-        let articleStartTime = Date.now();
+      for (let batchStart = 0; batchStart < articles.length; batchStart += PARALLEL_BATCH_SIZE) {
+        const batchEnd = Math.min(batchStart + PARALLEL_BATCH_SIZE, articles.length);
+        const batchArticles = articles.slice(batchStart, batchEnd);
 
-        try {
-          if (!item.link) {
-            console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Skipping item without link`);
-            results.skipped++;
-            continue;
-          }
+        // Process articles in parallel within this batch
+        await Promise.all(batchArticles.map(async (item, batchIndex) => {
+          const i = batchStart + batchIndex;
+          const itemIndex = i + 1;
+          let articleStartTime = Date.now();
+
+          try {
+            if (!item.link) {
+              console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Skipping item without link`);
+              results.skipped++;
+              return;
+            }
 
           const url = item.link;
           const id = hashUrl(url);
@@ -325,7 +331,7 @@ async function refreshFeedsLogic(apiKey: string) {
           if (idempotencyDoc.exists) {
             console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Already processed in this batch (idempotent)`);
             results.skipped++;
-            continue;
+            return;
           }
 
           // Check if article already exists in database
@@ -333,7 +339,7 @@ async function refreshFeedsLogic(apiKey: string) {
           if (exists) {
             console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Article already exists`);
             results.skipped++;
-            continue;
+            return;
           }
 
           articleStartTime = Date.now();
@@ -360,7 +366,7 @@ async function refreshFeedsLogic(apiKey: string) {
           if (!content || !content.text || content.text.length < 100) {
             console.log(`[ARTICLE ${itemIndex}/${articles.length}] Article text too short (${content?.text?.length || 0} chars): ${url}`);
             results.skipped++;
-            continue;
+            return;
           }
 
           // Summarize & classify
@@ -511,6 +517,7 @@ async function refreshFeedsLogic(apiKey: string) {
           console.error(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Error after ${articleLatency}ms:`, error);
           results.errors++;
         }
+        }));
       }
 
       const feedDuration = Date.now() - feedStartTime;
@@ -1148,8 +1155,8 @@ export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, asyn
 
     const client = new OpenAI({apiKey: OPENAI_API_KEY.value()});
 
-    // Fetch recent articles (keep it simple; Firestore has no native vector search)
-    const snap = await db.collection("articles").orderBy("createdAt", "desc").limit(500).get();
+    // Fetch recent articles - reduced from 500 to 200 for better performance
+    const snap = await db.collection("articles").orderBy("createdAt", "desc").limit(200).get();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const articles = snap.docs.map((d) => ({id: d.id, ...d.data()} as any));
 
@@ -1166,9 +1173,17 @@ export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, asyn
       return;
     }
 
-    // Fetch embeddings from separate collection
-    const embeddingSnap = await db.collection("article_embeddings").where("articleId", "in", articles.map(a => a.id)).get();
-    const embeddingMap = new Map(embeddingSnap.docs.map(d => [d.data().articleId, d.data().embedding]));
+    // Batch fetch embeddings in chunks of 10 (Firestore 'in' query limit)
+    const articleIds = articles.map(a => a.id);
+    const embeddingMap = new Map<string, unknown>();
+
+    for (let i = 0; i < articleIds.length; i += 10) {
+      const chunk = articleIds.slice(i, i + 10);
+      const embeddingSnap = await db.collection("article_embeddings").where("articleId", "in", chunk).get();
+      embeddingSnap.docs.forEach(d => {
+        embeddingMap.set(d.data().articleId, d.data().embedding);
+      });
+    }
 
     // Merge embeddings with articles
     const items = articles

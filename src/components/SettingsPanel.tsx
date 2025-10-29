@@ -93,3 +93,4 @@ export function SettingsPanel({
   );
 }
 
+export default SettingsPanel;
