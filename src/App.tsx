@@ -20,10 +20,13 @@ function AppContent() {
   // Use context for UI state
   const { view, setView, sortMode, setSortMode, isPaletteOpen, setIsPaletteOpen, quickReadArticleUrl, setQuickReadArticleUrl } = useUI();
 
+  // Map sort mode to query field
+  const sortByField = sortMode === 'recency' ? 'createdAt' : 'aiScore';
+
   // Use custom hook for articles
   const { articles, loading, isLoadingMore, error, hasMore, loadMore } = useArticles({
     pageSize: 20,
-    sortBy: 'smartScore',
+    sortBy: sortByField,
     sortOrder: 'desc',
   });
 

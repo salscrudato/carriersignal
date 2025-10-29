@@ -12,7 +12,7 @@ import { logger } from '../utils/logger';
 
 interface UseArticlesOptions {
   pageSize?: number;
-  sortBy?: 'createdAt' | 'smartScore';
+  sortBy?: 'createdAt' | 'smartScore' | 'aiScore';
   sortOrder?: 'asc' | 'desc';
 }
 
@@ -50,6 +50,10 @@ export function useArticles({
     try {
       logger.info('useArticles', 'Loading initial articles', { pageSize, sortBy, sortOrder });
 
+      // Reset pagination state when sort changes
+      lastCursorRef.current = null;
+      pageCountRef.current = 0;
+
       const constraints: QueryConstraint[] = [
         orderBy(sortBy, sortOrder),
         limit(pageSize),
@@ -58,7 +62,7 @@ export function useArticles({
       const q = query(collection(db, 'articles'), ...constraints);
       const snapshot = await getDocs(q);
 
-      console.log(`[useArticles] Initial query returned ${snapshot.docs.length} documents`);
+      console.log(`[useArticles] Initial query returned ${snapshot.docs.length} documents with sort: ${sortBy}`);
 
       const docs = snapshot.docs.map((doc) => ({
         id: doc.id,

@@ -66,21 +66,36 @@ export function SearchFirst({
   useEffect(() => {
     const timer = setTimeout(() => {
       // Map to results format
-      const results = articles.map(article => ({
+      let results = articles.map(article => ({
         article,
         score: article.aiScore || article.smartScore || 0,
         matchType: 'combined',
         highlights: [],
       }));
 
-      // NOTE: Articles are already sorted by the backend (by smartScore or createdAt)
-      // We should NOT re-sort them on the frontend as this breaks cursor-based pagination
-      // The localSortBy is kept for UI consistency but doesn't affect the actual order
+      // Sort based on localSortBy
+      // Note: Articles come pre-sorted from backend, but we ensure consistency here
+      if (localSortBy === 'smart') {
+        results.sort((a, b) => (b.article.aiScore || b.article.smartScore || 0) - (a.article.aiScore || a.article.smartScore || 0));
+      } else if (localSortBy === 'recency') {
+        results.sort((a, b) => {
+          const getTime = (date: any) => {
+            if (!date) return 0;
+            if (date instanceof Date) return date.getTime();
+            if (typeof date === 'object' && 'toDate' in date) return date.toDate().getTime();
+            return new Date(date).getTime();
+          };
+          const dateA = getTime((a.article as any).createdAt);
+          const dateB = getTime((b.article as any).createdAt);
+          return dateB - dateA;
+        });
+      }
+
       setSearchResults(results);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [articles]);
+  }, [articles, localSortBy]);
 
 
 
@@ -94,6 +109,7 @@ export function SearchFirst({
           <div className="flex items-center gap-1 sm:gap-1.5 liquid-glass-light rounded-lg p-1 border border-[#C7D2E1]/25 flex-shrink-0">
             <button
               onClick={() => {
+                console.log('[SearchFirst] Changing sort to smart');
                 setLocalSortBy('smart');
                 onSortChange?.('smart');
               }}
@@ -110,6 +126,7 @@ export function SearchFirst({
             </button>
             <button
               onClick={() => {
+                console.log('[SearchFirst] Changing sort to recency');
                 setLocalSortBy('recency');
                 onSortChange?.('recency');
               }}
