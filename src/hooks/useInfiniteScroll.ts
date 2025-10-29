@@ -15,6 +15,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 export interface UseInfiniteScrollOptions {
   threshold?: number | number[];
   rootMargin?: string;
+  root?: Element | null;
   onLoadMore: () => void | Promise<void>;
   isLoading?: boolean;
   hasMore?: boolean;
@@ -42,6 +43,7 @@ export interface UseInfiniteScrollReturn {
 export function useInfiniteScroll({
   threshold = 0.1,
   rootMargin = '100px',
+  root = null,
   onLoadMore,
   isLoading = false,
   hasMore = true,
@@ -50,18 +52,34 @@ export function useInfiniteScroll({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const [localIsLoading, setLocalIsLoading] = useState(false);
+  const lastTriggerTimeRef = useRef<number>(0);
+  const DEBOUNCE_MS = 100; // Prevent rapid-fire triggers
 
   const handleIntersection = useCallback(
     (entries: IntersectionObserverEntry[]) => {
       const [entry] = entries;
+      const now = Date.now();
 
-      // Only trigger if:
-      // 1. Element is visible
-      // 2. Not already loading
-      // 3. More items available
-      // 4. Hook is enabled
-      if (entry.isIntersecting && !isLoading && !localIsLoading && hasMore && enabled) {
+      if (!entry.isIntersecting) {
+        return;
+      }
+
+      // Check if we should load more
+      const shouldLoad = !isLoading && !localIsLoading && hasMore && enabled && (now - lastTriggerTimeRef.current > DEBOUNCE_MS);
+
+      console.log('[InfiniteScroll] Sentinel visible:', {
+        shouldLoad,
+        isLoading,
+        localIsLoading,
+        hasMore,
+        enabled,
+        timeSinceLastTrigger: now - lastTriggerTimeRef.current,
+      });
+
+      if (shouldLoad) {
+        lastTriggerTimeRef.current = now;
         setLocalIsLoading(true);
+        console.log('[InfiniteScroll] ✅ Triggering loadMore');
 
         try {
           const result = onLoadMore();
@@ -88,24 +106,39 @@ export function useInfiniteScroll({
   );
 
   useEffect(() => {
+    console.log('[InfiniteScroll] Setting up observer', { threshold, rootMargin, root: !!root, enabled, hasMore });
+
+    // Disconnect old observer if it exists
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
     // Create observer with options
     observerRef.current = new IntersectionObserver(handleIntersection, {
       threshold,
       rootMargin,
+      root: root || null, // null means use viewport
     });
 
     // Start observing sentinel element
     if (sentinelRef.current && enabled) {
+      console.log('[InfiniteScroll] Observing sentinel element', { hasRoot: !!root });
       observerRef.current.observe(sentinelRef.current);
+    } else {
+      console.log('[InfiniteScroll] Not observing - sentinel or enabled check failed', {
+        hasSentinel: !!sentinelRef.current,
+        enabled,
+      });
     }
 
     // Cleanup
     return () => {
+      console.log('[InfiniteScroll] Cleaning up observer');
       if (observerRef.current) {
         observerRef.current.disconnect();
       }
     };
-  }, [handleIntersection, threshold, rootMargin, enabled]);
+  }, [handleIntersection, threshold, rootMargin, root, enabled]);
 
   return {
     sentinelRef,

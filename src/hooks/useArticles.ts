@@ -39,6 +39,7 @@ export function useArticles({
   const lastCursorRef = useRef<any>(null);
   const isLoadingRef = useRef(false);
   const prefetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pageCountRef = useRef(0);
 
   const loadInitial = useCallback(async () => {
     if (isLoadingRef.current) return;
@@ -47,7 +48,7 @@ export function useArticles({
     setError(null);
 
     try {
-      logger.info('useArticles', 'Loading initial articles');
+      logger.info('useArticles', 'Loading initial articles', { pageSize, sortBy, sortOrder });
 
       const constraints: QueryConstraint[] = [
         orderBy(sortBy, sortOrder),
@@ -56,6 +57,8 @@ export function useArticles({
 
       const q = query(collection(db, 'articles'), ...constraints);
       const snapshot = await getDocs(q);
+
+      console.log(`[useArticles] Initial query returned ${snapshot.docs.length} documents`);
 
       const docs = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -69,10 +72,17 @@ export function useArticles({
       const hasMoreArticles = snapshot.docs.length === pageSize;
       setHasMore(hasMoreArticles);
 
-      logger.info('useArticles', `Loaded ${docs.length} articles, hasMore: ${hasMoreArticles}`);
+      logger.info('useArticles', `Initial load complete: ${docs.length} articles loaded, hasMore: ${hasMoreArticles}`, {
+        pageSize,
+        docsLength: docs.length,
+        hasMoreArticles,
+      });
+
+      console.log(`[useArticles] Initial load: ${docs.length} articles, hasMore: ${hasMoreArticles}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load articles';
       logger.error('useArticles', 'Failed to load initial articles', { error: message });
+      console.error('[useArticles] Error loading initial articles:', err);
       setError(message);
     } finally {
       setLoading(false);
@@ -81,12 +91,30 @@ export function useArticles({
   }, [pageSize, sortBy, sortOrder]);
 
   const loadMore = useCallback(async () => {
-    if (isLoadingRef.current || !hasMore || !lastCursorRef.current) return;
+    // Prevent concurrent loads
+    if (isLoadingRef.current) {
+      console.log('[useArticles] Already loading, skipping loadMore');
+      return;
+    }
+
+    // Don't load if no more articles
+    if (!hasMore) {
+      console.log('[useArticles] No more articles available');
+      return;
+    }
+
+    // Don't load if we don't have a cursor
+    if (!lastCursorRef.current) {
+      console.log('[useArticles] No cursor available, skipping loadMore');
+      return;
+    }
+
     isLoadingRef.current = true;
     setIsLoadingMore(true);
 
     try {
-      logger.info('useArticles', 'Loading more articles');
+      pageCountRef.current += 1;
+      console.log(`[useArticles] Loading page ${pageCountRef.current}...`);
 
       const constraints: QueryConstraint[] = [
         orderBy(sortBy, sortOrder),
@@ -97,28 +125,37 @@ export function useArticles({
       const q = query(collection(db, 'articles'), ...constraints);
       const snapshot = await getDocs(q);
 
+      console.log(`[useArticles] Page ${pageCountRef.current}: Fetched ${snapshot.docs.length} articles`);
+
+      if (snapshot.docs.length === 0) {
+        console.log('[useArticles] No more articles - reached end');
+        setHasMore(false);
+        return;
+      }
+
       const docs = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
         createdAt: doc.data().createdAt?.toDate?.() || new Date(),
       })) as Article[];
 
-      setArticles((prev) => [...prev, ...docs]);
-      lastCursorRef.current = snapshot.docs[snapshot.docs.length - 1] || null;
-      // hasMore is true if we got a full page (means there might be more)
+      // Update articles
+      setArticles((prev) => {
+        const updated = [...prev, ...docs];
+        console.log(`[useArticles] Total articles now: ${updated.length}`);
+        return updated;
+      });
+
+      // Update cursor for next page
+      lastCursorRef.current = snapshot.docs[snapshot.docs.length - 1];
+
+      // Check if there are more articles
       const hasMoreArticles = snapshot.docs.length === pageSize;
       setHasMore(hasMoreArticles);
-
-      logger.info('useArticles', `Loaded ${docs.length} more articles, hasMore: ${hasMoreArticles}`);
-
-      // Prefetch next batch if we're getting close to the end
-      if (docs.length > pageSize * 0.8) {
-        prefetchTimeoutRef.current = setTimeout(() => {
-          // Prefetch will happen automatically when user scrolls
-        }, 500);
-      }
+      console.log(`[useArticles] Page ${pageCountRef.current} complete. hasMore: ${hasMoreArticles}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load more articles';
+      console.error('[useArticles] Error loading more:', message);
       logger.error('useArticles', 'Failed to load more articles', { error: message });
       setError(message);
     } finally {

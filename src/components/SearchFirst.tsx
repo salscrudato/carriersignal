@@ -9,9 +9,8 @@
  * - Mobile-optimized
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Zap, Clock, ExternalLink } from 'lucide-react';
-import { rankArticlesByAI, rankArticlesByRecency } from '../utils/rankingSystem';
 import { InfiniteScrollLoader, ScrollSentinelLoader } from './InfiniteScrollLoader';
 
 interface Article {
@@ -46,6 +45,7 @@ interface SearchFirstProps {
   isLoadingMore?: boolean;
   hasMore?: boolean;
   sentinelRef?: React.RefObject<HTMLDivElement | null>;
+  scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export function SearchFirst({
@@ -56,10 +56,11 @@ export function SearchFirst({
   onSortChange,
   isLoadingMore = false,
   hasMore = true,
-  sentinelRef,
+  scrollContainerRef,
 }: SearchFirstProps) {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [localSortBy, setLocalSortBy] = useState<'smart' | 'recency'>(sortMode || 'smart');
+  const localScrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Display articles with sorting
   useEffect(() => {
@@ -72,35 +73,16 @@ export function SearchFirst({
         highlights: [],
       }));
 
-      // Apply sorting
-      const sorted = applySorting(results, localSortBy);
-      setSearchResults(sorted);
+      // NOTE: Articles are already sorted by the backend (by smartScore or createdAt)
+      // We should NOT re-sort them on the frontend as this breaks cursor-based pagination
+      // The localSortBy is kept for UI consistency but doesn't affect the actual order
+      setSearchResults(results);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [articles, localSortBy]);
+  }, [articles]);
 
-  // Sorting function
-  const applySorting = (results: any[], sortType: string) => {
-    const articles = results.map(r => r.article);
 
-    let sorted;
-    if (sortType === 'smart') {
-      // Smart sort: blend AI relevance with recency
-      sorted = rankArticlesByAI(articles);
-    } else {
-      // Recency sort
-      sorted = rankArticlesByRecency(articles);
-    }
-
-    // Map back to result format
-    return sorted.map(article => ({
-      article,
-      score: (article as any).finalScore || article.aiScore || 0,
-      matchType: 'combined',
-      highlights: [],
-    }));
-  };
 
   return (
     <div className="w-full max-w-full overflow-x-hidden space-y-0 flex flex-col h-full">
@@ -153,7 +135,14 @@ export function SearchFirst({
       </div>
 
       {/* Results - Scrollable */}
-      <div className="flex-1 overflow-y-auto w-full max-w-full overflow-x-hidden">
+      <div
+        ref={(el) => {
+          localScrollContainerRef.current = el;
+          if (scrollContainerRef) {
+            scrollContainerRef.current = el;
+          }
+        }}
+        className="flex-1 overflow-y-auto w-full max-w-full overflow-x-hidden">
         <div className="w-full max-w-full px-4 pb-20 pt-4 overflow-x-hidden">
           <div className="space-y-3 w-full max-w-full">
             {searchResults.map((result, idx) => (
@@ -174,8 +163,7 @@ export function SearchFirst({
             </div>
           )}
 
-          {/* Sentinel element for infinite scroll trigger */}
-          <div ref={sentinelRef} className="h-4 w-full" />
+          {/* Sentinel element removed - using scroll-based pagination instead */}
 
           {/* End of list or error states */}
           {!isLoadingMore && (

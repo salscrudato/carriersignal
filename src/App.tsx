@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Header } from "./components/Header";
 import { SearchFirst } from "./components/SearchFirst";
 import { BriefPanel } from "./components/BriefPanel";
@@ -8,7 +8,7 @@ import { SkeletonGrid } from "./components/SkeletonLoader";
 import { CommandPalette } from "./components/CommandPalette";
 import { Bookmarks } from "./components/Bookmarks";
 import { SettingsPanel } from "./components/SettingsPanel";
-import { useInfiniteScroll } from "./hooks/useInfiniteScroll";
+import { useSimpleInfiniteScroll } from "./hooks/useSimpleInfiniteScroll";
 import { useArticles } from "./hooks/useArticles";
 import { useUI } from "./context/UIContext";
 import { ErrorBoundary } from "./utils/errorBoundary";
@@ -28,22 +28,40 @@ function AppContent() {
   });
 
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Infinite scroll hook
-  const { sentinelRef } = useInfiniteScroll({
+  // Infinite scroll hook - using simple scroll-based approach
+  const { containerRef: sentinelRef } = useSimpleInfiniteScroll({
     onLoadMore: loadMore,
     isLoading: isLoadingMore,
     hasMore,
-    threshold: 0.1,
-    rootMargin: '200px',
+    enabled: true,
+    scrollContainer: scrollContainerRef.current,
+    threshold: 500, // pixels from bottom
   });
 
-  // Log errors
+  // Log errors and pagination state
   useEffect(() => {
     if (error) {
       logger.error('App', 'Article loading error', { error });
     }
   }, [error]);
+
+  // Debug logging for pagination
+  useEffect(() => {
+    console.log('[App] Pagination state:', {
+      articlesCount: articles.length,
+      isLoadingMore,
+      hasMore,
+      loading,
+    });
+  }, [articles.length, isLoadingMore, hasMore, loading]);
+
+  // Manual test button for pagination
+  const handleManualLoadMore = async () => {
+    console.log('[App] Manual loadMore triggered');
+    await loadMore();
+  };
 
   // Keyboard shortcuts for Command-K and Quick Read
   useEffect(() => {
@@ -58,11 +76,16 @@ function AppContent() {
         setIsPaletteOpen(false);
         setQuickReadArticleUrl(null);
       }
+      // Ctrl+Shift+T to open test view
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'T') {
+        e.preventDefault();
+        setView(view === 'test' ? 'feed' : 'test');
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPaletteOpen, setIsPaletteOpen, setQuickReadArticleUrl]);
+  }, [isPaletteOpen, setIsPaletteOpen, setQuickReadArticleUrl, view, setView]);
 
   // Render
   if (loading) {
@@ -93,12 +116,39 @@ function AppContent() {
               isLoadingMore={isLoadingMore}
               hasMore={hasMore}
               sentinelRef={sentinelRef}
+              scrollContainerRef={scrollContainerRef}
             />
           </div>
         </div>
       ) : view === 'dashboard' ? (
         <div className="flex-1 overflow-y-auto">
           <Dashboard articles={articles} />
+        </div>
+      ) : view === 'test' ? (
+        <div className="flex-1 flex flex-col bg-gradient-to-b from-white via-[#F9FBFF]/30 to-[#E8F2FF]/20 p-4">
+          <div className="space-y-4">
+            <h1 className="text-2xl font-bold">Pagination Test</h1>
+            <div className="space-y-2">
+              <p>Articles loaded: {articles.length}</p>
+              <p>Has more: {hasMore ? 'Yes' : 'No'}</p>
+              <p>Is loading: {isLoadingMore ? 'Yes' : 'No'}</p>
+            </div>
+            <button
+              onClick={handleManualLoadMore}
+              disabled={isLoadingMore || !hasMore}
+              className="px-4 py-2 bg-[#5AA6FF] text-white rounded-lg disabled:opacity-50"
+            >
+              Load More Articles
+            </button>
+            <div className="mt-4 space-y-2 max-h-96 overflow-y-auto">
+              {articles.map((article, idx) => (
+                <div key={idx} className="p-2 bg-white rounded border border-[#C7D2E1]/25">
+                  <p className="font-semibold text-sm">{idx + 1}. {article.title?.substring(0, 60)}...</p>
+                  <p className="text-xs text-gray-500">Score: {article.smartScore}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       ) : view === 'bookmarks' ? (
         <div className="flex-1 flex flex-col bg-gradient-to-b from-white via-[#F9FBFF]/30 to-[#E8F2FF]/20">

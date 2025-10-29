@@ -6,7 +6,7 @@
 import { createContext, useContext, useState } from 'react';
 import type { ReactNode } from 'react';
 
-type ViewMode = 'feed' | 'dashboard' | 'bookmarks' | 'settings';
+type ViewMode = 'feed' | 'dashboard' | 'bookmarks' | 'settings' | 'test';
 type SortMode = 'smart' | 'recency';
 
 interface UIContextType {

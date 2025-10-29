@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Search, BarChart3, Bookmark, Settings, X } from 'lucide-react';
 
 interface MobileNavProps {
-  onViewChange?: (view: 'feed' | 'dashboard' | 'bookmarks' | 'settings') => void;
-  currentView?: 'feed' | 'dashboard' | 'bookmarks' | 'settings';
+  onViewChange?: (view: 'feed' | 'dashboard' | 'bookmarks' | 'settings' | 'test') => void;
+  currentView?: 'feed' | 'dashboard' | 'bookmarks' | 'settings' | 'test';
 }
 
 export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps) {
@@ -43,7 +43,7 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleNavClick = (view: 'feed' | 'dashboard' | 'bookmarks' | 'settings') => {
+  const handleNavClick = (view: 'feed' | 'dashboard' | 'bookmarks' | 'settings' | 'test') => {
     onViewChange?.(view);
     setIsOpen(false);
   };
