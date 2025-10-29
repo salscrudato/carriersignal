@@ -1,16 +1,21 @@
 /**
  * GlowButton Component
  * Reusable button with glow effects and Aurora color support
+ * Supports primary (gradient), secondary (light), and ghost variants
+ * Fully accessible with ARIA attributes and keyboard support
  */
 
 import type { ReactNode, ButtonHTMLAttributes } from 'react';
 
-interface GlowButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+export interface GlowButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'success';
   size?: 'sm' | 'md' | 'lg';
   glow?: boolean;
   loading?: boolean;
+  icon?: ReactNode;
+  ariaLabel?: string;
+  ariaDescribedBy?: string;
 }
 
 export function GlowButton({
@@ -19,25 +24,30 @@ export function GlowButton({
   size = 'md',
   glow = true,
   loading = false,
+  icon,
   className = '',
   disabled,
+  ariaLabel,
+  ariaDescribedBy,
   ...props
 }: GlowButtonProps) {
-  const baseClasses = 'font-medium rounded-lg transition-all duration-300 flex items-center justify-center gap-2';
+  const baseClasses = 'font-medium rounded-lg transition-all duration-300 flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF] will-change-transform';
 
   const variantClasses = {
-    primary: 'bg-[#5AA6FF] text-white hover:bg-[#4A96EF] active:bg-[#3A86DF]',
-    secondary: 'bg-[#E8F2FF] text-[#5AA6FF] hover:bg-[#D8E8FF] active:bg-[#C8DEFF]',
+    primary: 'bg-gradient-to-r from-[#5AA6FF] to-[#8B7CFF] text-white hover:shadow-lg hover:shadow-[#5AA6FF]/40 active:scale-95',
+    secondary: 'bg-[#E8F2FF] text-[#5AA6FF] border border-[#C7D2E1] hover:bg-[#D8E8FF] active:bg-[#C8DEFF]',
     ghost: 'text-[#5AA6FF] hover:bg-[#E8F2FF]/50 active:bg-[#D8E8FF]',
+    danger: 'bg-[#EF4444] text-white hover:bg-[#DC2626] active:scale-95',
+    success: 'bg-[#06B6D4] text-white hover:bg-[#0891B2] active:scale-95',
   };
 
   const sizeClasses = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2 text-base',
-    lg: 'px-6 py-3 text-lg',
+    sm: 'px-3 py-1.5 text-sm min-h-[44px] min-w-[44px]',
+    md: 'px-4 py-2 text-base min-h-[44px] min-w-[44px]',
+    lg: 'px-6 py-3 text-lg min-h-[48px] min-w-[48px]',
   };
 
-  const glowClasses = glow && variant === 'primary'
+  const glowClasses = glow && (variant === 'primary' || variant === 'success')
     ? 'shadow-lg shadow-[#5AA6FF]/30 hover:shadow-xl hover:shadow-[#5AA6FF]/40'
     : '';
 
@@ -49,11 +59,19 @@ export function GlowButton({
     <button
       className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${glowClasses} ${disabledClasses} ${className}`}
       disabled={disabled || loading}
+      aria-label={ariaLabel}
+      aria-describedby={ariaDescribedBy}
+      aria-busy={loading}
       {...props}
     >
       {loading && (
-        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+        <div
+          className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"
+          role="status"
+          aria-label="Loading"
+        />
       )}
+      {icon && !loading && <span className="flex items-center" aria-hidden="true">{icon}</span>}
       {children}
     </button>
   );

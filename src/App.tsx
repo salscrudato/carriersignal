@@ -13,6 +13,7 @@ import { useArticles } from "./hooks/useArticles";
 import { useUI } from "./context/UIContext";
 import { ErrorBoundary } from "./utils/errorBoundary";
 import { logger } from "./utils/logger";
+import type { Article } from "./types";
 import "./index.css";
 
 function AppContent() {
@@ -20,18 +21,18 @@ function AppContent() {
   const { view, setView, sortMode, setSortMode, isPaletteOpen, setIsPaletteOpen, quickReadArticleUrl, setQuickReadArticleUrl } = useUI();
 
   // Use custom hook for articles
-  const { articles, loading, error, hasMore, loadMore } = useArticles({
+  const { articles, loading, isLoadingMore, error, hasMore, loadMore } = useArticles({
     pageSize: 20,
     sortBy: 'createdAt',
     sortOrder: 'desc',
   });
 
-  const [selectedArticle, setSelectedArticle] = useState<any>(null);
+  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
 
   // Infinite scroll hook
   const { sentinelRef } = useInfiniteScroll({
     onLoadMore: loadMore,
-    isLoading: false,
+    isLoading: isLoadingMore,
     hasMore,
     threshold: 0.1,
     rootMargin: '200px',
@@ -81,7 +82,7 @@ function AppContent() {
       {/* Main Content Area */}
       {view === 'feed' ? (
         <div className="flex-1 flex gap-0 overflow-hidden w-full max-w-full">
-          {/* Left: Search Results - Full Width on Mobile */}
+          {/* Left: Search Results - Full Width */}
           <div className="flex-1 overflow-y-auto w-full max-w-full overflow-x-hidden">
             <SearchFirst
               articles={articles}
@@ -89,29 +90,10 @@ function AppContent() {
               selectedArticle={selectedArticle}
               sortMode={sortMode}
               onSortChange={setSortMode}
-              isLoadingMore={false}
+              isLoadingMore={isLoadingMore}
               hasMore={hasMore}
               sentinelRef={sentinelRef}
             />
-          </div>
-
-          {/* Right: Brief Panel (Desktop Only) */}
-          <div className="hidden lg:flex lg:w-1/3 border-l border-[#C7D2E1]/30 overflow-y-auto bg-white flex-col w-full max-w-full overflow-x-hidden">
-            {selectedArticle ? (
-              <BriefPanel article={selectedArticle} />
-            ) : (
-              <div className="flex-1 flex items-center justify-center p-6 text-center">
-                <div>
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#E8F2FF] to-[#E8F2FF] flex items-center justify-center mx-auto mb-4 animate-subtleGlowPulse">
-                    <svg className="w-8 h-8 text-[#5AA6FF] animate-iconGlow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <p className="text-sm font-semibold text-[#64748B]">Select an article</p>
-                  <p className="text-xs text-[#94A3B8] mt-1">to view detailed insights</p>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       ) : view === 'dashboard' ? (
@@ -128,17 +110,19 @@ function AppContent() {
         </div>
       ) : null}
 
-      {/* Mobile: Full-Screen Brief Panel Modal */}
+      {/* Article Details Modal - Desktop and Mobile */}
       {selectedArticle && (
         <div
-          className="lg:hidden fixed inset-0 z-50 bg-black/50 flex items-end animate-fadeIn"
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center lg:items-end p-4 lg:p-0 animate-fadeIn overflow-hidden"
           onClick={() => setSelectedArticle(null)}
         >
           <div
-            className="w-full liquid-glass-ultra rounded-t-3xl max-h-[90vh] overflow-y-auto border-t border-[#C7D2E1]/30 animate-slideInUp"
+            className="w-full lg:w-full lg:rounded-t-3xl lg:max-h-[90vh] max-w-2xl lg:max-w-none liquid-glass-ultra rounded-3xl lg:rounded-t-3xl max-h-[90vh] border border-[#C7D2E1]/30 lg:border-t lg:border-l-0 lg:border-r-0 lg:border-b-0 animate-slideInUp lg:animate-slideInUp flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <BriefPanel article={selectedArticle} />
+            <div className="overflow-y-auto flex-1">
+              <BriefPanel article={selectedArticle} />
+            </div>
           </div>
         </div>
       )}
@@ -146,16 +130,18 @@ function AppContent() {
       {/* Quick Read Modal */}
       {quickReadArticleUrl && (
         <div
-          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 animate-fadeIn"
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 animate-fadeIn overflow-hidden"
           onClick={() => setQuickReadArticleUrl(null)}
         >
           <div
-            className="w-full max-w-2xl liquid-glass-ultra rounded-3xl max-h-[90vh] overflow-y-auto shadow-2xl border border-[#C7D2E1]/30 animate-scaleIn"
+            className="w-full max-w-2xl liquid-glass-ultra rounded-3xl max-h-[90vh] shadow-2xl border border-[#C7D2E1]/30 animate-scaleIn flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Quick Read content will be rendered here by QuickReadModal component */}
-            <div className="p-6 text-center text-[#64748B]">
-              <p>Quick Read feature coming soon...</p>
+            <div className="overflow-y-auto flex-1">
+              {/* Quick Read content will be rendered here by QuickReadModal component */}
+              <div className="p-6 text-center text-[#64748B]">
+                <p>Quick Read feature coming soon...</p>
+              </div>
             </div>
           </div>
         </div>

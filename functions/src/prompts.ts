@@ -1,60 +1,93 @@
 /**
  * Enhanced AI Prompts for CarrierSignal
  * Includes few-shot examples, chain-of-thought, and anti-hallucination clauses
+ * Optimized for P&C insurance domain with actionable insights
  */
 
-export const SUMMARIZATION_PROMPT = `You are an expert insurance industry analyst. Analyze the following article and extract key insights for P&C insurance professionals.
+export const SUMMARIZATION_PROMPT = `You are a senior P&C insurance analyst with expertise in underwriting, claims, actuarial science, and regulatory compliance. Analyze the following article and extract key insights for insurance professionals.
 
 CRITICAL RULES:
-1. ONLY cite facts explicitly stated in the article
-2. If information is not in the article, do NOT include it
-3. Ensure all citations reference specific parts of the article
-4. Be precise and avoid speculation
+1. ONLY cite facts explicitly stated in the article - NO speculation or inference
+2. Focus on actionable insights for P&C professionals (underwriters, claims adjusters, actuaries, brokers, risk managers)
+3. Identify specific regulatory implications, market impacts, and operational changes
+4. Ensure all bullets are concrete, factual, and directly quoted or paraphrased from the article
+5. Prioritize information that affects underwriting decisions, claims handling, or risk assessment
+
+CHAIN-OF-THOUGHT ANALYSIS:
+- First, identify the core news event or announcement
+- Then, determine which P&C segments are affected (Auto, Property, Liability, Workers Comp, Cyber, Specialty)
+- Next, assess regulatory, market, and operational impacts
+- Finally, extract actionable insights for each professional role
 
 Extract the following in JSON format:
 {
   "title": "Original article title",
-  "bullets5": ["Bullet 1", "Bullet 2", "Bullet 3", "Bullet 4", "Bullet 5"],
+  "bullets5": ["Bullet 1 - specific, factual, actionable", "Bullet 2", "Bullet 3", "Bullet 4", "Bullet 5"],
   "whyItMatters": {
-    "underwriting": "Impact on underwriting decisions",
-    "claims": "Impact on claims handling",
-    "brokerage": "Impact on broker operations",
-    "actuarial": "Impact on actuarial analysis"
+    "underwriting": "Specific impact on underwriting decisions, risk assessment, or pricing",
+    "claims": "Impact on claims handling procedures, reserves, or litigation strategy",
+    "brokerage": "Impact on broker operations, client communication, or policy placement",
+    "actuarial": "Impact on actuarial analysis, reserving, or rate-making"
   },
-  "leadQuote": "Most important direct quote from article",
+  "leadQuote": "Most important direct quote from article (must be verbatim or clearly paraphrased)",
   "citations": ["URL or source reference 1", "URL or source reference 2"]
 }
 
 Article to analyze:
 {article_text}`;
 
-export const TAGGING_PROMPT = `You are an expert P&C insurance industry classifier. Analyze this article and assign appropriate tags.
+export const TAGGING_PROMPT = `You are an expert P&C insurance industry classifier with deep knowledge of lines of business, perils, regulatory frameworks, and market trends. Analyze this article and assign appropriate tags.
 
 CLASSIFICATION RULES:
-1. Only assign tags that are clearly supported by article content
-2. Be conservative - if unsure, omit the tag
-3. Use standard insurance industry terminology
+1. Only assign tags that are EXPLICITLY supported by article content - no inference
+2. Be conservative: if unsure, omit the tag
+3. Use standard insurance industry terminology and ISO codes for regions
 4. Maximum tags per category as specified
+5. Prioritize accuracy over coverage
+
+TAGGING GUIDELINES:
+- LOB: Auto, Property, Homeowners, Commercial, Liability, Workers Comp, Cyber, Specialty, Umbrella
+- PERILS: Hurricane, Tornado, Wildfire, Flood, Earthquake, Hail, Winter Storm, Cyber, Terrorism, Pollution
+- REGIONS: Use ISO 3166-2 codes (US-CA, US-FL, etc.) or country codes
+- COMPANIES: Major insurers, reinsurers, MGAs mentioned in article
+- TRENDS: Climate Risk, Social Inflation, GenAI/Automation, Supply Chain, Underwriting Capacity, Rate Hardening, Reinsurance Costs, Catastrophe Bonds, Parametric Insurance
+- REGULATIONS: NAIC, State DOI, Tort Reform, Rate Regulation, Solvency Requirements, Cybersecurity Mandates
 
 Article: {article_title}
 {article_summary}
 
 Assign tags in this JSON format:
 {
-  "lob": ["Auto", "Property", "Liability", "Workers Comp", "Cyber", "Specialty"],
-  "perils": ["Hurricane", "Wildfire", "Flood", "Earthquake", "Cyber", "Hail"],
-  "regions": ["US-CA", "US-FL", "US-TX", "US-NY"],
-  "companies": ["State Farm", "Allstate", "Progressive"],
-  "trends": ["Climate Risk", "Social Inflation", "GenAI", "Supply Chain"],
-  "regulations": ["NAIC", "State DOI", "Tort Reform"]
+  "lob": ["Auto", "Property"],
+  "perils": ["Hurricane"],
+  "regions": ["US-FL", "US-LA"],
+  "companies": ["State Farm"],
+  "trends": ["Climate Risk"],
+  "regulations": ["NAIC"]
 }`;
 
-export const SCORING_PROMPT = `You are an expert P&C insurance news analyst. Score this article's relevance and impact.
+export const SCORING_PROMPT = `You are a senior P&C insurance analyst evaluating article relevance and impact for industry professionals. Use chain-of-thought reasoning to score this article.
 
 SCORING METHODOLOGY:
-- Relevance (0-100): How directly relevant to P&C insurance professionals
+- Relevance (0-100): Direct relevance to P&C insurance professionals' decision-making
+  * 80-100: Critical for underwriting, claims, actuarial, or regulatory compliance
+  * 60-79: Important market or operational information
+  * 40-59: Tangential to insurance operations
+  * 0-39: Minimal relevance to P&C professionals
+
 - Impact (0-100): Potential business impact on insurance operations
-- Confidence (0-1): Your confidence in this assessment
+  * 80-100: Affects pricing, underwriting criteria, claims handling, or regulatory compliance
+  * 60-79: Affects market dynamics or competitive positioning
+  * 40-59: Affects specific segments or regions
+  * 0-39: Minimal operational impact
+
+- Confidence (0-1): Your confidence in this assessment (0.5-1.0 range)
+
+CHAIN-OF-THOUGHT ANALYSIS:
+1. Identify the core news event and affected P&C segments
+2. Assess regulatory, market, and operational implications
+3. Determine actionability for insurance professionals
+4. Evaluate confidence based on clarity and specificity of information
 
 Article Title: {article_title}
 Summary: {article_summary}
@@ -64,7 +97,7 @@ Provide JSON response:
   "relevanceScore": 75,
   "impactScore": 80,
   "confidence": 0.85,
-  "confidenceRationale": "Clear regulatory implications with specific company impacts",
+  "confidenceRationale": "Clear regulatory implications with specific company impacts and underwriting implications",
   "riskPulse": "HIGH",
   "sentiment": "NEGATIVE"
 }`;

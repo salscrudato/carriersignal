@@ -8,7 +8,11 @@
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "seed": "ts-node scripts/seed-articles.ts",
+    "seed:mock": "ts-node scripts/seed-articles-mock.ts",
+    "verify": "ts-node scripts/verify-articles.ts",
+    "test:pagination": "ts-node scripts/test-pagination.ts"
   },
   "engines": {
     "node": "20"
@@ -27,12 +31,15 @@
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
+    "@types/jest": "^30.0.0",
     "@types/jsdom": "^27.0.0",
+    "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "eslint": "^9.0.0",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-import": "^2.29.1",
+    "ts-node": "^10.9.0",
     "typescript": "^5.5.0"
   },
   "private": true

@@ -1,0 +1,50 @@
+{
+  "bundles": [
+    {
+      "name": "main",
+      "maxSize": "400kb"
+    },
+    {
+      "name": "vendor",
+      "maxSize": "300kb"
+    },
+    {
+      "name": "react",
+      "maxSize": "150kb"
+    }
+  ],
+  "metrics": [
+    {
+      "name": "LCP",
+      "maxValue": 2500,
+      "unit": "ms"
+    },
+    {
+      "name": "FCP",
+      "maxValue": 1800,
+      "unit": "ms"
+    },
+    {
+      "name": "CLS",
+      "maxValue": 0.1,
+      "unit": "score"
+    },
+    {
+      "name": "TTI",
+      "maxValue": 3500,
+      "unit": "ms"
+    },
+    {
+      "name": "TBT",
+      "maxValue": 300,
+      "unit": "ms"
+    }
+  ],
+  "lighthouse": {
+    "performance": 90,
+    "accessibility": 90,
+    "best-practices": 90,
+    "seo": 90
+  }
+}
+

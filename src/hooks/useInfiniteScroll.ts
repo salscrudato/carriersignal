@@ -62,19 +62,24 @@ export function useInfiniteScroll({
       // 4. Hook is enabled
       if (entry.isIntersecting && !isLoading && !localIsLoading && hasMore && enabled) {
         setLocalIsLoading(true);
-        
-        const result = onLoadMore();
-        
-        // Handle both sync and async callbacks
-        if (result instanceof Promise) {
-          result
-            .catch((error) => {
-              console.error('[InfiniteScroll] Error loading more items:', error);
-            })
-            .finally(() => {
-              setLocalIsLoading(false);
-            });
-        } else {
+
+        try {
+          const result = onLoadMore();
+
+          // Handle both sync and async callbacks
+          if (result instanceof Promise) {
+            result
+              .catch((error) => {
+                console.error('[InfiniteScroll] Error loading more items:', error);
+              })
+              .finally(() => {
+                setLocalIsLoading(false);
+              });
+          } else {
+            setLocalIsLoading(false);
+          }
+        } catch (error) {
+          console.error('[InfiniteScroll] Error in onLoadMore callback:', error);
           setLocalIsLoading(false);
         }
       }

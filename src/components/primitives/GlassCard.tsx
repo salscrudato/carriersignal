@@ -1,16 +1,20 @@
 /**
  * GlassCard Component
  * Reusable liquid glass card primitive with consistent styling
+ * Supports three glass effect intensities: default, premium, ultra
+ * Fully accessible with keyboard navigation and ARIA support
  */
 
-import type { ReactNode } from 'react';
+import type { ReactNode, HTMLAttributes, KeyboardEvent } from 'react';
 
-interface GlassCardProps {
+export interface GlassCardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   className?: string;
   variant?: 'default' | 'premium' | 'ultra';
   interactive?: boolean;
   onClick?: () => void;
+  ariaLabel?: string;
+  ariaDescribedBy?: string;
 }
 
 export function GlassCard({
@@ -19,9 +23,12 @@ export function GlassCard({
   variant = 'default',
   interactive = false,
   onClick,
+  ariaLabel,
+  ariaDescribedBy,
+  ...props
 }: GlassCardProps) {
-  const baseClasses = 'liquid-glass rounded-xl p-4 transition-all duration-300';
-  
+  const baseClasses = 'rounded-xl p-4 transition-all duration-300 will-change-transform';
+
   const variantClasses = {
     default: 'liquid-glass',
     premium: 'liquid-glass-premium',
@@ -29,15 +36,26 @@ export function GlassCard({
   };
 
   const interactiveClasses = interactive
-    ? 'cursor-pointer hover:shadow-lg hover:scale-[1.02]'
+    ? 'cursor-pointer hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF]'
     : '';
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (interactive && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      onClick?.();
+    }
+  };
 
   return (
     <div
       className={`${baseClasses} ${variantClasses[variant]} ${interactiveClasses} ${className}`}
       onClick={onClick}
+      onKeyDown={handleKeyDown}
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
+      aria-label={ariaLabel}
+      aria-describedby={ariaDescribedBy}
+      {...props}
     >
       {children}
     </div>

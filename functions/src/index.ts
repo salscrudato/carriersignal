@@ -5,7 +5,7 @@ import {initializeApp} from "firebase-admin/app";
 import {getFirestore} from "firebase-admin/firestore";
 import OpenAI from "openai";
 import Parser from "rss-parser";
-import {extractArticle, summarizeAndTag, embedForRAG, hashUrl, calculateSmartScore, normalizeRegions, normalizeCompanies, getCanonicalUrl, computeContentHash, detectStormName, isRegulatorySource, scoreArticleWithAI, validateAndCleanArticle} from "./agents";
+import {extractArticle, summarizeAndTag, embedForRAG, hashUrl, calculateSmartScore, normalizeRegions, normalizeCompanies, getCanonicalUrl, computeContentHash, detectStormName, isRegulatorySource, scoreArticleWithAI, validateAndCleanArticle, checkRAGQuality} from "./agents";
 
 initializeApp();
 const db = getFirestore();
@@ -96,6 +96,44 @@ function checkCORS(origin: string | undefined): boolean {
     if (allowed.includes('localhost') && origin.includes('localhost')) return true; // Localhost wildcard
     return origin.startsWith(allowed);
   });
+}
+
+/**
+ * Comprehensive error handler for API endpoints
+ * Provides consistent error responses with proper HTTP status codes
+ */
+interface ErrorResponse {
+  error: string;
+  code?: string;
+  details?: Record<string, unknown>;
+  timestamp: string;
+}
+
+function createErrorResponse(error: unknown, defaultCode: string = 'INTERNAL_ERROR'): ErrorResponse {
+  if (error instanceof Error) {
+    return {
+      error: error.message,
+      code: defaultCode,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  return {
+    error: String(error),
+    code: defaultCode,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+function getHttpStatusCode(error: unknown): number {
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    if (msg.includes('invalid') || msg.includes('validation')) return 400;
+    if (msg.includes('not found') || msg.includes('404')) return 404;
+    if (msg.includes('unauthorized') || msg.includes('forbidden')) return 403;
+    if (msg.includes('timeout') || msg.includes('rate limit')) return 429;
+  }
+  return 500;
 }
 
 /**
@@ -242,6 +280,14 @@ async function refreshFeedsLogic(apiKey: string) {
   for (const feedUrl of feedUrls) {
     const feedStartTime = Date.now();
     const feedId = hashUrl(feedUrl);
+
+    // Check circuit breaker before attempting feed
+    if (!canAttemptFeed(feedUrl)) {
+      console.warn(`[BATCH ${batchId}] [FEED ${feedId}] Skipped (circuit breaker OPEN): ${feedUrl}`);
+      results.skipped++;
+      continue;
+    }
+
     try {
       console.log(`[BATCH ${batchId}] [FEED ${feedId}] Fetching feed: ${feedUrl}`);
       const feed = await parser.parseURL(feedUrl);
@@ -249,6 +295,7 @@ async function refreshFeedsLogic(apiKey: string) {
       console.log(`[BATCH ${batchId}] [FEED ${feedId}] Found ${feed.items.length} items in ${feedLatency}ms: ${feedUrl}`);
       results.feedsProcessed++;
       results.totalLatencyMs += feedLatency;
+      recordFeedSuccess(feedUrl); // Update circuit breaker
       updateFeedHealth(feedUrl, true); // Track successful fetch
 
       // Process articles in batches
@@ -269,8 +316,20 @@ async function refreshFeedsLogic(apiKey: string) {
           const url = item.link;
           const id = hashUrl(url);
           const docRef = db.collection("articles").doc(id);
-          const exists = (await docRef.get()).exists;
 
+          // Idempotency check: use transaction to ensure atomic read-write
+          const idempotencyKey = `${batchId}_${feedId}_${id}`;
+          const idempotencyRef = db.collection("_idempotency").doc(idempotencyKey);
+          const idempotencyDoc = await idempotencyRef.get();
+
+          if (idempotencyDoc.exists) {
+            console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Already processed in this batch (idempotent)`);
+            results.skipped++;
+            continue;
+          }
+
+          // Check if article already exists in database
+          const exists = (await docRef.get()).exists;
           if (exists) {
             console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Article already exists`);
             results.skipped++;
@@ -315,6 +374,13 @@ async function refreshFeedsLogic(apiKey: string) {
 
           // Post-parse validation: deduplicate citations, validate URLs
           brief = validateAndCleanArticle(brief);
+
+          // RAG Quality Check: Ensure article is suitable for retrieval
+          const ragQuality = checkRAGQuality(brief);
+          if (!ragQuality.isQuality) {
+            console.warn(`[ARTICLE ${itemIndex}/${articles.length}] RAG quality check failed (score: ${ragQuality.score}/100):`, ragQuality.issues);
+            // Log but don't skip - store with quality flag for filtering
+          }
 
           // Entity normalization (always set, with defaults)
           const regionsNormalized = brief.tags?.regions && brief.tags.regions.length > 0
@@ -395,6 +461,8 @@ async function refreshFeedsLogic(apiKey: string) {
             createdAt: new Date(),
             smartScore,
             aiScore,
+            ragQualityScore: ragQuality.score,
+            ragQualityIssues: ragQuality.issues,
             regionsNormalized,
             companiesNormalized,
             canonicalUrl,
@@ -410,6 +478,17 @@ async function refreshFeedsLogic(apiKey: string) {
             embedding: emb,
             articleId: id,
             createdAt: new Date(),
+          });
+
+          // Record idempotency key to prevent reprocessing in same batch
+          // TTL: 24 hours (idempotency window)
+          await idempotencyRef.set({
+            batchId,
+            feedUrl,
+            articleUrl: url,
+            articleId: id,
+            processedAt: new Date(),
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
           });
 
           // Check link health (B2 - Link Health Checking)
@@ -439,6 +518,7 @@ async function refreshFeedsLogic(apiKey: string) {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`[BATCH ${batchId}] [FEED ${feedId}] Error fetching feed:`, errorMessage);
+      recordFeedFailure(feedUrl); // Update circuit breaker
       updateFeedHealth(feedUrl, false, errorMessage); // Track failed fetch
       results.errors++;
       // Continue to next feed instead of failing entire batch
@@ -467,6 +547,22 @@ const BATCH_CONFIG = {
 };
 
 /**
+ * Circuit breaker state for feed health
+ * Prevents hammering feeds that are consistently failing
+ */
+interface CircuitBreakerState {
+  url: string;
+  state: 'CLOSED' | 'OPEN' | 'HALF_OPEN';
+  failureCount: number;
+  lastFailureTime: number;
+  successCount: number;
+}
+
+const circuitBreakers = new Map<string, CircuitBreakerState>();
+const CIRCUIT_BREAKER_THRESHOLD = 5; // Failures before opening
+const CIRCUIT_BREAKER_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes before half-open
+
+/**
  * Feed health tracking - persisted to Firestore
  * Monitors success/failure rates for each RSS feed
  */
@@ -478,6 +574,68 @@ interface FeedHealth {
   lastFailureAt?: FirebaseFirestore.Timestamp | Date;
   lastError?: string;
   updatedAt: FirebaseFirestore.Timestamp | Date;
+}
+
+/**
+ * Circuit breaker pattern for feed resilience
+ * Prevents cascading failures by temporarily disabling problematic feeds
+ */
+function getCircuitBreakerState(feedUrl: string): CircuitBreakerState {
+  if (!circuitBreakers.has(feedUrl)) {
+    circuitBreakers.set(feedUrl, {
+      url: feedUrl,
+      state: 'CLOSED',
+      failureCount: 0,
+      lastFailureTime: 0,
+      successCount: 0,
+    });
+  }
+  return circuitBreakers.get(feedUrl)!;
+}
+
+function canAttemptFeed(feedUrl: string): boolean {
+  const breaker = getCircuitBreakerState(feedUrl);
+  const now = Date.now();
+
+  if (breaker.state === 'CLOSED') {
+    return true; // Normal operation
+  }
+
+  if (breaker.state === 'OPEN') {
+    // Check if timeout has elapsed to transition to HALF_OPEN
+    if (now - breaker.lastFailureTime > CIRCUIT_BREAKER_TIMEOUT_MS) {
+      breaker.state = 'HALF_OPEN';
+      breaker.failureCount = 0;
+      console.log(`[CIRCUIT BREAKER] ${feedUrl} transitioning to HALF_OPEN`);
+      return true;
+    }
+    return false; // Still open, skip this feed
+  }
+
+  // HALF_OPEN state - allow one attempt
+  return true;
+}
+
+function recordFeedSuccess(feedUrl: string): void {
+  const breaker = getCircuitBreakerState(feedUrl);
+  breaker.failureCount = 0;
+  breaker.successCount++;
+
+  if (breaker.state === 'HALF_OPEN') {
+    breaker.state = 'CLOSED';
+    console.log(`[CIRCUIT BREAKER] ${feedUrl} recovered to CLOSED`);
+  }
+}
+
+function recordFeedFailure(feedUrl: string): void {
+  const breaker = getCircuitBreakerState(feedUrl);
+  breaker.failureCount++;
+  breaker.lastFailureTime = Date.now();
+
+  if (breaker.failureCount >= CIRCUIT_BREAKER_THRESHOLD && breaker.state !== 'OPEN') {
+    breaker.state = 'OPEN';
+    console.warn(`[CIRCUIT BREAKER] ${feedUrl} opened after ${breaker.failureCount} failures`);
+  }
 }
 
 /**
@@ -689,7 +847,7 @@ export const refreshFeedsManual = onRequest(
 // 1c) Test single article processing
 export const testSingleArticle = onRequest(
   {cors: true, secrets: [OPENAI_API_KEY]},
-  async (req, res) => {
+  async (_req, res) => {
     try {
       console.log("[TEST] Single article processing test initiated");
       const client = new OpenAI({apiKey: OPENAI_API_KEY.value()});
@@ -751,7 +909,7 @@ export const testSingleArticle = onRequest(
 );
 
 // 4) Feed Health Report (monitoring endpoint)
-export const feedHealthReport = onRequest({cors: true}, async (req, res) => {
+export const feedHealthReport = onRequest({cors: true}, async (_req, res) => {
   try {
     // Fetch all feed health records from Firestore
     const healthSnapshot = await db.collection('feed_health').get();
@@ -812,7 +970,6 @@ function cosineSimilarity(a: number[], b: number[]): number {
  */
 function mmrRerank(
   items: Array<{it: Record<string, unknown>; score: number}>,
-  qEmb: number[],
   topK: number,
   lambda: number = 0.7
 ): Array<{it: Record<string, unknown>; score: number; mmrScore: number}> {
@@ -960,7 +1117,7 @@ export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, asyn
     // CORS check
     const origin = req.headers.origin;
     if (!checkCORS(origin)) {
-      res.status(403).json({error: "Forbidden: Invalid origin"});
+      res.status(403).json(createErrorResponse('Forbidden: Invalid origin', 'CORS_ERROR'));
       return;
     }
     res.set('Access-Control-Allow-Origin', origin);
@@ -977,7 +1134,7 @@ export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, asyn
     const ip = req.headers['x-forwarded-for']?.toString().split(',')[0] || req.ip || 'unknown';
     const rateLimitOk = await checkRateLimit(ip);
     if (!rateLimitOk) {
-      res.status(429).json({error: "Rate limit exceeded. Please try again later."});
+      res.status(429).json(createErrorResponse('Rate limit exceeded. Please try again later.', 'RATE_LIMIT_EXCEEDED'));
       return;
     }
 
@@ -985,7 +1142,7 @@ export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, asyn
     const rawQuery = (req.query.q || req.body?.q || "").toString();
     const q = rawQuery.replace(/<[^>]*>/g, '').slice(0, 500); // Strip HTML, limit length
     if (!q || q.trim().length < 3) {
-      res.status(400).json({error: "Query required (min 3 characters)"});
+      res.status(400).json(createErrorResponse('Query required (min 3 characters)', 'INVALID_QUERY'));
       return;
     }
 
@@ -1061,7 +1218,7 @@ export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, asyn
       .slice(0, 20);
 
     // Step 4: MMR re-ranking for diversity
-    const mmrRanked = mmrRerank(cosineSimilarityRanked, qEmb, 12, 0.7);
+    const mmrRanked = mmrRerank(cosineSimilarityRanked, 12, 0.7);
 
     // Step 5: Apply cluster diversity (max 1 per cluster)
     const diverseRanked = applyClusterDiversity(mmrRanked, 1);
@@ -1164,10 +1321,10 @@ export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, asyn
       latencyMs,
     });
   } catch (e) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const error = e as any;
-    console.error('[ASK BRIEF ERROR]', error);
-    res.status(500).json({error: error.message || "unknown_error"});
+    const statusCode = getHttpStatusCode(e);
+    const errorResponse = createErrorResponse(e, 'ASK_BRIEF_ERROR');
+    console.error('[ASK BRIEF ERROR]', errorResponse);
+    res.status(statusCode).json(errorResponse);
   }
 });
 

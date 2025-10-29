@@ -1127,6 +1127,20 @@ header {
   animation: shareFeedback 0.4s ease-out forwards;
 }
 
+/* Score Glow Animation - Aurora Theme */
+@keyframes scoreGlow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(90, 166, 255, 0.2), 0 0 16px rgba(139, 124, 255, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(90, 166, 255, 0.35), 0 0 24px rgba(139, 124, 255, 0.18);
+  }
+}
+
+.animate-scoreGlow {
+  animation: scoreGlow 2s ease-in-out infinite;
+}
+
 /* Liquid Glass & Glassmorphism Effects - Apple-Inspired with Blue Accents */
 .glass {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(240, 249, 255, 0.75) 100%);
@@ -1140,6 +1154,7 @@ header {
     inset 0 1px 2px 0 rgba(255, 255, 255, 0.7),
     inset 0 -1px 1px 0 rgba(0, 0, 0, 0.01);
   transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform, box-shadow;
 }
 
 .glass:hover {
@@ -1151,6 +1166,7 @@ header {
     0 0 50px rgba(96, 165, 250, 0.03),
     inset 0 1px 1px 0 rgba(255, 255, 255, 0.7),
     inset 0 -1px 1px 0 rgba(0, 0, 0, 0.03);
+  transform: translateY(-2px);
 }
 
 /* .glass-dark - REMOVED: Light theme only, use .glass instead */
@@ -2330,4 +2346,288 @@ select:valid {
     0 0 30px rgba(37, 99, 235, 0.3),
     0 0 60px rgba(59, 130, 246, 0.15),
     0 0 90px rgba(96, 165, 250, 0.08);
+}
+
+/* ============================================================================
+   ACCESSIBILITY & REDUCED MOTION SUPPORT
+   ============================================================================ */
+
+/* Respect prefers-reduced-motion for all animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Enhanced focus states for keyboard navigation */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+/* Focus ring for interactive elements */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: more) {
+  :root {
+    --color-border: #94A3B8;
+    --color-text-tertiary: #475569;
+  }
+
+  .liquid-glass,
+  .liquid-glass-premium,
+  .liquid-glass-ultra {
+    border-width: 2px;
+  }
+}
+
+/* Reduced transparency for users with vision issues */
+@media (prefers-contrast: more) {
+  .glass,
+  .liquid-glass,
+  .liquid-glass-premium,
+  .liquid-glass-ultra {
+    background-color: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(16px) saturate(180%) brightness(1.05);
+    -webkit-backdrop-filter: blur(16px) saturate(180%) brightness(1.05);
+  }
+}
+
+/* Forced colors mode support (Windows High Contrast) */
+@media (forced-colors: active) {
+  .liquid-glass,
+  .liquid-glass-premium,
+  .liquid-glass-ultra,
+  .glass,
+  .card-premium,
+  .card-premium-elevated {
+    border: 2px solid CanvasText;
+  }
+
+  button {
+    border: 2px solid CanvasText;
+  }
+}
+
+/* Screen reader only text */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Skip to main content link for keyboard users */
+.skip-to-main {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--color-primary);
+  color: white;
+  padding: 8px;
+  text-decoration: none;
+  z-index: 100;
+  border-radius: 0 0 4px 0;
+}
+
+.skip-to-main:focus {
+  top: 0;
+}
+
+/* Semantic landmark styling */
+main {
+  outline: none;
+}
+
+main:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Improved link underlines for accessibility */
+a {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* Ensure sufficient color contrast */
+.text-secondary {
+  color: var(--color-text-secondary);
+}
+
+.text-tertiary {
+  color: var(--color-text-tertiary);
+}
+
+/* Visible focus indicators for form elements */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  box-shadow: 0 0 0 3px rgba(90, 166, 255, 0.1);
+}
+
+/* Ensure buttons have sufficient touch target size */
+button,
+a[role="button"],
+[role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Improve text selection contrast */
+::selection {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+::-moz-selection {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+/* Ensure sufficient spacing between interactive elements */
+button + button,
+a + a,
+button + a,
+a + button {
+  margin-left: 0.5rem;
+}
+
+/* Visible focus for custom components */
+.glass:focus-visible,
+.liquid-glass:focus-visible,
+.card-premium:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Ensure proper contrast for disabled elements */
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Improve readability of code blocks */
+code {
+  background-color: var(--color-bg-tertiary);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.875em;
+}
+
+/* Ensure proper spacing for list items */
+li {
+  margin-bottom: 0.5rem;
+}
+
+/* Improve table accessibility */
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.75rem;
+  border-bottom: 2px solid var(--color-border);
+}
+
+td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+/* Ensure proper contrast for labels */
+label {
+  font-weight: 500;
+  color: var(--color-text-primary);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+/* Improve form field styling */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="url"],
+textarea,
+select {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.625rem 1rem;
+  font-size: 1rem;
+  font-family: inherit;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  transition: all 0.2s ease-out;
+}
+
+input[type="text"]:focus-visible,
+input[type="email"]:focus-visible,
+input[type="password"]:focus-visible,
+input[type="search"]:focus-visible,
+input[type="url"]:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(90, 166, 255, 0.1);
+}
+
+/* Ensure proper contrast for error states */
+input[aria-invalid="true"],
+textarea[aria-invalid="true"],
+select[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+input[aria-invalid="true"]:focus-visible,
+textarea[aria-invalid="true"]:focus-visible,
+select[aria-invalid="true"]:focus-visible {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+/* Ensure proper contrast for success states */
+input[aria-invalid="false"],
+textarea[aria-invalid="false"],
+select[aria-invalid="false"] {
+  border-color: var(--color-success);
+}
+
+input[aria-invalid="false"]:focus-visible,
+textarea[aria-invalid="false"]:focus-visible,
+select[aria-invalid="false"]:focus-visible {
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
 }

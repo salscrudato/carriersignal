@@ -93,6 +93,34 @@ function checkCORS(origin) {
         return origin.startsWith(allowed);
     });
 }
+function createErrorResponse(error, defaultCode = 'INTERNAL_ERROR') {
+    if (error instanceof Error) {
+        return {
+            error: error.message,
+            code: defaultCode,
+            timestamp: new Date().toISOString(),
+        };
+    }
+    return {
+        error: String(error),
+        code: defaultCode,
+        timestamp: new Date().toISOString(),
+    };
+}
+function getHttpStatusCode(error) {
+    if (error instanceof Error) {
+        const msg = error.message.toLowerCase();
+        if (msg.includes('invalid') || msg.includes('validation'))
+            return 400;
+        if (msg.includes('not found') || msg.includes('404'))
+            return 404;
+        if (msg.includes('unauthorized') || msg.includes('forbidden'))
+            return 403;
+        if (msg.includes('timeout') || msg.includes('rate limit'))
+            return 429;
+    }
+    return 500;
+}
 // Default feed sources - can be overridden by Firestore configuration
 // Curated catalog of P&C insurance industry sources across multiple categories
 const DEFAULT_FEED_SOURCES = [
@@ -205,6 +233,12 @@ async function refreshFeedsLogic(apiKey) {
     for (const feedUrl of feedUrls) {
         const feedStartTime = Date.now();
         const feedId = (0, agents_1.hashUrl)(feedUrl);
+        // Check circuit breaker before attempting feed
+        if (!canAttemptFeed(feedUrl)) {
+            console.warn(`[BATCH ${batchId}] [FEED ${feedId}] Skipped (circuit breaker OPEN): ${feedUrl}`);
+            results.skipped++;
+            continue;
+        }
         try {
             console.log(`[BATCH ${batchId}] [FEED ${feedId}] Fetching feed: ${feedUrl}`);
             const feed = await parser.parseURL(feedUrl);
@@ -212,6 +246,7 @@ async function refreshFeedsLogic(apiKey) {
             console.log(`[BATCH ${batchId}] [FEED ${feedId}] Found ${feed.items.length} items in ${feedLatency}ms: ${feedUrl}`);
             results.feedsProcessed++;
             results.totalLatencyMs += feedLatency;
+            recordFeedSuccess(feedUrl); // Update circuit breaker
             updateFeedHealth(feedUrl, true); // Track successful fetch
             // Process articles in batches
             const articles = feed.items.slice(0, BATCH_CONFIG.batchSize);
@@ -228,6 +263,16 @@ async function refreshFeedsLogic(apiKey) {
                     const url = item.link;
                     const id = (0, agents_1.hashUrl)(url);
                     const docRef = db.collection("articles").doc(id);
+                    // Idempotency check: use transaction to ensure atomic read-write
+                    const idempotencyKey = `${batchId}_${feedId}_${id}`;
+                    const idempotencyRef = db.collection("_idempotency").doc(idempotencyKey);
+                    const idempotencyDoc = await idempotencyRef.get();
+                    if (idempotencyDoc.exists) {
+                        console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Already processed in this batch (idempotent)`);
+                        results.skipped++;
+                        continue;
+                    }
+                    // Check if article already exists in database
                     const exists = (await docRef.get()).exists;
                     if (exists) {
                         console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Article already exists`);
@@ -270,6 +315,12 @@ async function refreshFeedsLogic(apiKey) {
                     });
                     // Post-parse validation: deduplicate citations, validate URLs
                     brief = (0, agents_1.validateAndCleanArticle)(brief);
+                    // RAG Quality Check: Ensure article is suitable for retrieval
+                    const ragQuality = (0, agents_1.checkRAGQuality)(brief);
+                    if (!ragQuality.isQuality) {
+                        console.warn(`[ARTICLE ${itemIndex}/${articles.length}] RAG quality check failed (score: ${ragQuality.score}/100):`, ragQuality.issues);
+                        // Log but don't skip - store with quality flag for filtering
+                    }
                     // Entity normalization (always set, with defaults)
                     const regionsNormalized = ((_b = brief.tags) === null || _b === void 0 ? void 0 : _b.regions) && brief.tags.regions.length > 0
                         ? (0, agents_1.normalizeRegions)(brief.tags.regions)
@@ -331,8 +382,7 @@ async function refreshFeedsLogic(apiKey) {
                     });
                     // Store article metadata (without embedding for performance)
                     await docRef.set(Object.assign(Object.assign({}, brief), { publishedAt: item.isoDate || item.pubDate || "", createdAt: new Date(), smartScore,
-                        aiScore,
-                        regionsNormalized,
+                        aiScore, ragQualityScore: ragQuality.score, ragQualityIssues: ragQuality.issues, regionsNormalized,
                         companiesNormalized,
                         canonicalUrl,
                         contentHash,
@@ -343,6 +393,16 @@ async function refreshFeedsLogic(apiKey) {
                         embedding: emb,
                         articleId: id,
                         createdAt: new Date(),
+                    });
+                    // Record idempotency key to prevent reprocessing in same batch
+                    // TTL: 24 hours (idempotency window)
+                    await idempotencyRef.set({
+                        batchId,
+                        feedUrl,
+                        articleUrl: url,
+                        articleId: id,
+                        processedAt: new Date(),
+                        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
                     });
                     // Check link health (B2 - Link Health Checking)
                     // Perform lightweight HEAD check to verify article URL is accessible
@@ -370,6 +430,7 @@ async function refreshFeedsLogic(apiKey) {
         catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             console.error(`[BATCH ${batchId}] [FEED ${feedId}] Error fetching feed:`, errorMessage);
+            recordFeedFailure(feedUrl); // Update circuit breaker
             updateFeedHealth(feedUrl, false, errorMessage); // Track failed fetch
             results.errors++;
             // Continue to next feed instead of failing entire batch
@@ -393,6 +454,62 @@ const BATCH_CONFIG = {
     maxRetries: 3,
     retryDelayMs: 5000,
 };
+const circuitBreakers = new Map();
+const CIRCUIT_BREAKER_THRESHOLD = 5; // Failures before opening
+const CIRCUIT_BREAKER_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes before half-open
+/**
+ * Circuit breaker pattern for feed resilience
+ * Prevents cascading failures by temporarily disabling problematic feeds
+ */
+function getCircuitBreakerState(feedUrl) {
+    if (!circuitBreakers.has(feedUrl)) {
+        circuitBreakers.set(feedUrl, {
+            url: feedUrl,
+            state: 'CLOSED',
+            failureCount: 0,
+            lastFailureTime: 0,
+            successCount: 0,
+        });
+    }
+    return circuitBreakers.get(feedUrl);
+}
+function canAttemptFeed(feedUrl) {
+    const breaker = getCircuitBreakerState(feedUrl);
+    const now = Date.now();
+    if (breaker.state === 'CLOSED') {
+        return true; // Normal operation
+    }
+    if (breaker.state === 'OPEN') {
+        // Check if timeout has elapsed to transition to HALF_OPEN
+        if (now - breaker.lastFailureTime > CIRCUIT_BREAKER_TIMEOUT_MS) {
+            breaker.state = 'HALF_OPEN';
+            breaker.failureCount = 0;
+            console.log(`[CIRCUIT BREAKER] ${feedUrl} transitioning to HALF_OPEN`);
+            return true;
+        }
+        return false; // Still open, skip this feed
+    }
+    // HALF_OPEN state - allow one attempt
+    return true;
+}
+function recordFeedSuccess(feedUrl) {
+    const breaker = getCircuitBreakerState(feedUrl);
+    breaker.failureCount = 0;
+    breaker.successCount++;
+    if (breaker.state === 'HALF_OPEN') {
+        breaker.state = 'CLOSED';
+        console.log(`[CIRCUIT BREAKER] ${feedUrl} recovered to CLOSED`);
+    }
+}
+function recordFeedFailure(feedUrl) {
+    const breaker = getCircuitBreakerState(feedUrl);
+    breaker.failureCount++;
+    breaker.lastFailureTime = Date.now();
+    if (breaker.failureCount >= CIRCUIT_BREAKER_THRESHOLD && breaker.state !== 'OPEN') {
+        breaker.state = 'OPEN';
+        console.warn(`[CIRCUIT BREAKER] ${feedUrl} opened after ${breaker.failureCount} failures`);
+    }
+}
 /**
  * Check if a URL is accessible (B2 - Link Health Checking)
  * Performs a lightweight HEAD request to verify link availability
@@ -571,7 +688,7 @@ exports.refreshFeedsManual = (0, https_1.onRequest)({ cors: false, secrets: [OPE
     }
 });
 // 1c) Test single article processing
-exports.testSingleArticle = (0, https_1.onRequest)({ cors: true, secrets: [OPENAI_API_KEY] }, async (req, res) => {
+exports.testSingleArticle = (0, https_1.onRequest)({ cors: true, secrets: [OPENAI_API_KEY] }, async (_req, res) => {
     var _a, _b;
     try {
         console.log("[TEST] Single article processing test initiated");
@@ -625,7 +742,7 @@ exports.testSingleArticle = (0, https_1.onRequest)({ cors: true, secrets: [OPENA
     }
 });
 // 4) Feed Health Report (monitoring endpoint)
-exports.feedHealthReport = (0, https_1.onRequest)({ cors: true }, async (req, res) => {
+exports.feedHealthReport = (0, https_1.onRequest)({ cors: true }, async (_req, res) => {
     try {
         // Fetch all feed health records from Firestore
         const healthSnapshot = await db.collection('feed_health').get();
@@ -680,7 +797,7 @@ function cosineSimilarity(a, b) {
  * Maximal Marginal Relevance (MMR) re-ranking
  * Balances relevance with diversity to avoid redundant results
  */
-function mmrRerank(items, qEmb, topK, lambda = 0.7) {
+function mmrRerank(items, topK, lambda = 0.7) {
     const selected = [];
     const remaining = [...items];
     while (selected.length < topK && remaining.length > 0) {
@@ -803,7 +920,7 @@ exports.askBrief = (0, https_1.onRequest)({ cors: false, secrets: [OPENAI_API_KE
         // CORS check
         const origin = req.headers.origin;
         if (!checkCORS(origin)) {
-            res.status(403).json({ error: "Forbidden: Invalid origin" });
+            res.status(403).json(createErrorResponse('Forbidden: Invalid origin', 'CORS_ERROR'));
             return;
         }
         res.set('Access-Control-Allow-Origin', origin);
@@ -818,14 +935,14 @@ exports.askBrief = (0, https_1.onRequest)({ cors: false, secrets: [OPENAI_API_KE
         const ip = ((_a = req.headers['x-forwarded-for']) === null || _a === void 0 ? void 0 : _a.toString().split(',')[0]) || req.ip || 'unknown';
         const rateLimitOk = await checkRateLimit(ip);
         if (!rateLimitOk) {
-            res.status(429).json({ error: "Rate limit exceeded. Please try again later." });
+            res.status(429).json(createErrorResponse('Rate limit exceeded. Please try again later.', 'RATE_LIMIT_EXCEEDED'));
             return;
         }
         // Input validation and sanitization
         const rawQuery = (req.query.q || ((_b = req.body) === null || _b === void 0 ? void 0 : _b.q) || "").toString();
         const q = rawQuery.replace(/<[^>]*>/g, '').slice(0, 500); // Strip HTML, limit length
         if (!q || q.trim().length < 3) {
-            res.status(400).json({ error: "Query required (min 3 characters)" });
+            res.status(400).json(createErrorResponse('Query required (min 3 characters)', 'INVALID_QUERY'));
             return;
         }
         const client = new openai_1.default({ apiKey: OPENAI_API_KEY.value() });
@@ -886,7 +1003,7 @@ exports.askBrief = (0, https_1.onRequest)({ cors: false, secrets: [OPENAI_API_KE
             .sort((a, b) => b.score - a.score)
             .slice(0, 20);
         // Step 4: MMR re-ranking for diversity
-        const mmrRanked = mmrRerank(cosineSimilarityRanked, qEmb, 12, 0.7);
+        const mmrRanked = mmrRerank(cosineSimilarityRanked, 12, 0.7);
         // Step 5: Apply cluster diversity (max 1 per cluster)
         const diverseRanked = applyClusterDiversity(mmrRanked, 1);
         // Step 6: Apply recency boost
@@ -978,10 +1095,10 @@ exports.askBrief = (0, https_1.onRequest)({ cors: false, secrets: [OPENAI_API_KE
         });
     }
     catch (e) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const error = e;
-        console.error('[ASK BRIEF ERROR]', error);
-        res.status(500).json({ error: error.message || "unknown_error" });
+        const statusCode = getHttpStatusCode(e);
+        const errorResponse = createErrorResponse(e, 'ASK_BRIEF_ERROR');
+        console.error('[ASK BRIEF ERROR]', errorResponse);
+        res.status(statusCode).json(errorResponse);
     }
 });
 /**

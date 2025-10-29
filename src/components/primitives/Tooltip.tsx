@@ -1,16 +1,20 @@
 /**
  * Tooltip Component
  * Accessible tooltip with Aurora styling
+ * Supports multiple positions and keyboard accessibility
+ * WCAG 2.1 compliant with proper ARIA attributes
  */
 
-import { useState } from 'react';
+import { useState, useRef, useId } from 'react';
 import type { ReactNode } from 'react';
 
-interface TooltipProps {
+export interface TooltipProps {
   content: string;
   children: ReactNode;
   position?: 'top' | 'bottom' | 'left' | 'right';
   delay?: number;
+  variant?: 'dark' | 'light';
+  disabled?: boolean;
 }
 
 export function Tooltip({
@@ -18,11 +22,16 @@ export function Tooltip({
   children,
   position = 'top',
   delay = 200,
+  variant = 'dark',
+  disabled = false,
 }: TooltipProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [timeoutId, setTimeoutId] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const tooltipId = useId();
 
   const handleMouseEnter = () => {
+    if (disabled) return;
     const id = setTimeout(() => setIsVisible(true), delay);
     setTimeoutId(id);
   };
@@ -32,6 +41,21 @@ export function Tooltip({
     setIsVisible(false);
   };
 
+  const handleFocus = () => {
+    if (disabled) return;
+    setIsVisible(true);
+  };
+
+  const handleBlur = () => {
+    setIsVisible(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape' && isVisible) {
+      setIsVisible(false);
+    }
+  };
+
   const positionClasses = {
     top: 'bottom-full mb-2 left-1/2 -translate-x-1/2',
     bottom: 'top-full mt-2 left-1/2 -translate-x-1/2',
@@ -39,29 +63,46 @@ export function Tooltip({
     right: 'left-full ml-2 top-1/2 -translate-y-1/2',
   };
 
+  const variantClasses = {
+    dark: 'bg-[#0F172A] text-white',
+    light: 'bg-[#F9FBFF] text-[#0F172A] border border-[#C7D2E1]',
+  };
+
+  const arrowClasses = {
+    dark: 'bg-[#0F172A]',
+    light: 'bg-[#F9FBFF] border border-[#C7D2E1]',
+  };
+
   return (
     <div
+      ref={triggerRef}
       className="relative inline-block"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
     >
       {children}
-      {isVisible && (
+      {isVisible && !disabled && (
         <div
-          className={`absolute ${positionClasses[position]} px-3 py-2 bg-[#0F172A] text-white text-sm rounded-lg whitespace-nowrap shadow-lg z-50 animate-fadeIn`}
+          id={tooltipId}
+          className={`absolute ${positionClasses[position]} px-3 py-2 ${variantClasses[variant]} text-sm rounded-lg whitespace-nowrap shadow-lg z-50 animate-fadeIn pointer-events-none`}
           role="tooltip"
+          aria-hidden={!isVisible}
         >
           {content}
           <div
-            className={`absolute w-2 h-2 bg-[#0F172A] transform rotate-45 ${
+            className={`absolute w-2 h-2 ${arrowClasses[variant]} transform rotate-45 ${
               position === 'top'
                 ? 'top-full -mt-1 left-1/2 -translate-x-1/2'
                 : position === 'bottom'
-                ? 'bottom-full mt-1 left-1/2 -translate-x-1/2'
-                : position === 'left'
-                ? 'left-full -ml-1 top-1/2 -translate-y-1/2'
-                : 'right-full ml-1 top-1/2 -translate-y-1/2'
+                  ? 'bottom-full mt-1 left-1/2 -translate-x-1/2'
+                  : position === 'left'
+                    ? 'left-full -ml-1 top-1/2 -translate-y-1/2'
+                    : 'right-full ml-1 top-1/2 -translate-y-1/2'
             }`}
+            aria-hidden="true"
           />
         </div>
       )}

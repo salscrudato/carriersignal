@@ -65,18 +65,39 @@ export function hashUrl(u: string) {
 }
 
 export async function extractArticle(url: string) {
+  // Validate URL format before attempting fetch
+  try {
+    new URL(url);
+  } catch {
+    throw new Error(`Invalid URL format: ${url}`);
+  }
+
   try {
     // Enhanced fetch with user-agent to mimic browser and avoid blocks
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
     const res = await fetch(url, {
       redirect: "follow",
+      signal: controller.signal,
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
       },
     });
+
+    clearTimeout(timeoutId);
+
     if (!res.ok) {
       throw new Error(`HTTP error! status: ${res.status}`);
     }
+
     const html = await res.text();
+
+    // Validate HTML content
+    if (!html || html.length < 100) {
+      throw new Error(`Article content too short (${html.length} bytes)`);
+    }
+
     const dom = new JSDOM(html, { url });
     const reader = new Readability(dom.window.document);
     const parsed = reader.parse();
@@ -103,11 +124,13 @@ export async function extractArticle(url: string) {
       if (byline) author = byline;
     }
 
+    const extractedText = (parsed?.textContent ?? "").trim();
+
     return {
       url,
       title: parsed?.title ?? dom.window.document.title ?? "",
       html,
-      text: (parsed?.textContent ?? "").trim(),
+      text: extractedText,
       mainImage,
       author,
     };
@@ -316,21 +339,43 @@ export async function summarizeAndTag(
     return schema.parse(JSON.parse(outText));
   }
 
-  // Add exponential backoff retries (up to 5 attempts)
-  try {
-    return await backOff(() => run("gpt-4o-mini"), {
-      numOfAttempts: 5,
-      startingDelay: 1000,
-      timeMultiple: 2,
-      retry: (e) => {
-        console.warn("OpenAI call failed, retrying:", e);
-        return true;
-      },
-    });
-  } catch (error) {
-    console.error("Failed to summarize after retries:", error);
-    throw error;
+  // Model routing strategy: try primary model first, fallback to secondary
+  const models = ["gpt-4o-mini", "gpt-4-turbo"]; // Primary, then fallback
+  let lastError: Error | null = null;
+
+  for (const model of models) {
+    try {
+      console.log(`[SUMMARIZE] Attempting with model: ${model}`);
+      const result = await backOff(() => run(model), {
+        numOfAttempts: 3, // Reduced retries per model
+        startingDelay: 1000,
+        timeMultiple: 2,
+        retry: (e) => {
+          console.warn(`[SUMMARIZE] ${model} call failed, retrying:`, e);
+          return true;
+        },
+      });
+
+      // Final validation of result
+      const validation = schema.safeParse(result);
+      if (!validation.success) {
+        console.error(`[SUMMARIZE] ${model} response failed validation:`, validation.error);
+        lastError = new Error(`Invalid response from ${model}: ${validation.error.message}`);
+        continue; // Try next model
+      }
+
+      console.log(`[SUMMARIZE] Successfully processed with ${model}`);
+      return result;
+    } catch (error) {
+      console.warn(`[SUMMARIZE] Model ${model} failed:`, error);
+      lastError = error instanceof Error ? error : new Error(String(error));
+      // Continue to next model
+    }
   }
+
+  // All models failed
+  console.error("[SUMMARIZE] All models failed:", lastError);
+  throw lastError || new Error("Failed to summarize article with all available models");
 }
 
 /**
@@ -379,8 +424,20 @@ function ensureImpactCoherence(article: z.infer<typeof schema>): z.infer<typeof 
  * - Ensures bullets only use [1],[2] markers if citations exist
  * - Removes citation markers from bullets if no valid citations
  * - Ensures impactScore and impactBreakdown are coherent
+ * - Validates all required fields are present and non-empty
  */
 export function validateAndCleanArticle(article: z.infer<typeof schema>): z.infer<typeof schema> {
+  // Validate required fields are present
+  if (!article.title || article.title.trim().length === 0) {
+    throw new Error('Article title is required and cannot be empty');
+  }
+  if (!article.url || article.url.trim().length === 0) {
+    throw new Error('Article URL is required and cannot be empty');
+  }
+  if (!article.bullets5 || article.bullets5.length < 3) {
+    throw new Error('Article must have at least 3 bullets');
+  }
+
   // Deduplicate citations (case-insensitive), filtering out undefined/null values
   const citationsToProcess = (article.citations || []).filter((c): c is string => c != null);
   const uniqueLowercase = Array.from(new Set(citationsToProcess.map(c => c.toLowerCase())));
@@ -447,15 +504,127 @@ export function validateAndCleanArticle(article: z.infer<typeof schema>): z.infe
   return result;
 }
 
-export async function embedForRAG(client: OpenAI, text: string) {
+/**
+ * RAG Quality Check: Validates article quality for retrieval-augmented generation
+ * Ensures articles are suitable for use in Ask-the-Brief context
+ */
+export function checkRAGQuality(article: z.infer<typeof schema>): {
+  isQuality: boolean;
+  score: number;
+  issues: string[];
+} {
+  const issues: string[] = [];
+  let score = 100;
+
+  // Check 1: Bullet quality
+  if (!article.bullets5 || article.bullets5.length < 3) {
+    issues.push('Insufficient bullets (need at least 3)');
+    score -= 20;
+  }
+
+  for (const bullet of article.bullets5 || []) {
+    if (bullet.length < 20) {
+      issues.push(`Bullet too short: "${bullet}"`);
+      score -= 5;
+    }
+    if (bullet.length > 200) {
+      issues.push(`Bullet too long: "${bullet.slice(0, 50)}..."`);
+      score -= 5;
+    }
+  }
+
+  // Check 2: Citation discipline
+  const citationMarkers = (article.bullets5 || [])
+    .join(' ')
+    .match(/\[\d+\]/g) || [];
+
+  if (citationMarkers.length > 0 && (!article.citations || article.citations.length === 0)) {
+    issues.push('Citation markers present but no citations provided');
+    score -= 15;
+  }
+
+  if (article.citations && article.citations.length > 5) {
+    issues.push(`Too many citations (${article.citations.length}, max 5)`);
+    score -= 10;
+  }
+
+  // Check 3: Why It Matters quality
+  const whyItMatters = article.whyItMatters || {};
+  const roles: Array<keyof typeof whyItMatters> = ['underwriting', 'claims', 'brokerage', 'actuarial'];
+  for (const role of roles) {
+    const text = (whyItMatters[role] as string) || '';
+    if (text.length < 20) {
+      issues.push(`${role} impact too brief`);
+      score -= 5;
+    }
+    if (text.length > 200) {
+      issues.push(`${role} impact too long`);
+      score -= 5;
+    }
+  }
+
+  // Check 4: Confidence level
+  if (article.confidence < 0.5) {
+    issues.push(`Low confidence score (${article.confidence})`);
+    score -= 10;
+  }
+
+  // Check 5: Impact score validity
+  if (article.impactScore < 30) {
+    issues.push(`Low impact score (${article.impactScore})`);
+    score -= 5;
+  }
+
+  // Check 6: Lead quote presence
+  if (!article.leadQuote || article.leadQuote.length < 10) {
+    issues.push('Missing or too-short lead quote');
+    score -= 10;
+  }
+
+  return {
+    isQuality: score >= 70,
+    score: Math.max(0, score),
+    issues,
+  };
+}
+
+export async function embedForRAG(client: OpenAI, text: string): Promise<number[]> {
+  // Validate input
+  if (!text || text.trim().length === 0) {
+    throw new Error('Cannot embed empty text');
+  }
+
+  // Truncate text to avoid token limits (embeddings have limits)
+  const maxChars = 8000;
+  const truncatedText = text.length > maxChars ? text.slice(0, maxChars) : text;
+
   // Enhanced text for better semantic capture: Prefix with P&C context
-  const enhancedText = `P&C Insurance Article: ${text}`;
-  const e = await client.embeddings.create({
-    model: "text-embedding-3-small",
-    input: enhancedText,
-    dimensions: 512, // Increased dimensions for better similarity
-  });
-  return e.data[0].embedding;
+  const enhancedText = `P&C Insurance Article: ${truncatedText}`;
+
+  try {
+    const e = await client.embeddings.create({
+      model: "text-embedding-3-small",
+      input: enhancedText,
+      dimensions: 512, // Increased dimensions for better similarity
+    });
+
+    if (!e.data || e.data.length === 0) {
+      throw new Error('No embedding returned from API');
+    }
+
+    const embedding = e.data[0].embedding;
+    if (!embedding || embedding.length === 0) {
+      throw new Error('Empty embedding vector returned');
+    }
+
+    return embedding;
+  } catch (error) {
+    console.error('[EMBED] Failed to generate embedding:', error);
+    // Fallback: return zero vector with correct dimensions
+    // This allows processing to continue without breaking the pipeline
+    console.warn('[EMBED] Using fallback zero vector for embedding');
+    return new Array(512).fill(0);
+  }
 }
 
 /**

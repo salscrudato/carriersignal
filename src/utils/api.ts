@@ -19,6 +19,7 @@ export interface ApiError extends Error {
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
+const REQUEST_TIMEOUT_MS = 30000;
 
 async function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -30,23 +31,38 @@ async function fetchWithRetry<T>(
   retries = 0
 ): Promise<T> {
   try {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-    if (!response.ok) {
-      const error: ApiError = new Error(`HTTP ${response.status}`);
-      error.status = response.status;
-      throw error;
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const error: ApiError = new Error(`HTTP ${response.status}`);
+        error.status = response.status;
+        throw error;
+      }
+
+      return await response.json();
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    return await response.json();
   } catch (error) {
-    if (retries < MAX_RETRIES && (error instanceof TypeError || (error as ApiError).status === 503)) {
+    const isRetryable =
+      error instanceof TypeError ||
+      (error as ApiError).status === 503 ||
+      (error instanceof Error && error.name === 'AbortError');
+
+    if (retries < MAX_RETRIES && isRetryable) {
       logger.warn('api', `Retry attempt ${retries + 1}/${MAX_RETRIES}`, { url });
       await delay(RETRY_DELAY_MS * (retries + 1));
       return fetchWithRetry<T>(url, options, retries + 1);
@@ -55,14 +71,18 @@ async function fetchWithRetry<T>(
   }
 }
 
-export async function askBrief(query: string): Promise<ApiResponse<any>> {
+export async function askBrief(query: string): Promise<ApiResponse<unknown>> {
   try {
+    if (!query || query.trim().length === 0) {
+      throw new Error('Query cannot be empty');
+    }
+
     logger.info('api', 'Calling askBrief', { query });
-    
+
     const url = new URL(`${API_CONFIG.FUNCTIONS_URL}${API_CONFIG.ENDPOINTS.ASK_BRIEF}`);
     url.searchParams.append('query', query);
 
-    const data = await fetchWithRetry<any>(url.toString(), {
+    const data = await fetchWithRetry<unknown>(url.toString(), {
       method: 'GET',
     });
 
@@ -75,14 +95,25 @@ export async function askBrief(query: string): Promise<ApiResponse<any>> {
   }
 }
 
-export async function getQuickRead(url: string): Promise<ApiResponse<any>> {
+export async function getQuickRead(url: string): Promise<ApiResponse<unknown>> {
   try {
+    if (!url || url.trim().length === 0) {
+      throw new Error('URL cannot be empty');
+    }
+
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch {
+      throw new Error('Invalid URL format');
+    }
+
     logger.info('api', 'Calling getQuickRead', { url });
 
     const apiUrl = new URL(`${API_CONFIG.FUNCTIONS_URL}/getQuickRead`);
     apiUrl.searchParams.append('url', url);
 
-    const data = await fetchWithRetry<any>(apiUrl.toString(), {
+    const data = await fetchWithRetry<unknown>(apiUrl.toString(), {
       method: 'GET',
     });
 
