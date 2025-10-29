@@ -130,23 +130,9 @@ async function deduplicateArticles(articles: RawArticle[]): Promise<RawArticle[]
 }
 
 async function clearDatabase() {
-  console.log('\n🗑️  Clearing existing articles...');
-  
-  const batch = db.batch();
-  const articlesSnap = await db.collection('articles').limit(500).get();
-  
-  let count = 0;
-  articlesSnap.docs.forEach(doc => {
-    batch.delete(doc.ref);
-    count++;
-  });
-  
-  if (count > 0) {
-    await batch.commit();
-    console.log(`✅ Deleted ${count} articles`);
-  } else {
-    console.log('✅ No articles to delete');
-  }
+  // DISABLED: Don't clear database - reseed is idempotent via upsert
+  // This preserves older articles and only updates/adds new ones
+  console.log('\n⏭️  Skipping database clear (reseed is idempotent via upsert)');
 }
 
 async function upsertArticles(articles: RawArticle[]) {
