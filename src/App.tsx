@@ -23,7 +23,7 @@ function AppContent() {
   // Use custom hook for articles
   const { articles, loading, isLoadingMore, error, hasMore, loadMore } = useArticles({
     pageSize: 20,
-    sortBy: 'createdAt',
+    sortBy: 'smartScore',
     sortOrder: 'desc',
   });
 

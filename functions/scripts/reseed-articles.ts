@@ -157,6 +157,10 @@ async function upsertArticles(articles: RawArticle[]) {
       const docId = Buffer.from(article.url).toString('base64').substring(0, 20);
       const docRef = db.collection('articles').doc(docId);
 
+      // Check if document exists before upserting
+      const existingDoc = await docRef.get();
+      const isNew = !existingDoc.exists;
+
       const docData = {
         title: article.title,
         url: article.url,
@@ -166,16 +170,18 @@ async function upsertArticles(articles: RawArticle[]) {
         content: article.content,
         smartScore: scoreResult.smartScore,
         scoreFeatures: scoreResult.scoreFeatures,
-        createdAt: new Date(),
         updatedAt: new Date(),
       };
+
+      // Only set createdAt if this is a new document
+      if (isNew) {
+        (docData as any).createdAt = new Date();
+      }
 
       // Use set with merge to be idempotent
       await docRef.set(docData, { merge: true });
 
-      // Check if new or updated
-      const existing = await docRef.get();
-      if (existing.data()?.createdAt?.toDate?.() === docData.createdAt) {
+      if (isNew) {
         inserted++;
       } else {
         updated++;
