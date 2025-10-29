@@ -48,7 +48,7 @@ async function extractArticleContent(url: string | null | undefined): Promise<{ 
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     const response = await fetch(url, {
       headers: {
@@ -60,6 +60,7 @@ async function extractArticleContent(url: string | null | undefined): Promise<{ 
     clearTimeout(timeoutId);
 
     if (!response.ok) {
+      console.log(`      ⚠️  HTTP ${response.status} from ${url}`);
       return null;
     }
 
@@ -69,16 +70,33 @@ async function extractArticleContent(url: string | null | undefined): Promise<{ 
     const article = reader.parse();
 
     if (!article) {
+      console.log(`      ⚠️  Could not parse content from ${url}`);
+      return null;
+    }
+
+    const textContent = article.textContent?.trim() || '';
+    const htmlContent = article.content?.trim() || '';
+
+    if (!textContent && !htmlContent) {
+      console.log(`      ⚠️  No content extracted from ${url}`);
       return null;
     }
 
     return {
-      content: article.textContent || '',
-      html: article.content || '',
+      content: textContent,
+      html: htmlContent,
     };
   } catch (error) {
+    console.log(`      ⚠️  Error extracting from ${url}: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
+}
+
+/**
+ * Sleep utility for rate limiting
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // RSS Feed sources - curated P&C insurance industry sources
@@ -127,6 +145,9 @@ async function fetchArticles(): Promise<RawArticle[]> {
             if (pubDate >= twoDaysAgo) {
               // Try to extract full content from the article URL
               const extractedContent = await extractArticleContent(item.link || '');
+
+              // Rate limit to avoid overwhelming servers
+              await sleep(500);
 
               const article: RawArticle = {
                 title: item.title || '',
