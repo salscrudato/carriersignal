@@ -8,7 +8,7 @@ import * as admin from 'firebase-admin';
 import * as fs from 'fs';
 import * as path from 'path';
 import Parser from 'rss-parser';
-import { computeSmartScore, rankArticlesWithMMR } from '../src/ranking/smartScore';
+import { computeSmartScore } from '../src/ranking/smartScore';
 
 // Initialize Firebase Admin
 function initializeFirebase() {

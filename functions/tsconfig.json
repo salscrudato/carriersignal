@@ -10,6 +10,7 @@
     "target": "es2017",
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "downlevelIteration": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
     "strictFunctionTypes": true,
@@ -29,7 +30,8 @@
   },
   "compileOnSave": true,
   "include": [
-    "src"
+    "src",
+    "scripts"
   ],
   "exclude": [
     "node_modules",
