@@ -93,13 +93,14 @@ export function SearchFirst({
     setSearchResults(results);
   }, [articles, localSortBy]);
 
-  // Attach scroll listener to the scrollable container
+  // Attach scroll listener to the scrollable container with passive option for better performance
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container || !onScroll) return;
 
-    container.addEventListener('scroll', onScroll);
-    return () => container.removeEventListener('scroll', onScroll);
+    // Use passive listener for better scroll performance
+    container.addEventListener('scroll', onScroll, { passive: true });
+    return () => container.removeEventListener('scroll', onScroll, { passive: true } as any);
   }, [onScroll]);
 
 

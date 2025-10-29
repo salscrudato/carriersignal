@@ -1664,6 +1664,11 @@ article {
   transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+article {
+  scroll-snap-align: start;
+  scroll-snap-stop: auto;
+}
+
 article:hover {
   transform: translateY(-6px);
 }
@@ -1676,11 +1681,14 @@ main {
   z-index: 1;
 }
 
-/* Card Enhancement Utilities */
+/* Card Enhancement Utilities - Smooth Transitions */
 .card-elevated {
   box-shadow: 0 12px 32px -6px rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.6);
   transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Optimize for smooth animations */
+  will-change: transform, box-shadow;
+  transform: translateZ(0);
 }
 
 .card-elevated:hover {
@@ -1706,8 +1714,16 @@ main {
   letter-spacing: -0.03em;
 }
 
-/* Smooth Scrolling */
+/* Smooth Scrolling - Enhanced Fluidity */
 html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+}
+
+/* Smooth scrolling for all scrollable containers */
+body,
+main,
+.overflow-y-auto {
   scroll-behavior: smooth;
 }
 
@@ -1739,6 +1755,22 @@ html {
 
 .animate-fadeIn {
   animation: fadeIn 0.3s ease-in;
+}
+
+/* Smooth Scroll Fade In - For scrolled content */
+@keyframes smoothScrollFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-smoothScrollFadeIn {
+  animation: smoothScrollFadeIn 0.4s ease-out;
 }
 
 /* Scale In Animation */
@@ -1855,7 +1887,7 @@ a:focus-visible {
   top: 0;
 }
 
-/* Performance Optimization - GPU Acceleration */
+/* Performance Optimization - GPU Acceleration for Smooth Scrolling */
 .glass,
 .liquid-glass,
 .liquid-glass-premium,
@@ -1866,6 +1898,8 @@ input {
   transform: translateZ(0);
   backface-visibility: hidden;
   -webkit-font-smoothing: antialiased;
+  /* Optimize for smooth scrolling */
+  contain: layout style paint;
 }
 
 /* Optimize animations for 60fps */
@@ -2063,11 +2097,23 @@ a {
   backface-visibility: hidden;
 }
 
-/* Performance: Optimize Scrolling */
+/* Performance: Optimize Scrolling - Enhanced Fluidity */
 main,
 .overflow-y-auto {
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
+  /* GPU acceleration for smooth scrolling */
+  will-change: scroll-position;
+  /* Momentum scrolling on iOS */
+  -webkit-overflow-scrolling: touch;
+  /* Optimize for 60fps scrolling */
+  contain: layout style paint;
+}
+
+/* Scrollable container optimization */
+.overflow-y-auto {
+  scroll-snap-type: y proximity;
+  scroll-padding: 80px 0 0 0;
 }
 
 /* Accessibility: Visible Focus Indicators - Blue Theme */
