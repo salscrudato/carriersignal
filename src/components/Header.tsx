@@ -9,7 +9,7 @@ export function Header({
 }: HeaderProps) {
   return (
     <header
-      className="sticky top-0 z-50 liquid-glass-ultra border-b border-[#C7D2E1]/25 transition-all duration-350 backdrop-blur-2xl"
+      className="w-full liquid-glass-ultra border-b border-[#C7D2E1]/25 transition-all duration-350 backdrop-blur-2xl"
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
       <div className="mx-auto w-full max-w-full px-4 sm:px-6 lg:px-8 relative z-10 overflow-x-hidden">
