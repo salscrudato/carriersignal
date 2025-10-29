@@ -98,11 +98,11 @@ export function Bookmarks({ onArticleSelect }: BookmarksProps) {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="p-4 space-y-3">
+      <div className="p-4 space-y-2.5">
         {bookmarks.map(bookmark => (
           <div
             key={bookmark.id}
-            className="p-4 rounded-lg border border-[#C7D2E1]/40 hover:border-[#5AA6FF]/60 hover:shadow-md transition-all duration-300 liquid-glass-light micro-glow hover:bg-gradient-to-r hover:from-[#F9FBFF]/20 hover:to-[#E8F2FF]/10"
+            className="p-4 rounded-lg border border-[#C7D2E1]/30 hover:border-[#5AA6FF]/50 hover:shadow-sm transition-all duration-250 liquid-glass-light micro-glow hover:bg-gradient-to-r hover:from-[#F9FBFF]/15 hover:to-[#E8F2FF]/08"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
@@ -121,19 +121,19 @@ export function Bookmarks({ onArticleSelect }: BookmarksProps) {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-1.5 flex-shrink-0">
                 <a
                   href={bookmark.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-2 hover:liquid-glass-premium rounded-lg transition-all border border-[#5AA6FF]/30 hover:border-[#5AA6FF]/60 hover:shadow-sm animate-iconGlow"
+                  className="p-2 hover:liquid-glass-premium rounded-lg transition-all duration-250 border border-[#5AA6FF]/25 hover:border-[#5AA6FF]/50 hover:shadow-sm animate-iconGlow"
                   title="Open in new tab"
                 >
                   <ExternalLink size={16} className="text-[#5AA6FF]" />
                 </a>
                 <button
                   onClick={() => handleRemoveBookmark(bookmark.id)}
-                  className="p-2 hover:liquid-glass-premium rounded-lg transition-all border border-[#EF4444]/30 hover:border-[#EF4444]/60 hover:shadow-sm"
+                  className="p-2 hover:liquid-glass-premium rounded-lg transition-all duration-250 border border-[#EF4444]/25 hover:border-[#EF4444]/50 hover:shadow-sm"
                   title="Remove bookmark"
                 >
                   <Trash2 size={16} className="text-[#EF4444]" />

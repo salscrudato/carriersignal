@@ -100,7 +100,7 @@ export function Dashboard({ articles }: DashboardProps) {
           <Zap size={28} className="text-[#5AA6FF]" />
           Today's Signal
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
           <MetricCard
             icon={<BarChart3 size={24} />}
             label="Total Articles"
@@ -129,11 +129,11 @@ export function Dashboard({ articles }: DashboardProps) {
       </div>
 
       {/* CAT Ticker & Regulatory Tracker */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* CAT Ticker */}
         <InsightCard title="Active Catastrophes" icon={<Cloud size={20} />} color="blue">
           {storms.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {storms.map((storm, idx) => (
                 <div key={idx} className="flex items-center justify-between p-3 bg-[#F9FBFF]/50 rounded-lg hover:bg-[#F9FBFF]/80 transition-all duration-300">
                   <div className="flex items-center gap-2">
@@ -240,13 +240,13 @@ function MetricCard({ icon, label, value, color }: MetricCardProps) {
   };
 
   return (
-    <div className={`liquid-glass-premium rounded-xl border p-6 bg-gradient-to-br ${colorClasses[color]} hover:shadow-lg transition-all duration-300 animate-enhancedPremiumGlow elevated-glow`}>
-      <div className="flex items-start justify-between mb-4">
-        <div className={`p-3 rounded-lg liquid-glass-light ${colorClasses[color].split(' ')[2]} animate-iconGlow shadow-md border border-white/60`}>
+    <div className={`liquid-glass-premium rounded-xl border p-5 bg-gradient-to-br ${colorClasses[color]} hover:shadow-md transition-all duration-250 animate-enhancedPremiumGlow elevated-glow`}>
+      <div className="flex items-start justify-between mb-3">
+        <div className={`p-2.5 rounded-lg liquid-glass-light ${colorClasses[color].split(' ')[2]} animate-iconGlow shadow-sm border border-white/50`}>
           {icon}
         </div>
       </div>
-      <p className="text-sm font-semibold text-[#64748B] mb-1">{label}</p>
+      <p className="text-xs font-semibold text-[#64748B] mb-1.5">{label}</p>
       <p className="text-3xl font-bold bg-gradient-to-r from-[#0F172A] via-[#5AA6FF] to-[#0F172A] bg-clip-text text-transparent">{value}</p>
     </div>
   );

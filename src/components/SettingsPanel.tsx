@@ -45,7 +45,7 @@ export function SettingsPanel({
 
         {/* Sort Preference */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-[#0F172A]">Default Sort</h3>
+          <h3 className="text-lg font-bold text-[#0F172A]">Default Sort</h3>
           <p className="text-sm text-[#64748B]">Choose how articles are sorted by default</p>
           <div className="space-y-2">
             {SORT_OPTIONS.map(sort => {
@@ -54,10 +54,10 @@ export function SettingsPanel({
                 <button
                   key={sort.id}
                   onClick={() => setSelectedSort(sort.id as any)}
-                  className={`w-full p-4 rounded-lg border-2 transition-all duration-200 text-left flex items-center gap-3 ${
+                  className={`w-full p-4 rounded-lg border-2 transition-all duration-250 text-left flex items-center gap-3 ${
                     selectedSort === sort.id
-                      ? 'liquid-glass-premium border-[#5AA6FF]/60 bg-gradient-to-r from-[#E8F2FF]/40 to-[#E8F2FF]/20'
-                      : 'liquid-glass-light border-[#C7D2E1]/40 hover:border-[#5AA6FF]/60 hover:bg-gradient-to-r hover:from-[#E8F2FF]/20 hover:to-[#E8F2FF]/10'
+                      ? 'liquid-glass-premium border-[#5AA6FF]/50 bg-gradient-to-r from-[#E8F2FF]/30 to-[#E8F2FF]/15'
+                      : 'liquid-glass-light border-[#C7D2E1]/30 hover:border-[#5AA6FF]/50 hover:bg-gradient-to-r hover:from-[#E8F2FF]/15 hover:to-[#E8F2FF]/08'
                   }`}
                 >
                   <div className="text-[#5AA6FF] animate-iconGlow">
@@ -73,10 +73,10 @@ export function SettingsPanel({
         </div>
 
         {/* Save Button */}
-        <div className="flex gap-3 pt-6 border-t border-[#C7D2E1]/30">
+        <div className="flex gap-3 pt-6 border-t border-[#C7D2E1]/20">
           <button
             onClick={handleSave}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 liquid-glass-premium text-[#5AA6FF] rounded-lg hover:border-[#5AA6FF]/60 transition-all duration-300 font-semibold border border-[#5AA6FF]/40 elevated-glow hover:shadow-lg"
+            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 liquid-glass-premium text-[#5AA6FF] rounded-lg hover:border-[#5AA6FF]/50 transition-all duration-250 font-semibold border border-[#5AA6FF]/30 elevated-glow hover:shadow-md"
           >
             <Save size={18} />
             Save Settings

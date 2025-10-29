@@ -31,14 +31,14 @@ export function GlowButton({
   ariaDescribedBy,
   ...props
 }: GlowButtonProps) {
-  const baseClasses = 'font-medium rounded-lg transition-all duration-300 flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF] will-change-transform';
+  const baseClasses = 'font-semibold rounded-lg transition-all duration-250 flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF] will-change-transform';
 
   const variantClasses = {
-    primary: 'bg-gradient-to-r from-[#5AA6FF] to-[#8B7CFF] text-white hover:shadow-lg hover:shadow-[#5AA6FF]/40 active:scale-95',
-    secondary: 'bg-[#E8F2FF] text-[#5AA6FF] border border-[#C7D2E1] hover:bg-[#D8E8FF] active:bg-[#C8DEFF]',
-    ghost: 'text-[#5AA6FF] hover:bg-[#E8F2FF]/50 active:bg-[#D8E8FF]',
-    danger: 'bg-[#EF4444] text-white hover:bg-[#DC2626] active:scale-95',
-    success: 'bg-[#06B6D4] text-white hover:bg-[#0891B2] active:scale-95',
+    primary: 'bg-gradient-to-r from-[#5AA6FF] to-[#8B7CFF] text-white hover:shadow-lg hover:shadow-[#5AA6FF]/40 hover:scale-102 active:scale-98 hover:-translate-y-0.5',
+    secondary: 'bg-[#E8F2FF] text-[#5AA6FF] border border-[#C7D2E1]/60 hover:bg-[#D8E8FF] hover:border-[#5AA6FF]/50 hover:shadow-md hover:shadow-[#5AA6FF]/15 active:bg-[#C8DEFF]',
+    ghost: 'text-[#5AA6FF] hover:bg-[#E8F2FF]/50 hover:shadow-sm hover:shadow-[#5AA6FF]/08 active:bg-[#D8E8FF]',
+    danger: 'bg-[#EF4444] text-white hover:bg-[#DC2626] hover:shadow-lg hover:shadow-[#EF4444]/30 active:scale-98',
+    success: 'bg-[#06B6D4] text-white hover:bg-[#0891B2] hover:shadow-lg hover:shadow-[#06B6D4]/30 active:scale-98',
   };
 
   const sizeClasses = {

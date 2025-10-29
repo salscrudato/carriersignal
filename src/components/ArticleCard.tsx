@@ -62,14 +62,14 @@ function ArticleCardComponent({
       variant={isSelected ? 'premium' : 'default'}
       interactive
       onClick={onClick}
-      className={`group cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-[#5AA6FF]/10 ${
-        isSelected ? 'ring-2 ring-[#5AA6FF] shadow-lg shadow-[#5AA6FF]/20' : 'hover:ring-1 hover:ring-[#5AA6FF]/30'
+      className={`group cursor-pointer transition-all duration-250 hover:shadow-md hover:shadow-[#5AA6FF]/15 hover:scale-101 ${
+        isSelected ? 'ring-2 ring-[#5AA6FF]/60 shadow-lg shadow-[#5AA6FF]/20 scale-101' : 'hover:ring-1 hover:ring-[#5AA6FF]/30'
       } ${isLoading ? 'opacity-60 pointer-events-none' : ''} animate-fadeIn`}
       role="article"
       aria-label={ariaLabel || `Article: ${article.title}`}
       aria-selected={isSelected}
     >
-      <div className="space-y-3">
+      <div className="space-y-4">
         {/* Header with source and date */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">

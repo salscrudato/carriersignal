@@ -35,15 +35,15 @@ export function Input({
   const helperId = `${id}-helper`;
 
   const variantClasses = {
-    default: 'liquid-glass-light border border-[#C7D2E1]/30 focus:border-[#5AA6FF]/50',
-    filled: 'bg-[#F9FBFF] border border-[#C7D2E1]/20 focus:border-[#5AA6FF]/50',
+    default: 'liquid-glass-light border border-[#C7D2E1]/40 hover:border-[#5AA6FF]/30 focus:border-[#5AA6FF]/60 focus:shadow-md focus:shadow-[#5AA6FF]/10',
+    filled: 'bg-[#F9FBFF] border border-[#C7D2E1]/30 hover:border-[#5AA6FF]/30 focus:border-[#5AA6FF]/60 focus:shadow-md focus:shadow-[#5AA6FF]/10',
   };
 
   const stateClasses = error
-    ? 'border-[#EF4444] focus:ring-[#EF4444]/20'
+    ? 'border-[#EF4444]/60 focus:ring-[#EF4444]/30 focus:shadow-md focus:shadow-[#EF4444]/10'
     : success
-      ? 'border-[#06B6D4] focus:ring-[#06B6D4]/20'
-      : 'focus:ring-[#5AA6FF]/20';
+      ? 'border-[#06B6D4]/60 focus:ring-[#06B6D4]/30 focus:shadow-md focus:shadow-[#06B6D4]/10'
+      : 'focus:ring-[#5AA6FF]/30';
 
   const ariaDescribedBy = [
     error ? errorId : null,

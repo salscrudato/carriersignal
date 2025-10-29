@@ -51,30 +51,30 @@ export function BriefPanel({
   const timeAgo = article.publishedAt ? getTimeAgo(new Date(article.publishedAt)) : '';
 
   return (
-    <div className="flex flex-col w-full max-w-full lg:w-1/2 liquid-glass-ultra lg:border-l border-[#C7D2E1]/30 lg:overflow-y-auto overflow-x-hidden animate-slideInRight" role="complementary" aria-label="Article details panel">
+    <div className="flex flex-col w-full max-w-full lg:w-1/2 liquid-glass-ultra lg:border-l border-[#C7D2E1]/25 lg:overflow-y-auto overflow-x-hidden animate-slideInRight" role="complementary" aria-label="Article details panel">
       {/* Header with Title and Metadata */}
-      <div className="sticky top-0 liquid-glass-premium border-b border-[#C7D2E1]/30 p-4 sm:p-6 shadow-sm z-10 w-full max-w-full overflow-x-hidden">
+      <div className="sticky top-0 liquid-glass-premium border-b border-[#C7D2E1]/25 p-4 sm:p-6 shadow-sm shadow-[#5AA6FF]/08 z-10 w-full max-w-full overflow-x-hidden">
         <div className="flex items-start justify-between gap-3 mb-3">
           <h2 className="text-lg sm:text-xl font-bold text-[#0F172A] leading-tight break-words flex-1">{article.title}</h2>
           <div className="flex gap-2 flex-shrink-0">
             {onReaderView && (
               <button
                 onClick={() => onReaderView(article.url)}
-                className="p-2 rounded-lg hover:bg-[#E8F2FF] transition-colors"
+                className="p-2 rounded-lg hover:bg-[#E8F2FF] hover:shadow-md hover:shadow-[#5AA6FF]/20 transition-all"
                 aria-label="Open reader view"
                 title="Reader view"
               >
-                <Eye size={18} className="text-[#5AA6FF]" />
+                <Eye size={18} className="text-[#5AA6FF] hover:scale-110 transition-transform" />
               </button>
             )}
             {onClose && (
               <button
                 onClick={onClose}
-                className="p-2 rounded-lg hover:bg-[#E8F2FF] transition-colors"
+                className="p-2 rounded-lg hover:bg-[#E8F2FF] hover:shadow-md hover:shadow-[#5AA6FF]/20 transition-all"
                 aria-label="Close modal"
                 title="Close"
               >
-                <X size={18} className="text-[#5AA6FF]" />
+                <X size={18} className="text-[#5AA6FF] hover:scale-110 transition-transform" />
               </button>
             )}
           </div>
@@ -98,7 +98,7 @@ export function BriefPanel({
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-4 sm:p-6 space-y-6 lg:overflow-y-auto w-full max-w-full overflow-x-hidden">
+      <div className="flex-1 p-4 sm:p-6 space-y-5 lg:overflow-y-auto w-full max-w-full overflow-x-hidden">
         {/* Lead Quote with Enhanced Styling */}
         {article.leadQuote && (
           <div className="liquid-glass-premium rounded-2xl border-l-4 border-[#5AA6FF] p-5 shadow-sm hover:shadow-lg transition-all duration-300 border border-[#5AA6FF]/40">
@@ -122,7 +122,7 @@ export function BriefPanel({
 
         {/* AI-Generated Summary - Enhanced */}
         {article.bullets5 && article.bullets5.length > 0 && (
-          <section className="space-y-4 p-5 liquid-glass-premium rounded-2xl border border-[#5AA6FF]/40 shadow-sm hover:shadow-md transition-all duration-300" aria-labelledby="summary-heading">
+          <section className="space-y-3.5 p-5 liquid-glass-premium rounded-2xl border border-[#5AA6FF]/40 shadow-sm hover:shadow-md transition-all duration-300" aria-labelledby="summary-heading">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center shadow-md animate-iconGlow">
                 <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -131,7 +131,7 @@ export function BriefPanel({
               </div>
               <h3 id="summary-heading" className="font-bold text-[#0F172A] text-base">AI-Generated Summary</h3>
             </div>
-            <ul className="space-y-3">
+            <ul className="space-y-2.5">
               {article.bullets5.map((bullet, idx) => (
                 <li key={idx} className="flex gap-3 text-sm text-[#0F172A] leading-relaxed hover:text-[#0F172A] transition-colors duration-300 hover:translate-x-1">
                   <span className="font-bold text-[#5AA6FF] flex-shrink-0 mt-0.5" aria-hidden="true">→</span>

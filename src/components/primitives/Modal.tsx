@@ -92,7 +92,7 @@ export function Modal({
     >
       <div
         ref={modalRef}
-        className={`w-full ${sizeClasses[size]} liquid-glass-ultra rounded-2xl shadow-2xl border border-[#C7D2E1]/30 animate-scaleIn max-h-[90vh] flex flex-col focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF] relative`}
+        className={`w-full ${sizeClasses[size]} liquid-glass-ultra rounded-3xl shadow-2xl shadow-[#5AA6FF]/20 border border-[#C7D2E1]/40 animate-scaleIn max-h-[90vh] flex flex-col focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF] relative`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -104,10 +104,10 @@ export function Modal({
         {closeButton && (
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 hover:bg-[#E8F2FF] rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF] min-h-[44px] min-w-[44px] flex items-center justify-center z-10"
+            className="absolute top-4 right-4 p-2 hover:bg-[#E8F2FF] hover:shadow-md hover:shadow-[#5AA6FF]/20 rounded-lg transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF] min-h-[44px] min-w-[44px] flex items-center justify-center z-10"
             aria-label="Close modal"
           >
-            <X size={20} className="text-[#64748B] hover:text-[#0F172A]" />
+            <X size={20} className="text-[#64748B] hover:text-[#0F172A] transition-colors" />
           </button>
         )}
 

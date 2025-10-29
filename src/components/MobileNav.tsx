@@ -61,25 +61,25 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
 
         {/* Bottom Sheet */}
         <div
-          className={`pointer-events-auto transition-all duration-300 ease-out ${
+          className={`pointer-events-auto transition-all duration-250 ease-out ${
             isOpen ? 'translate-y-0' : 'translate-y-full'
           }`}
         >
-          <div className="liquid-glass-ultra border-t border-[#C7D2E1]/25 rounded-t-3xl shadow-2xl animate-enhancedPremiumGlow">
+          <div className="liquid-glass-ultra border-t border-[#C7D2E1]/25 rounded-t-3xl shadow-xl shadow-[#5AA6FF]/15 animate-enhancedPremiumGlow">
             {/* Handle Bar - Aurora Gradient */}
-            <div className="flex justify-center pt-3 pb-2">
-              <div className="w-12 h-1.5 bg-gradient-primary rounded-full opacity-70" />
+            <div className="flex justify-center pt-3.5 pb-2">
+              <div className="w-10 h-1 bg-gradient-primary rounded-full opacity-70" />
             </div>
 
             {/* Navigation Items */}
-            <div className="px-4 pb-6 space-y-2">
+            <div className="px-4 pb-5 space-y-1.5">
               {/* Feed Button */}
               <button
                 onClick={() => handleNavClick('feed')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg font-semibold transition-all duration-250 ${
                   currentView === 'feed'
-                    ? 'liquid-glass-premium text-[#5AA6FF] shadow-md border border-[#5AA6FF]/30'
-                    : 'liquid-glass-light text-[#0F172A] hover:border-[#C7D2E1]/40'
+                    ? 'liquid-glass-premium text-[#5AA6FF] shadow-sm border border-[#5AA6FF]/25'
+                    : 'liquid-glass-light text-[#0F172A] hover:border-[#C7D2E1]/30'
                 }`}
               >
                 <Search size={20} />
@@ -89,10 +89,10 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
               {/* Dashboard Button */}
               <button
                 onClick={() => handleNavClick('dashboard')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg font-semibold transition-all duration-250 ${
                   currentView === 'dashboard'
-                    ? 'liquid-glass-premium text-[#8B7CFF] shadow-md border border-[#8B7CFF]/30'
-                    : 'liquid-glass-light text-[#0F172A] hover:border-[#C7D2E1]/40'
+                    ? 'liquid-glass-premium text-[#8B7CFF] shadow-sm border border-[#8B7CFF]/25'
+                    : 'liquid-glass-light text-[#0F172A] hover:border-[#C7D2E1]/30'
                 }`}
               >
                 <BarChart3 size={20} />
@@ -102,10 +102,10 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
               {/* Bookmarks Button */}
               <button
                 onClick={() => handleNavClick('bookmarks')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg font-semibold transition-all duration-250 ${
                   currentView === 'bookmarks'
-                    ? 'liquid-glass-premium text-[#B08CFF] shadow-md border border-[#B08CFF]/30'
-                    : 'liquid-glass-light text-[#0F172A] hover:border-[#C7D2E1]/40'
+                    ? 'liquid-glass-premium text-[#B08CFF] shadow-sm border border-[#B08CFF]/25'
+                    : 'liquid-glass-light text-[#0F172A] hover:border-[#C7D2E1]/30'
                 }`}
               >
                 <Bookmark size={20} />
@@ -115,10 +115,10 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
               {/* Settings Button */}
               <button
                 onClick={() => handleNavClick('settings')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg font-semibold transition-all duration-250 ${
                   currentView === 'settings'
-                    ? 'liquid-glass-premium text-[#5AA6FF] shadow-md border border-[#5AA6FF]/30'
-                    : 'liquid-glass-light text-[#0F172A] hover:border-[#C7D2E1]/40'
+                    ? 'liquid-glass-premium text-[#5AA6FF] shadow-sm border border-[#5AA6FF]/25'
+                    : 'liquid-glass-light text-[#0F172A] hover:border-[#C7D2E1]/30'
                 }`}
               >
                 <Settings size={20} />
@@ -128,7 +128,7 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
               {/* Close Button */}
               <button
                 onClick={() => setIsOpen(false)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold liquid-glass-light text-[#0F172A] hover:border-[#C7D2E1]/40 transition-all duration-300 mt-4 border border-[#C7D2E1]/30"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold liquid-glass-light text-[#0F172A] hover:border-[#C7D2E1]/30 transition-all duration-250 mt-3 border border-[#C7D2E1]/25"
               >
                 <X size={20} />
                 <span>Close</span>
@@ -141,7 +141,7 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
       {/* Overlay */}
       {isOpen && (
         <div
-          className="md:hidden fixed inset-0 z-30 bg-black/30 backdrop-blur-sm pointer-events-auto transition-all duration-300"
+          className="md:hidden fixed inset-0 z-30 bg-black/25 backdrop-blur-sm pointer-events-auto transition-all duration-250"
           onClick={() => setIsOpen(false)}
         />
       )}
