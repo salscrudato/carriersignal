@@ -108,58 +108,57 @@ export function SearchFirst({
 
   return (
     <div className="w-full max-w-full overflow-x-hidden space-y-0 flex flex-col h-full">
-
-      {/* Sort Controls Header - Mobile Optimized */}
-      <div className="sticky top-0 z-40 liquid-glass-premium border-b border-[#C7D2E1]/25 shadow-sm p-3 sm:p-4 flex-shrink-0 w-full max-w-full overflow-x-hidden">
-        <div className="flex items-center gap-2 sm:gap-3 w-full max-w-full overflow-x-hidden">
-          {/* Sort Buttons - Two Options Only */}
-          <div className="flex items-center gap-1 sm:gap-1.5 liquid-glass-light rounded-lg p-1 border border-[#C7D2E1]/25 flex-shrink-0">
-            <button
-              onClick={() => {
-                console.log('[SearchFirst] Changing sort to smart');
-                setLocalSortBy('smart');
-                onSortChange?.('smart');
-              }}
-              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
-                localSortBy === 'smart'
-                  ? 'liquid-glass-premium text-[#5AA6FF] shadow-md border border-[#5AA6FF]/30'
-                  : 'text-[#5AA6FF] hover:text-[#8B7CFF] hover:bg-[#F9FBFF]/50'
-              }`}
-            >
-              <Zap size={13} className="hidden sm:inline flex-shrink-0" />
-              <Zap size={12} className="sm:hidden flex-shrink-0" />
-              <span className="hidden sm:inline">AI Sort</span>
-              <span className="sm:hidden">AI</span>
-            </button>
-            <button
-              onClick={() => {
-                console.log('[SearchFirst] Changing sort to recency');
-                setLocalSortBy('recency');
-                onSortChange?.('recency');
-              }}
-              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
-                localSortBy === 'recency'
-                  ? 'liquid-glass-premium text-[#8B7CFF] shadow-md border border-[#8B7CFF]/30'
-                  : 'text-[#8B7CFF] hover:text-[#5AA6FF] hover:bg-[#F9FBFF]/50'
-              }`}
-            >
-              <Clock size={13} className="hidden sm:inline flex-shrink-0" />
-              <Clock size={12} className="sm:hidden flex-shrink-0" />
-              <span className="hidden sm:inline">Recent</span>
-              <span className="sm:hidden">New</span>
-            </button>
-          </div>
-
-          {/* Results Count - Right Aligned */}
-          <div className="ml-auto text-xs text-[#5AA6FF] font-semibold whitespace-nowrap flex-shrink-0">
-            <span className="hidden sm:inline">{searchResults.length} articles</span>
-            <span className="sm:hidden">{searchResults.length} ARTICLES</span>
-          </div>
-        </div>
-      </div>
-
       {/* Results - Scrollable */}
       <div ref={scrollContainerRef} className="flex-1 w-full max-w-full overflow-y-auto overflow-x-hidden">
+        {/* Sort Controls Header - Mobile Optimized - Scrolls with content */}
+        <div className="liquid-glass-premium border-b border-[#C7D2E1]/25 shadow-sm p-3 sm:p-4 flex-shrink-0 w-full max-w-full overflow-x-hidden sticky top-0 z-40">
+          <div className="flex items-center gap-2 sm:gap-3 w-full max-w-full overflow-x-hidden">
+            {/* Sort Buttons - Two Options Only */}
+            <div className="flex items-center gap-1 sm:gap-1.5 liquid-glass-light rounded-lg p-1 border border-[#C7D2E1]/25 flex-shrink-0">
+              <button
+                onClick={() => {
+                  console.log('[SearchFirst] Changing sort to smart');
+                  setLocalSortBy('smart');
+                  onSortChange?.('smart');
+                }}
+                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
+                  localSortBy === 'smart'
+                    ? 'liquid-glass-premium text-[#5AA6FF] shadow-md border border-[#5AA6FF]/30'
+                    : 'text-[#5AA6FF] hover:text-[#8B7CFF] hover:bg-[#F9FBFF]/50'
+                }`}
+              >
+                <Zap size={13} className="hidden sm:inline flex-shrink-0" />
+                <Zap size={12} className="sm:hidden flex-shrink-0" />
+                <span className="hidden sm:inline">AI Sort</span>
+                <span className="sm:hidden">AI</span>
+              </button>
+              <button
+                onClick={() => {
+                  console.log('[SearchFirst] Changing sort to recency');
+                  setLocalSortBy('recency');
+                  onSortChange?.('recency');
+                }}
+                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
+                  localSortBy === 'recency'
+                    ? 'liquid-glass-premium text-[#8B7CFF] shadow-md border border-[#8B7CFF]/30'
+                    : 'text-[#8B7CFF] hover:text-[#5AA6FF] hover:bg-[#F9FBFF]/50'
+                }`}
+              >
+                <Clock size={13} className="hidden sm:inline flex-shrink-0" />
+                <Clock size={12} className="sm:hidden flex-shrink-0" />
+                <span className="hidden sm:inline">Recent</span>
+                <span className="sm:hidden">New</span>
+              </button>
+            </div>
+
+            {/* Results Count - Right Aligned */}
+            <div className="ml-auto text-xs text-[#5AA6FF] font-semibold whitespace-nowrap flex-shrink-0">
+              <span className="hidden sm:inline">{searchResults.length} articles</span>
+              <span className="sm:hidden">{searchResults.length} ARTICLES</span>
+            </div>
+          </div>
+        </div>
+
         <div className="w-full max-w-full px-4 pb-20 pt-4 overflow-x-hidden">
           <div className="space-y-3 w-full max-w-full">
             {searchResults.map((result, idx) => (
