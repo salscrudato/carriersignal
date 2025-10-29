@@ -6,6 +6,7 @@ import { MobileNav } from "./components/MobileNav";
 import { SkeletonGrid } from "./components/SkeletonLoader";
 import { CommandPalette } from "./components/CommandPalette";
 import { useArticles } from "./hooks/useArticles";
+import { useRealTimeScoring } from "./hooks/useRealTimeScoring";
 import { useUI } from "./context/UIContext";
 import { ErrorBoundary } from "./utils/errorBoundary";
 import { logger } from "./utils/logger";
@@ -37,9 +38,19 @@ function AppContent() {
   });
 
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const [displayArticles, setDisplayArticles] = useState<Article[]>([]);
   const lastLoadTimeRef = useRef(0);
   const rafIdRef = useRef<number | undefined>(undefined);
   const DEBOUNCE_MS = 300;
+
+  // Enable real-time scoring to ensure older articles naturally move down the feed
+  // Recalculates scores every 60 seconds to account for article age decay
+  useRealTimeScoring({
+    articles,
+    onScoresUpdate: setDisplayArticles,
+    updateInterval: 60000, // Update every 1 minute
+    enabled: sortMode === 'smart', // Only for smart sort
+  });
 
   // Handle scroll events for infinite loading with RAF for smooth scrolling
   const handleScroll = useCallback((e: Event) => {
@@ -129,7 +140,7 @@ function AppContent() {
         <div className="flex-1 flex gap-0 w-full max-w-full min-h-0">
           {/* Left: Search Results - Full Width */}
           <SearchFirst
-            articles={articles}
+            articles={sortMode === 'smart' && displayArticles.length > 0 ? displayArticles : articles}
             onArticleSelect={setSelectedArticle}
             selectedArticle={selectedArticle}
             sortMode={sortMode}
@@ -141,7 +152,7 @@ function AppContent() {
         </div>
       ) : view === 'dashboard' ? (
         <div className="flex-1 overflow-y-auto">
-          <Dashboard articles={articles} />
+          <Dashboard articles={sortMode === 'smart' && displayArticles.length > 0 ? displayArticles : articles} />
         </div>
       ) : view === 'test' ? (
         <div className="flex-1 flex flex-col bg-gradient-to-b from-white via-[#F9FBFF]/30 to-[#E8F2FF]/20 p-4">

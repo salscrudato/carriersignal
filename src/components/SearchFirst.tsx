@@ -12,6 +12,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Zap, Clock, ExternalLink } from 'lucide-react';
 import { InfiniteScrollLoader, ScrollSentinelLoader } from './InfiniteScrollLoader';
+import { calculateDynamicArticleScore } from '../utils/scoring';
 
 interface Article {
   title: string;
@@ -62,20 +63,25 @@ export function SearchFirst({
   const [localSortBy, setLocalSortBy] = useState<'smart' | 'recency'>(sortMode || 'smart');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Display articles with sorting
+  // Display articles with dynamic scoring and sorting
   useEffect(() => {
-    // Map to results format
-    let results = articles.map(article => ({
-      article,
-      score: article.aiScore || article.smartScore || 0,
-      matchType: 'combined',
-      highlights: [],
-    }));
+    // Map to results format with dynamic score calculation
+    let results = articles.map(article => {
+      // Calculate dynamic score in real-time to account for article age
+      const dynamicScore = calculateDynamicArticleScore(article);
+      return {
+        article,
+        score: dynamicScore,
+        matchType: 'combined',
+        highlights: [],
+      };
+    });
 
     // Sort based on localSortBy
-    // Note: Articles come pre-sorted from backend, but we ensure consistency here
+    // Smart sort: Uses dynamic scoring that accounts for recency decay
+    // Recency sort: Uses published date
     if (localSortBy === 'smart') {
-      results.sort((a, b) => (b.article.aiScore || b.article.smartScore || 0) - (a.article.aiScore || a.article.smartScore || 0));
+      results.sort((a, b) => b.score - a.score);
     } else if (localSortBy === 'recency') {
       results.sort((a, b) => {
         const getTime = (date: any) => {
@@ -84,8 +90,8 @@ export function SearchFirst({
           if (typeof date === 'object' && 'toDate' in date) return date.toDate().getTime();
           return new Date(date).getTime();
         };
-        const dateA = getTime((a.article as any).createdAt);
-        const dateB = getTime((b.article as any).createdAt);
+        const dateA = getTime((a.article as any).publishedAt);
+        const dateB = getTime((b.article as any).publishedAt);
         return dateB - dateA;
       });
     }

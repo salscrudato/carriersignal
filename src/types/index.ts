@@ -51,6 +51,15 @@ export interface Article {
   financialScore?: number;
   clusterId?: string;
   advisoryId?: string;
+  // Enhanced engagement metrics for interest-based scoring
+  engagementMetrics?: {
+    clicks?: number;
+    saves?: number;
+    shares?: number;
+    timeSpent?: number; // seconds
+  };
+  // Flag for evergreen content that decays slower
+  isEvergreen?: boolean;
 }
 
 export interface RoleOption {

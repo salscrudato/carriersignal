@@ -1,6 +1,7 @@
 /**
  * useArticles Hook
  * Manages article fetching with pagination, error handling, and caching
+ * Includes dynamic score calculation for real-time ranking updates
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react';
@@ -64,11 +65,15 @@ export function useArticles({
 
       console.log(`[useArticles] Initial query returned ${snapshot.docs.length} documents with sort: ${sortBy}`);
 
-      const docs = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate?.() || new Date(),
-      })) as Article[];
+      const docs = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate?.() || new Date(),
+          publishedAt: data.publishedAt || data.createdAt?.toDate?.() || new Date(),
+        };
+      }) as Article[];
 
       setArticles(docs);
       lastCursorRef.current = snapshot.docs[snapshot.docs.length - 1] || null;
@@ -131,11 +136,15 @@ export function useArticles({
         return;
       }
 
-      const docs = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate?.() || new Date(),
-      })) as Article[];
+      const docs = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate?.() || new Date(),
+          publishedAt: data.publishedAt || data.createdAt?.toDate?.() || new Date(),
+        };
+      }) as Article[];
 
       // Update articles
       setArticles((prev) => {
