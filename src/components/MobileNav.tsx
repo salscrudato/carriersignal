@@ -65,10 +65,10 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
             isOpen ? 'translate-y-0' : 'translate-y-full'
           }`}
         >
-          <div className="liquid-glass-ultra border-t border-blue-200/30 rounded-t-3xl shadow-2xl animate-enhancedPremiumGlow">
+          <div className="liquid-glass-ultra border-t border-[#C7D2E1]/25 rounded-t-3xl shadow-2xl animate-enhancedPremiumGlow">
             {/* Handle Bar - Aurora Gradient */}
             <div className="flex justify-center pt-3 pb-2">
-              <div className="w-12 h-1.5 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 rounded-full opacity-70" />
+              <div className="w-12 h-1.5 bg-gradient-primary rounded-full opacity-70" />
             </div>
 
             {/* Navigation Items */}
@@ -78,8 +78,8 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
                 onClick={() => handleNavClick('feed')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
                   currentView === 'feed'
-                    ? 'liquid-glass-premium text-blue-700 shadow-md border border-blue-200/30'
-                    : 'liquid-glass-light text-slate-700 hover:border-blue-200/40'
+                    ? 'liquid-glass-premium text-[#5AA6FF] shadow-md border border-[#5AA6FF]/30'
+                    : 'liquid-glass-light text-[#0F172A] hover:border-[#C7D2E1]/40'
                 }`}
               >
                 <Search size={20} />
@@ -91,8 +91,8 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
                 onClick={() => handleNavClick('dashboard')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
                   currentView === 'dashboard'
-                    ? 'liquid-glass-premium text-blue-700 shadow-md border border-blue-200/30'
-                    : 'liquid-glass-light text-slate-700 hover:border-blue-200/40'
+                    ? 'liquid-glass-premium text-[#8B7CFF] shadow-md border border-[#8B7CFF]/30'
+                    : 'liquid-glass-light text-[#0F172A] hover:border-[#C7D2E1]/40'
                 }`}
               >
                 <BarChart3 size={20} />
@@ -104,8 +104,8 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
                 onClick={() => handleNavClick('bookmarks')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
                   currentView === 'bookmarks'
-                    ? 'liquid-glass-premium text-amber-700 shadow-md border border-amber-200/30'
-                    : 'liquid-glass-light text-slate-700 hover:border-amber-200/40'
+                    ? 'liquid-glass-premium text-[#B08CFF] shadow-md border border-[#B08CFF]/30'
+                    : 'liquid-glass-light text-[#0F172A] hover:border-[#C7D2E1]/40'
                 }`}
               >
                 <Bookmark size={20} />
@@ -117,8 +117,8 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
                 onClick={() => handleNavClick('settings')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
                   currentView === 'settings'
-                    ? 'liquid-glass-premium text-blue-700 shadow-md border border-blue-200/30'
-                    : 'liquid-glass-light text-slate-700 hover:border-blue-200/40'
+                    ? 'liquid-glass-premium text-[#5AA6FF] shadow-md border border-[#5AA6FF]/30'
+                    : 'liquid-glass-light text-[#0F172A] hover:border-[#C7D2E1]/40'
                 }`}
               >
                 <Settings size={20} />
@@ -128,7 +128,7 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
               {/* Close Button */}
               <button
                 onClick={() => setIsOpen(false)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold liquid-glass-light text-slate-700 hover:border-slate-300/40 transition-all duration-300 mt-4 border border-slate-200/30"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold liquid-glass-light text-[#0F172A] hover:border-[#C7D2E1]/40 transition-all duration-300 mt-4 border border-[#C7D2E1]/30"
               >
                 <X size={20} />
                 <span>Close</span>

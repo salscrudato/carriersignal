@@ -1,0 +1,133 @@
+/**
+ * useArticles Hook
+ * Manages article fetching with pagination, error handling, and caching
+ */
+
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { collection, query, orderBy, limit, startAfter, getDocs } from 'firebase/firestore';
+import type { QueryConstraint } from 'firebase/firestore';
+import { db } from '../firebase';
+import type { Article } from '../types';
+import { logger } from '../utils/logger';
+
+interface UseArticlesOptions {
+  pageSize?: number;
+  sortBy?: 'createdAt' | 'smartScore';
+  sortOrder?: 'asc' | 'desc';
+}
+
+interface UseArticlesReturn {
+  articles: Article[];
+  loading: boolean;
+  error: string | null;
+  hasMore: boolean;
+  loadMore: () => Promise<void>;
+  refresh: () => Promise<void>;
+}
+
+export function useArticles({
+  pageSize = 20,
+  sortBy = 'createdAt',
+  sortOrder = 'desc',
+}: UseArticlesOptions = {}): UseArticlesReturn {
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const lastCursorRef = useRef<any>(null);
+  const isLoadingRef = useRef(false);
+
+  const loadInitial = useCallback(async () => {
+    if (isLoadingRef.current) return;
+    isLoadingRef.current = true;
+    setLoading(true);
+    setError(null);
+
+    try {
+      logger.info('useArticles', 'Loading initial articles');
+
+      const constraints: QueryConstraint[] = [
+        orderBy(sortBy, sortOrder),
+        limit(pageSize),
+      ];
+
+      const q = query(collection(db, 'articles'), ...constraints);
+      const snapshot = await getDocs(q);
+
+      const docs = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+      })) as Article[];
+
+      setArticles(docs);
+      lastCursorRef.current = snapshot.docs[snapshot.docs.length - 1] || null;
+      setHasMore(snapshot.docs.length === pageSize);
+
+      logger.info('useArticles', `Loaded ${docs.length} articles`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load articles';
+      logger.error('useArticles', 'Failed to load initial articles', { error: message });
+      setError(message);
+    } finally {
+      setLoading(false);
+      isLoadingRef.current = false;
+    }
+  }, [pageSize, sortBy, sortOrder]);
+
+  const loadMore = useCallback(async () => {
+    if (isLoadingRef.current || !hasMore || !lastCursorRef.current) return;
+    isLoadingRef.current = true;
+
+    try {
+      logger.info('useArticles', 'Loading more articles');
+
+      const constraints: QueryConstraint[] = [
+        orderBy(sortBy, sortOrder),
+        startAfter(lastCursorRef.current),
+        limit(pageSize),
+      ];
+
+      const q = query(collection(db, 'articles'), ...constraints);
+      const snapshot = await getDocs(q);
+
+      const docs = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+      })) as Article[];
+
+      setArticles((prev) => [...prev, ...docs]);
+      lastCursorRef.current = snapshot.docs[snapshot.docs.length - 1] || null;
+      setHasMore(snapshot.docs.length === pageSize);
+
+      logger.info('useArticles', `Loaded ${docs.length} more articles`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load more articles';
+      logger.error('useArticles', 'Failed to load more articles', { error: message });
+      setError(message);
+    } finally {
+      isLoadingRef.current = false;
+    }
+  }, [pageSize, sortBy, sortOrder, hasMore]);
+
+  const refresh = useCallback(async () => {
+    lastCursorRef.current = null;
+    setArticles([]);
+    await loadInitial();
+  }, [loadInitial]);
+
+  useEffect(() => {
+    loadInitial();
+  }, [loadInitial]);
+
+  return {
+    articles,
+    loading,
+    error,
+    hasMore,
+    loadMore,
+    refresh,
+  };
+}
+

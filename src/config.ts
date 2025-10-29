@@ -31,40 +31,6 @@ export const FIRESTORE_COLLECTIONS = {
 };
 
 // ============================================================================
-// RANKING & SCORING
-// ============================================================================
-
-export const RANKING_CONFIG = {
-  // Weights for final score calculation
-  WEIGHTS: {
-    AI_RELEVANCE: 0.35,      // AI-generated relevance score
-    NEWSWORTHINESS: 0.35,    // Impact, regulatory, catastrophe signals
-    RECENCY: 0.2,            // Time decay function
-    USER_FEEDBACK: 0.1,      // Community signal (thumbs up/down)
-  },
-  
-  // Recency decay parameters
-  RECENCY: {
-    MAX_AGE_HOURS: 7 * 24,   // 7 days
-    DECAY_FACTOR: 3,         // Exponential decay factor
-  },
-  
-  // Newsworthiness scoring
-  NEWSWORTHINESS: {
-    HIGH_IMPACT_THRESHOLD: 75,
-    HIGH_IMPACT_SCORE: 40,
-    MEDIUM_IMPACT_THRESHOLD: 50,
-    MEDIUM_IMPACT_SCORE: 20,
-    REGULATORY_BOOST: 35,
-    CATASTROPHE_BOOST: 40,
-    MULTI_TAG_BOOST: 15,
-    DUAL_TAG_BOOST: 8,
-    TRENDING_BOOST: 10,
-    COMPANY_MENTION_BOOST: 12,
-  },
-};
-
-// ============================================================================
 // RAG & SEARCH
 // ============================================================================
 

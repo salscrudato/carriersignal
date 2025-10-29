@@ -103,13 +103,13 @@ export function CommandPalette({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl liquid-glass-ultra rounded-2xl shadow-2xl overflow-hidden border border-blue-200/40 animate-commandPaletteSlideIn"
+        className="w-full max-w-2xl liquid-glass-ultra rounded-2xl shadow-2xl overflow-hidden border border-[#C7D2E1]/40 animate-commandPaletteSlideIn"
         onClick={e => e.stopPropagation()}
       >
         {/* Search Input */}
-        <div className="border-b border-blue-200/30 p-4 liquid-glass-premium">
+        <div className="border-b border-[#C7D2E1]/30 p-4 liquid-glass-premium">
           <div className="flex items-center gap-3">
-            <Search size={20} className="text-slate-400 animate-iconGlow" />
+            <Search size={20} className="text-[#64748B] animate-iconGlow" />
             <input
               ref={inputRef}
               type="text"
@@ -117,9 +117,9 @@ export function CommandPalette({
               value={query}
               onChange={e => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="flex-1 bg-transparent text-lg outline-none text-slate-900 placeholder-slate-400"
+              className="flex-1 bg-transparent text-lg outline-none text-[#0F172A] placeholder-[#94A3B8]"
             />
-            {isLoading && <Loader size={20} className="text-blue-500 animate-spin" />}
+            {isLoading && <Loader size={20} className="text-[#5AA6FF] animate-spin" />}
           </div>
         </div>
 
@@ -127,11 +127,11 @@ export function CommandPalette({
         <div className="max-h-96 overflow-y-auto">
           {results.length === 0 ? (
             <div className="p-8 text-center">
-              <AlertCircle size={32} className="mx-auto text-slate-300 mb-2" />
-              <p className="text-slate-500">No articles found</p>
+              <AlertCircle size={32} className="mx-auto text-[#D4DFE8] mb-2" />
+              <p className="text-[#94A3B8]">No articles found</p>
             </div>
           ) : (
-            <div className="divide-y divide-blue-100/40">
+            <div className="divide-y divide-[#C7D2E1]/40">
               {results.map((article, idx) => (
                 <button
                   key={article.id}
@@ -141,18 +141,18 @@ export function CommandPalette({
                   }}
                   className={`w-full text-left p-4 transition-all duration-200 ${
                     idx === selectedIndex
-                      ? 'liquid-glass-premium border-l-4 border-blue-500 bg-gradient-to-r from-blue-50/40 to-purple-50/20'
-                      : 'hover:liquid-glass-light hover:bg-gradient-to-r hover:from-blue-50/20 hover:to-purple-50/10'
+                      ? 'liquid-glass-premium border-l-4 border-[#5AA6FF] bg-gradient-to-r from-[#F9FBFF]/40 to-[#E8F2FF]/20'
+                      : 'hover:liquid-glass-light hover:bg-gradient-to-r hover:from-[#F9FBFF]/20 hover:to-[#E8F2FF]/10'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-slate-900 line-clamp-2">
+                      <h3 className="font-semibold text-[#0F172A] line-clamp-2">
                         {article.title}
                       </h3>
-                      <p className="text-sm text-slate-500 mt-1">{article.source}</p>
+                      <p className="text-sm text-[#64748B] mt-1">{article.source}</p>
                       {article.bullets5?.[0] && (
-                        <p className="text-sm text-slate-600 mt-2 line-clamp-1">
+                        <p className="text-sm text-[#2D3748] mt-2 line-clamp-1">
                           {article.bullets5[0]}
                         </p>
                       )}
@@ -162,7 +162,7 @@ export function CommandPalette({
                         {article.tags.companies.slice(0, 2).map(company => (
                           <span
                             key={company}
-                            className="text-xs liquid-glass-light text-slate-700 px-2 py-1 rounded border border-slate-200/30"
+                            className="text-xs liquid-glass-light text-[#0F172A] px-2 py-1 rounded border border-[#C7D2E1]/30"
                           >
                             {company}
                           </span>
@@ -177,7 +177,7 @@ export function CommandPalette({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-blue-200/20 liquid-glass-premium px-4 py-3 text-xs text-slate-500 flex items-center justify-between">
+        <div className="border-t border-[#C7D2E1]/20 liquid-glass-premium px-4 py-3 text-xs text-[#64748B] flex items-center justify-between">
           <div className="flex gap-4">
             <span>↑↓ Navigate</span>
             <span>⏎ Select</span>

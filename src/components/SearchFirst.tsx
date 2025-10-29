@@ -106,10 +106,10 @@ export function SearchFirst({
     <div className="w-full max-w-full overflow-x-hidden space-y-0 flex flex-col h-full">
 
       {/* Sort Controls Header - Mobile Optimized */}
-      <div className="sticky top-0 z-40 liquid-glass-premium border-b border-purple-200/30 shadow-sm p-3 sm:p-4 flex-shrink-0 w-full max-w-full overflow-x-hidden">
+      <div className="sticky top-0 z-40 liquid-glass-premium border-b border-[#C7D2E1]/25 shadow-sm p-3 sm:p-4 flex-shrink-0 w-full max-w-full overflow-x-hidden">
         <div className="flex items-center gap-2 sm:gap-3 w-full max-w-full overflow-x-hidden">
           {/* Sort Buttons - Two Options Only */}
-          <div className="flex items-center gap-1 sm:gap-1.5 liquid-glass-light rounded-lg p-1 border border-purple-200/30 flex-shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 liquid-glass-light rounded-lg p-1 border border-[#C7D2E1]/25 flex-shrink-0">
             <button
               onClick={() => {
                 setLocalSortBy('smart');
@@ -117,8 +117,8 @@ export function SearchFirst({
               }}
               className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
                 localSortBy === 'smart'
-                  ? 'liquid-glass-premium text-purple-700 shadow-md border border-purple-200/30'
-                  : 'text-purple-600 hover:text-purple-900 hover:bg-purple-50/50'
+                  ? 'liquid-glass-premium text-[#5AA6FF] shadow-md border border-[#5AA6FF]/30'
+                  : 'text-[#5AA6FF] hover:text-[#8B7CFF] hover:bg-[#F9FBFF]/50'
               }`}
             >
               <Zap size={13} className="hidden sm:inline flex-shrink-0" />
@@ -133,8 +133,8 @@ export function SearchFirst({
               }}
               className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
                 localSortBy === 'recency'
-                  ? 'liquid-glass-premium text-blue-700 shadow-md border border-blue-200/30'
-                  : 'text-blue-600 hover:text-blue-900 hover:bg-blue-50/50'
+                  ? 'liquid-glass-premium text-[#8B7CFF] shadow-md border border-[#8B7CFF]/30'
+                  : 'text-[#8B7CFF] hover:text-[#5AA6FF] hover:bg-[#F9FBFF]/50'
               }`}
             >
               <Clock size={13} className="hidden sm:inline flex-shrink-0" />
@@ -145,7 +145,7 @@ export function SearchFirst({
           </div>
 
           {/* Results Count - Right Aligned */}
-          <div className="ml-auto text-xs text-blue-600 font-semibold whitespace-nowrap flex-shrink-0">
+          <div className="ml-auto text-xs text-[#5AA6FF] font-semibold whitespace-nowrap flex-shrink-0">
             <span className="hidden sm:inline">{searchResults.length} articles</span>
             <span className="sm:hidden">{searchResults.length} ARTICLES</span>
           </div>
@@ -224,47 +224,47 @@ function SearchResultCard({ result, isSelected, onSelect, index = 0 }: SearchRes
       style={{ animationDelay: `${index * 50}ms` }}
       className={`w-full max-w-full rounded-xl border-2 transition-all duration-300 animate-slideInWithBounce overflow-hidden flex flex-col ${
         isSelected
-          ? 'liquid-glass-ultra border-blue-300/60 shadow-lg animate-premiumGlow elevated-glow'
-          : 'liquid-glass border-blue-200/40 hover:border-blue-300/60 hover:shadow-lg hover:scale-102 hover:animate-subtleGlowPulse micro-glow'
+          ? 'liquid-glass-ultra border-[#5AA6FF]/60 shadow-lg animate-premiumGlow elevated-glow'
+          : 'liquid-glass border-[#C7D2E1]/40 hover:border-[#5AA6FF]/60 hover:shadow-lg hover:scale-102 hover:animate-subtleGlowPulse micro-glow'
       }`}
     >
       {/* Gradient Accent Top - Aurora Colors */}
-      <div className="h-2 w-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-85"></div>
+      <div className="h-1.5 w-full bg-gradient-to-r from-[#5AA6FF] via-[#8B7CFF] to-[#B08CFF] opacity-90 shadow-md"></div>
 
       {/* Content Section with Subtle Gradient */}
-      <div className="p-4 space-y-3 flex-1 flex flex-col bg-gradient-to-br from-white via-blue-50/25 to-purple-50/15 w-full max-w-full overflow-x-hidden">
+      <div className="p-4 space-y-3 flex-1 flex flex-col bg-gradient-to-br from-white via-[#F9FBFF]/25 to-[#E8F2FF]/15 w-full max-w-full overflow-x-hidden">
         {/* Header with Source and Time (moved to top right) */}
         <div className="flex items-start justify-between gap-3 w-full max-w-full overflow-x-hidden">
           <div className="flex-1 min-w-0 overflow-hidden">
-            <span className="text-xs font-semibold text-blue-600 bg-gradient-to-r from-blue-50 to-purple-50 px-2.5 py-1 rounded-full inline-block truncate">
+            <span className="text-xs font-semibold text-[#5AA6FF] bg-gradient-to-r from-[#F9FBFF] to-[#E8F2FF] px-2.5 py-1 rounded-full inline-block truncate">
               {article.source}
             </span>
           </div>
           {timeAgo && (
-            <span className="text-xs text-blue-500 font-medium flex-shrink-0 whitespace-nowrap">{timeAgo}</span>
+            <span className="text-xs text-[#8B7CFF] font-medium flex-shrink-0 whitespace-nowrap">{timeAgo}</span>
           )}
         </div>
 
         {/* Title - Enhanced Typography */}
-        <h3 className="font-bold text-slate-900 text-sm md:text-base leading-snug line-clamp-3 hover:text-blue-700 transition-colors w-full max-w-full overflow-hidden break-words">
+        <h3 className="font-bold text-[#0F172A] text-sm md:text-base leading-snug line-clamp-3 hover:text-[#5AA6FF] transition-colors w-full max-w-full overflow-hidden break-words">
           {article.title}
         </h3>
 
         {/* AI-Generated Summary - Expanded with larger font */}
         {article.bullets5 && article.bullets5.length > 0 && (
-          <div className="space-y-3 py-3 border-t border-blue-100 pt-3 w-full max-w-full overflow-x-hidden">
+          <div className="space-y-3 py-3 border-t border-[#C7D2E1]/25 pt-3 w-full max-w-full overflow-x-hidden">
             <div className="flex items-center gap-2 w-full max-w-full overflow-x-hidden">
-              <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center flex-shrink-0">
+              <div className="w-5 h-5 rounded-full bg-gradient-primary flex items-center justify-center flex-shrink-0">
                 <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 </svg>
               </div>
-              <span className="text-xs font-bold text-blue-900 uppercase tracking-widest truncate">AI Summary</span>
+              <span className="text-xs font-bold text-[#0F172A] uppercase tracking-widest truncate">AI Summary</span>
             </div>
             <div className="space-y-2 w-full max-w-full overflow-x-hidden">
               {article.bullets5.slice(0, 3).map((bullet: string, idx: number) => (
-                <div key={idx} className="flex gap-2 text-sm text-slate-700 leading-relaxed w-full max-w-full overflow-x-hidden">
-                  <span className="text-blue-600 font-bold flex-shrink-0 mt-0.5">→</span>
+                <div key={idx} className="flex gap-2 text-sm text-[#2D3748] leading-relaxed w-full max-w-full overflow-x-hidden">
+                  <span className="text-[#5AA6FF] font-bold flex-shrink-0 mt-0.5">→</span>
                   <span className="flex-1 overflow-hidden break-words">{bullet}</span>
                 </div>
               ))}
@@ -274,52 +274,52 @@ function SearchResultCard({ result, isSelected, onSelect, index = 0 }: SearchRes
 
         {/* Tags Section */}
         {article.tags && Object.values(article.tags).some((tagArray: any) => tagArray && tagArray.length > 0) && (
-          <div className="space-y-2 py-3 border-t border-blue-100 pt-3 w-full max-w-full overflow-x-hidden">
+          <div className="space-y-2 py-3 border-t border-[#C7D2E1]/25 pt-3 w-full max-w-full overflow-x-hidden">
             <div className="flex flex-wrap gap-2 w-full max-w-full">
-              {/* LOB Tags */}
+              {/* LOB Tags - Cyan */}
               {article.tags.lob && article.tags.lob.length > 0 && (
                 article.tags.lob.map((tag: string, idx: number) => (
-                  <span key={`lob-${idx}`} className="px-2.5 py-1 rounded-full liquid-glass-light text-slate-600 text-xs font-medium whitespace-nowrap border border-slate-200/40">
+                  <span key={`lob-${idx}`} className="px-2.5 py-1 rounded-full liquid-glass-light text-[#06B6D4] text-xs font-medium whitespace-nowrap border border-[#06B6D4]/30">
                     {tag}
                   </span>
                 ))
               )}
-              {/* Perils Tags */}
+              {/* Perils Tags - Indigo */}
               {article.tags.perils && article.tags.perils.length > 0 && (
                 article.tags.perils.map((tag: string, idx: number) => (
-                  <span key={`perils-${idx}`} className="px-2.5 py-1 rounded-full liquid-glass-light text-slate-600 text-xs font-medium whitespace-nowrap border border-slate-200/40">
+                  <span key={`perils-${idx}`} className="px-2.5 py-1 rounded-full liquid-glass-light text-[#5AA6FF] text-xs font-medium whitespace-nowrap border border-[#5AA6FF]/30">
                     {tag}
                   </span>
                 ))
               )}
-              {/* Regions Tags */}
+              {/* Regions Tags - Aurora Blue */}
               {article.tags.regions && article.tags.regions.length > 0 && (
                 article.tags.regions.map((tag: string, idx: number) => (
-                  <span key={`regions-${idx}`} className="px-2.5 py-1 rounded-full liquid-glass-light text-slate-600 text-xs font-medium whitespace-nowrap border border-slate-200/40">
+                  <span key={`regions-${idx}`} className="px-2.5 py-1 rounded-full liquid-glass-light text-[#5AA6FF] text-xs font-medium whitespace-nowrap border border-[#5AA6FF]/30">
                     {tag}
                   </span>
                 ))
               )}
-              {/* Companies Tags */}
+              {/* Companies Tags - Aurora Violet */}
               {article.tags.companies && article.tags.companies.length > 0 && (
                 article.tags.companies.map((tag: string, idx: number) => (
-                  <span key={`companies-${idx}`} className="px-2.5 py-1 rounded-full liquid-glass-light text-slate-600 text-xs font-medium whitespace-nowrap border border-slate-200/40">
+                  <span key={`companies-${idx}`} className="px-2.5 py-1 rounded-full liquid-glass-light text-[#8B7CFF] text-xs font-medium whitespace-nowrap border border-[#8B7CFF]/30">
                     {tag}
                   </span>
                 ))
               )}
-              {/* Trends Tags */}
+              {/* Trends Tags - Aurora Lilac */}
               {article.tags.trends && article.tags.trends.length > 0 && (
                 article.tags.trends.map((tag: string, idx: number) => (
-                  <span key={`trends-${idx}`} className="px-2.5 py-1 rounded-full liquid-glass-light text-slate-600 text-xs font-medium whitespace-nowrap border border-slate-200/40">
+                  <span key={`trends-${idx}`} className="px-2.5 py-1 rounded-full liquid-glass-light text-[#B08CFF] text-xs font-medium whitespace-nowrap border border-[#B08CFF]/30">
                     {tag}
                   </span>
                 ))
               )}
-              {/* Regulations Tags */}
+              {/* Regulations Tags - Aurora Blue */}
               {article.tags.regulations && article.tags.regulations.length > 0 && (
                 article.tags.regulations.map((tag: string, idx: number) => (
-                  <span key={`regulations-${idx}`} className="px-2.5 py-1 rounded-full liquid-glass-light text-slate-600 text-xs font-medium whitespace-nowrap border border-slate-200/40">
+                  <span key={`regulations-${idx}`} className="px-2.5 py-1 rounded-full liquid-glass-light text-[#5AA6FF] text-xs font-medium whitespace-nowrap border border-[#5AA6FF]/30">
                     {tag}
                   </span>
                 ))
@@ -329,16 +329,16 @@ function SearchResultCard({ result, isSelected, onSelect, index = 0 }: SearchRes
         )}
 
         {/* Bottom Action Buttons */}
-        <div className="flex gap-2 pt-4 mt-auto border-t border-blue-100/50 pt-3 w-full max-w-full overflow-x-hidden">
+        <div className="flex gap-2 pt-4 mt-auto border-t border-[#C7D2E1]/25 pt-3 w-full max-w-full overflow-x-hidden">
           <button
             onClick={handleViewMore}
-            className="flex-1 px-3 py-2 text-xs font-semibold text-blue-700 liquid-glass-light rounded-lg hover:border-blue-300/50 transition-all duration-200 min-h-[44px] touch-action-manipulation border border-blue-200/30"
+            className="flex-1 px-3 py-2 text-xs font-semibold text-[#5AA6FF] liquid-glass-light rounded-lg hover:border-[#5AA6FF]/50 transition-all duration-200 min-h-[44px] touch-action-manipulation border border-[#C7D2E1]/30"
           >
             View More
           </button>
           <button
             onClick={handleViewArticle}
-            className="flex-1 px-3 py-2 text-xs font-semibold text-blue-700 liquid-glass-light rounded-lg hover:border-blue-300/50 transition-all duration-200 flex items-center justify-center gap-1 min-h-[44px] touch-action-manipulation border border-blue-200/30"
+            className="flex-1 px-3 py-2 text-xs font-semibold text-[#5AA6FF] liquid-glass-light rounded-lg hover:border-[#5AA6FF]/50 transition-all duration-200 flex items-center justify-center gap-1 min-h-[44px] touch-action-manipulation border border-[#C7D2E1]/30"
           >
             <span className="hidden sm:inline">View Article</span>
             <span className="sm:hidden">Article</span>
