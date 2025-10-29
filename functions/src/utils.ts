@@ -409,10 +409,13 @@ export function calculateDynamicScore(
       timeSpent?: number;
     };
   },
-  currentTime: number = Date.now()
 ): number {
+  // Ensure impactScore is provided, default to 50 if missing
+  const impactScore = article.impactScore ?? 50;
+
   return calculateSmartScore({
     ...article,
+    impactScore,
     // Force recalculation with current time
   });
 }
