@@ -408,19 +408,46 @@ async function refreshFeedsLogic(apiKey: string) {
           const canonicalUrl = getCanonicalUrl(url, content.html);
           const contentHash = computeContentHash(content.text);
 
-          // Check for duplicates by content hash
-          const duplicateCheck = await db.collection('articles')
+          // Multi-layer deduplication check
+          // 1. Check for duplicates by content hash
+          const duplicateByContentHash = await db.collection('articles')
             .where('contentHash', '==', contentHash)
             .limit(1)
             .get();
 
-          let clusterId = contentHash; // Use content hash as cluster ID
-          if (!duplicateCheck.empty) {
-            // Duplicate found - use existing cluster ID
-            const existingDoc = duplicateCheck.docs[0];
-            clusterId = existingDoc.data().clusterId || contentHash;
-            console.log(`[ARTICLE ${itemIndex}/${articles.length}] Duplicate detected (cluster: ${clusterId}): ${brief.title}`);
+          if (!duplicateByContentHash.empty) {
+            console.log(`[ARTICLE ${itemIndex}/${articles.length}] Duplicate detected (content hash match): ${brief.title}`);
+            results.skipped++;
+            return;
           }
+
+          // 2. Check for duplicates by canonical URL
+          const duplicateByCanonicalUrl = await db.collection('articles')
+            .where('canonicalUrl', '==', canonicalUrl)
+            .limit(1)
+            .get();
+
+          if (!duplicateByCanonicalUrl.empty) {
+            console.log(`[ARTICLE ${itemIndex}/${articles.length}] Duplicate detected (canonical URL match): ${brief.title}`);
+            results.skipped++;
+            return;
+          }
+
+          // 3. Check for duplicates by title + source (fuzzy match for syndicated content)
+          const duplicateByTitleSource = await db.collection('articles')
+            .where('title', '==', brief.title)
+            .where('source', '==', brief.source)
+            .limit(1)
+            .get();
+
+          if (!duplicateByTitleSource.empty) {
+            console.log(`[ARTICLE ${itemIndex}/${articles.length}] Duplicate detected (title + source match): ${brief.title}`);
+            results.skipped++;
+            return;
+          }
+
+          // Use content hash as cluster ID for grouping related articles
+          const clusterId = contentHash;
 
           // Regulatory detection: check if source is DOI or has regulatory keywords
           const regulatory = isRegulatorySource(url, brief.source) ||

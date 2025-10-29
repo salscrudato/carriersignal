@@ -26,11 +26,12 @@ export function Header({
             {/* Title & Tagline */}
             <div className="flex flex-col justify-center items-center">
               <h1
-                className="text-xs sm:text-sm font-extrabold tracking-tight transition-all duration-300 group-hover:scale-102 whitespace-nowrap"
+                className="text-[0.6rem] sm:text-xs font-semibold tracking-wide transition-all duration-300 group-hover:scale-102 whitespace-nowrap"
                 style={{
-                  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                  fontWeight: 800,
-                  letterSpacing: '-0.02em',
+                  fontFamily: '"Helvetica Neue", "Helvetica", "Arial", sans-serif',
+                  fontWeight: 600,
+                  letterSpacing: '0.02em',
+                  lineHeight: '1.2',
                   background: 'linear-gradient(135deg, #5AA6FF 0%, #4A96EF 50%, #3B82F6 100%)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
