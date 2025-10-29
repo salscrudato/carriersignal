@@ -22,7 +22,7 @@ function initializeFirebase() {
     console.log('✅ Using service account key for Firebase authentication');
   } else {
     admin.initializeApp({
-      projectId: process.env.FIREBASE_PROJECT_ID || 'carriersignal-prod',
+      projectId: process.env.FIREBASE_PROJECT_ID || 'carriersignal-app',
     });
     console.log('✅ Using default credentials for Firebase authentication');
   }
