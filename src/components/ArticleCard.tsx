@@ -1,10 +1,10 @@
 /**
  * Enhanced Article Card Component
  * Displays article with liquid glass styling, animations, and interactions
- * Features: Micro-animations, accessibility, responsive design, loading states
+ * Features: Pull-quote, AI summary bullets, micro-animations, accessibility
  */
 
-import { Bookmark, Share2, TrendingUp, AlertCircle } from 'lucide-react';
+import { Bookmark, Share2, TrendingUp, AlertCircle, ChevronDown, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import type { Article } from '../types';
 import { Badge } from './primitives/Badge';
@@ -33,6 +33,7 @@ export function ArticleCard({
 }: ArticleCardProps) {
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const score = article.smartScore || article.aiScore || 0;
   const scoreColor = score >= 75 ? 'text-green-600' : score >= 50 ? 'text-amber-600' : 'text-red-600';
@@ -94,11 +95,44 @@ export function ArticleCard({
           {article.title}
         </h3>
 
-        {/* Description */}
-        {article.description && (
-          <p className="text-xs text-[#64748B] line-clamp-2 group-hover:text-[#475569] transition-colors duration-200">
-            {article.description}
-          </p>
+        {/* Pull Quote - Key verbatim excerpt */}
+        {(article as any).leadQuote && (
+          <div className="pl-3 border-l-2 border-[#5AA6FF]/40 py-2 bg-[#F9FBFF]/50 rounded-r-lg">
+            <p className="text-xs italic text-[#475569] line-clamp-2 group-hover:text-[#0F172A] transition-colors duration-200">
+              "{(article as any).leadQuote}"
+            </p>
+          </div>
+        )}
+
+        {/* AI Summary Bullets - Truncated with expand */}
+        {article.bullets5 && article.bullets5.length > 0 && (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#5AA6FF]">
+              <Sparkles size={12} className="animate-pulse" />
+              <span>AI Summary</span>
+            </div>
+            <div className={`space-y-1 overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-96' : 'max-h-12'}`}>
+              {article.bullets5.slice(0, isExpanded ? 5 : 1).map((bullet, idx) => (
+                <div key={idx} className="flex gap-2 text-xs text-[#64748B] group-hover:text-[#475569] transition-colors duration-200">
+                  <span className="text-[#5AA6FF] font-bold flex-shrink-0">•</span>
+                  <span className="line-clamp-2">{bullet}</span>
+                </div>
+              ))}
+            </div>
+            {article.bullets5.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExpanded(!isExpanded);
+                }}
+                className="text-xs text-[#5AA6FF] hover:text-[#3B82F6] font-medium flex items-center gap-1 transition-colors duration-200"
+                aria-label={isExpanded ? 'Collapse summary' : 'Expand summary'}
+              >
+                {isExpanded ? 'Show less' : `Show ${article.bullets5.length - 1} more`}
+                <ChevronDown size={12} className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+              </button>
+            )}
+          </div>
         )}
 
         {/* Tags with staggered animation */}

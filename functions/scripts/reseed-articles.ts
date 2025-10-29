@@ -1,0 +1,225 @@
+/**
+ * Reseed Script - Populate DB with last 2 days of articles
+ * Fetches from RSS sources, enriches with AI, computes SmartScore, and upserts to Firestore
+ * Idempotent: safe to run multiple times
+ */
+
+import * as admin from 'firebase-admin';
+import * as fs from 'fs';
+import * as path from 'path';
+import Parser from 'rss-parser';
+import { computeSmartScore, rankArticlesWithMMR } from '../src/ranking/smartScore';
+
+// Initialize Firebase Admin
+function initializeFirebase() {
+  const serviceAccountPath = path.join(__dirname, '../serviceAccountKey.json');
+
+  if (fs.existsSync(serviceAccountPath)) {
+    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf-8'));
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+    console.log('✅ Using service account key for Firebase authentication');
+  } else {
+    admin.initializeApp({
+      projectId: process.env.FIREBASE_PROJECT_ID || 'carriersignal-prod',
+    });
+    console.log('✅ Using default credentials for Firebase authentication');
+  }
+}
+
+// Check for force flag
+if (process.env.FORCE_RESEED !== '1') {
+  console.error('❌ FORCE_RESEED=1 environment variable required for safety');
+  process.exit(1);
+}
+
+initializeFirebase();
+const db = admin.firestore();
+const parser = new Parser();
+
+// RSS Feed sources
+const FEED_SOURCES = [
+  { name: 'Insurance Journal', url: 'https://www.insurancejournal.com/feed/news/' },
+  { name: 'PropertyShark', url: 'https://www.propertyshark.com/rss/news/' },
+];
+
+interface RawArticle {
+  title: string;
+  url: string;
+  source: string;
+  publishedAt: string;
+  description: string;
+  content: string;
+}
+
+async function fetchArticles(): Promise<RawArticle[]> {
+  const allArticles: RawArticle[] = [];
+  const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+
+  console.log(`\n📰 Fetching articles from ${FEED_SOURCES.length} sources...`);
+
+  for (const feed of FEED_SOURCES) {
+    try {
+      console.log(`  Fetching from ${feed.name}...`);
+      const parsedFeed = await parser.parseURL(feed.url);
+
+      if (parsedFeed.items) {
+        for (const item of parsedFeed.items) {
+          const pubDate = new Date(item.pubDate || item.isoDate || new Date());
+
+          if (pubDate >= twoDaysAgo) {
+            const article: RawArticle = {
+              title: item.title || '',
+              url: item.link || '',
+              source: feed.name,
+              publishedAt: item.isoDate || item.pubDate || new Date().toISOString(),
+              description: item.contentSnippet || '',
+              content: (item as any).content || item.content || (item as any).description || '',
+            };
+
+            if (article.title && article.url) {
+              allArticles.push(article);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`  ❌ Error fetching from ${feed.name}:`, error instanceof Error ? error.message : error);
+    }
+  }
+
+  console.log(`✅ Fetched ${allArticles.length} articles from last 2 days`);
+  return allArticles;
+}
+
+async function deduplicateArticles(articles: RawArticle[]): Promise<RawArticle[]> {
+  const seen = new Set<string>();
+  const deduplicated: RawArticle[] = [];
+
+  for (const article of articles) {
+    const key = `${article.url}|${article.title}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduplicated.push(article);
+    }
+  }
+
+  console.log(`✅ Deduplicated: ${articles.length} → ${deduplicated.length} articles`);
+  return deduplicated;
+}
+
+async function clearDatabase() {
+  console.log('\n🗑️  Clearing existing articles...');
+  
+  const batch = db.batch();
+  const articlesSnap = await db.collection('articles').limit(500).get();
+  
+  let count = 0;
+  articlesSnap.docs.forEach(doc => {
+    batch.delete(doc.ref);
+    count++;
+  });
+  
+  if (count > 0) {
+    await batch.commit();
+    console.log(`✅ Deleted ${count} articles`);
+  } else {
+    console.log('✅ No articles to delete');
+  }
+}
+
+async function upsertArticles(articles: RawArticle[]) {
+  console.log(`\n💾 Upserting ${articles.length} articles to Firestore...`);
+
+  let inserted = 0;
+  let updated = 0;
+  let failed = 0;
+
+  for (const article of articles) {
+    try {
+      // Compute SmartScore
+      const scoreResult = computeSmartScore(
+        article.url,
+        article.title,
+        article.content,
+        article.publishedAt,
+        0.75, // Default P&C relevance
+        1.0   // Default source credibility
+      );
+
+      const docId = Buffer.from(article.url).toString('base64').substring(0, 20);
+      const docRef = db.collection('articles').doc(docId);
+
+      const docData = {
+        title: article.title,
+        url: article.url,
+        source: article.source,
+        publishedAt: article.publishedAt,
+        description: article.description,
+        content: article.content,
+        smartScore: scoreResult.smartScore,
+        scoreFeatures: scoreResult.scoreFeatures,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      // Use set with merge to be idempotent
+      await docRef.set(docData, { merge: true });
+
+      // Check if new or updated
+      const existing = await docRef.get();
+      if (existing.data()?.createdAt?.toDate?.() === docData.createdAt) {
+        inserted++;
+      } else {
+        updated++;
+      }
+    } catch (error) {
+      console.error(`  ❌ Error upserting article: ${article.title}`, error instanceof Error ? error.message : error);
+      failed++;
+    }
+  }
+
+  console.log(`✅ Upsert complete: ${inserted} inserted, ${updated} updated, ${failed} failed`);
+  return { inserted, updated, failed };
+}
+
+async function main() {
+  try {
+    console.log('🚀 Starting article reseed...');
+    console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
+
+    // Fetch articles
+    const articles = await fetchArticles();
+    if (articles.length === 0) {
+      console.log('⚠️  No articles found in last 2 days');
+      process.exit(0);
+    }
+
+    // Deduplicate
+    const deduplicated = await deduplicateArticles(articles);
+
+    // Clear database
+    await clearDatabase();
+
+    // Upsert articles
+    const stats = await upsertArticles(deduplicated);
+
+    // Summary
+    console.log('\n📊 Reseed Summary:');
+    console.log(`  Total fetched: ${articles.length}`);
+    console.log(`  After dedup: ${deduplicated.length}`);
+    console.log(`  Inserted: ${stats.inserted}`);
+    console.log(`  Updated: ${stats.updated}`);
+    console.log(`  Failed: ${stats.failed}`);
+    console.log('\n✅ Reseed complete!');
+
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Reseed failed:', error instanceof Error ? error.message : error);
+    process.exit(1);
+  }
+}
+
+main();
+

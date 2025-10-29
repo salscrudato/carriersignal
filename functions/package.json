@@ -12,7 +12,8 @@
     "seed": "ts-node scripts/seed-articles.ts",
     "seed:mock": "ts-node scripts/seed-articles-mock.ts",
     "verify": "ts-node scripts/verify-articles.ts",
-    "test:pagination": "ts-node scripts/test-pagination.ts"
+    "test:pagination": "ts-node scripts/test-pagination.ts",
+    "reseed:2d": "FORCE_RESEED=1 ts-node scripts/reseed-articles.ts"
   },
   "engines": {
     "node": "20"
