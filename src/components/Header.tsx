@@ -17,10 +17,10 @@ export function Header({
           {/* Center: Logo & Branding - Centered */}
           <div className="flex items-center justify-center gap-3 group flex-shrink-0">
             {/* Shield Icon with Blue Background - Enhanced Glow */}
-            <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-[#5AA6FF] to-[#4A96EF] flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300 hover:shadow-[0_0_20px_rgba(90,166,255,0.4)]">
+            <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-[#5AA6FF] to-[#4A96EF] flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300 hover:shadow-[0_0_20px_rgba(90,166,255,0.4)] animate-iconGlow">
               {/* Glow backdrop - subtle Aurora glow */}
               <div className="absolute inset-0 rounded-lg bg-[#5AA6FF] opacity-0 group-hover:opacity-30 blur-lg transition-opacity duration-300"></div>
-              <Shield size={16} className="text-white sm:w-5 sm:h-5 relative z-10 group-hover:scale-105 transition-transform duration-300" />
+              <Shield size={20} className="text-white sm:w-6 sm:h-6 relative z-10 group-hover:scale-105 transition-transform duration-300" />
             </div>
 
             {/* Title & Tagline */}
@@ -28,7 +28,7 @@ export function Header({
               <h1
                 className="font-semibold tracking-wide transition-all duration-300 group-hover:scale-102 whitespace-nowrap"
                 style={{
-                  fontSize: 'clamp(0.9rem, 4vw, 1.2rem)',
+                  fontSize: 'clamp(1.1rem, 5vw, 1.5rem)',
                   fontFamily: '"Helvetica Neue", "Helvetica", "Arial", sans-serif',
                   fontWeight: 600,
                   letterSpacing: '0.02em',
