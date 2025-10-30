@@ -72,6 +72,8 @@ export const RATE_LIMIT_CONFIG = {
 export const LINK_CONFIG = {
   TRUSTED_DOMAINS: [
     'insurancejournal.com',
+    'claimsjournal.com',
+    'insurancenewsnet.com',
     'naic.org',
     'reuters.com',
     'bloomberg.com',
@@ -129,6 +131,11 @@ export const DEFAULT_FEED_SOURCES = [
     priority: 1,
   },
   {
+    url: 'https://www.claimsjournal.com/rss/news/national/',
+    category: 'claims',
+    priority: 2,
+  },
+  {
     url: 'https://www.naic.org/rss/press_releases.xml',
     category: 'regulatory',
     priority: 2,
@@ -147,6 +154,11 @@ export const DEFAULT_FEED_SOURCES = [
     url: 'https://www.usgs.gov/faqs/rss.xml',
     category: 'catastrophe',
     priority: 2,
+  },
+  {
+    url: 'https://insurancenewsnet.com/topics/property-casualty-insurance-news/feed',
+    category: 'news',
+    priority: 3,
   },
   {
     url: 'https://www.reinsurancene.ws/feed/',
