@@ -102,21 +102,21 @@ export const LINK_CONFIG = {
 // ============================================================================
 
 export const AI_CONFIG = {
-  // OpenAI models
+  // OpenAI models - optimized for cost & speed
   MODELS: {
-    SUMMARIZATION: 'gpt-4o-mini',
-    EMBEDDING: 'text-embedding-3-small',
-    SCORING: 'gpt-4o-mini',
+    SUMMARIZATION: 'gpt-4o-mini',      // Cheapest fast model (~$0.15/1M input tokens)
+    EMBEDDING: 'text-embedding-3-small', // Cheapest embedding model (~$0.02/1M tokens)
+    SCORING: 'gpt-4o-mini',             // Cheapest fast model for scoring
   },
-  
+
   // Embedding dimensions
   EMBEDDING_DIMENSIONS: 512,
-  
+
   // Timeout & retry
   TIMEOUT_MS: 10000,         // 10 second timeout
   MAX_RETRIES: 2,            // Max 2 retries
   RETRY_DELAYS_MS: [1000, 2000], // 1s, 2s exponential backoff
-  
+
   // Fallback scores
   FALLBACK_SCORE: 50,        // Default score if AI fails
 };
