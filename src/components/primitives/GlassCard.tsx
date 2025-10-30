@@ -27,7 +27,7 @@ export function GlassCard({
   ariaDescribedBy,
   ...props
 }: GlassCardProps) {
-  const baseClasses = 'rounded-xl p-4 transition-all duration-250 will-change-transform';
+  const baseClasses = 'rounded-xl p-4 transition-all duration-300 will-change-transform';
 
   const variantClasses = {
     default: 'liquid-glass',
@@ -36,7 +36,7 @@ export function GlassCard({
   };
 
   const interactiveClasses = interactive
-    ? 'cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF]'
+    ? 'cursor-pointer hover:shadow-lg hover:shadow-[#5AA6FF]/20 hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF] transition-all duration-300'
     : '';
 
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {

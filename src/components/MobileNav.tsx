@@ -61,77 +61,77 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
 
         {/* Bottom Sheet */}
         <div
-          className={`pointer-events-auto transition-all duration-250 ease-out ${
-            isOpen ? 'translate-y-0' : 'translate-y-full'
+          className={`pointer-events-auto transition-all duration-400 ease-out ${
+            isOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
           }`}
         >
-          <div className="liquid-glass-ultra border-t border-[#C7D2E1]/25 rounded-t-3xl shadow-xl shadow-[#5AA6FF]/15 animate-enhancedPremiumGlow">
+          <div className="liquid-glass-ultra border-t border-[#C7D2E1]/35 rounded-t-3xl shadow-2xl shadow-[#5AA6FF]/25 animate-enhancedPremiumGlow">
             {/* Handle Bar - Aurora Gradient */}
-            <div className="flex justify-center pt-3.5 pb-2">
-              <div className="w-10 h-1 bg-gradient-primary rounded-full opacity-70" />
+            <div className="flex justify-center pt-5 pb-4">
+              <div className="w-12 h-1.5 bg-gradient-to-r from-[#5AA6FF] via-[#8B7CFF] to-[#B08CFF] rounded-full opacity-90 transition-all duration-300 hover:opacity-100" />
             </div>
 
             {/* Navigation Items */}
-            <div className="px-4 pb-5 space-y-1.5">
+            <div className="px-5 pb-8 space-y-2.5">
               {/* Feed Button */}
               <button
                 onClick={() => handleNavClick('feed')}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg font-semibold transition-all duration-250 ${
+                className={`w-full flex items-center gap-3.5 px-5 py-3.5 rounded-xl font-bold transition-all duration-300 transform ${
                   currentView === 'feed'
-                    ? 'liquid-glass-premium text-[#5AA6FF] shadow-sm border border-[#5AA6FF]/25'
-                    : 'liquid-glass-light text-[#0F172A] hover:border-[#C7D2E1]/30'
+                    ? 'liquid-glass-premium text-[#5AA6FF] shadow-lg shadow-[#5AA6FF]/30 border border-[#5AA6FF]/40 scale-105'
+                    : 'liquid-glass text-[#0F172A] hover:border-[#C7D2E1]/50 hover:shadow-md hover:scale-102 active:scale-98'
                 }`}
               >
-                <Search size={20} />
-                <span>News Feed</span>
+                <Search size={21} className="flex-shrink-0" />
+                <span className="text-base">News Feed</span>
               </button>
 
               {/* Dashboard Button */}
               <button
                 onClick={() => handleNavClick('dashboard')}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg font-semibold transition-all duration-250 ${
+                className={`w-full flex items-center gap-3.5 px-5 py-3.5 rounded-xl font-bold transition-all duration-300 transform ${
                   currentView === 'dashboard'
-                    ? 'liquid-glass-premium text-[#8B7CFF] shadow-sm border border-[#8B7CFF]/25'
-                    : 'liquid-glass-light text-[#0F172A] hover:border-[#C7D2E1]/30'
+                    ? 'liquid-glass-premium text-[#8B7CFF] shadow-lg shadow-[#8B7CFF]/30 border border-[#8B7CFF]/40 scale-105'
+                    : 'liquid-glass text-[#0F172A] hover:border-[#C7D2E1]/50 hover:shadow-md hover:scale-102 active:scale-98'
                 }`}
               >
-                <BarChart3 size={20} />
-                <span>Dashboard</span>
+                <BarChart3 size={21} className="flex-shrink-0" />
+                <span className="text-base">Dashboard</span>
               </button>
 
               {/* Bookmarks Button */}
               <button
                 onClick={() => handleNavClick('bookmarks')}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg font-semibold transition-all duration-250 ${
+                className={`w-full flex items-center gap-3.5 px-5 py-3.5 rounded-xl font-bold transition-all duration-300 transform ${
                   currentView === 'bookmarks'
-                    ? 'liquid-glass-premium text-[#B08CFF] shadow-sm border border-[#B08CFF]/25'
-                    : 'liquid-glass-light text-[#0F172A] hover:border-[#C7D2E1]/30'
+                    ? 'liquid-glass-premium text-[#B08CFF] shadow-lg shadow-[#B08CFF]/30 border border-[#B08CFF]/40 scale-105'
+                    : 'liquid-glass text-[#0F172A] hover:border-[#C7D2E1]/50 hover:shadow-md hover:scale-102 active:scale-98'
                 }`}
               >
-                <Bookmark size={20} />
-                <span>Bookmarks</span>
+                <Bookmark size={21} className="flex-shrink-0" />
+                <span className="text-base">Bookmarks</span>
               </button>
 
               {/* Settings Button */}
               <button
                 onClick={() => handleNavClick('settings')}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg font-semibold transition-all duration-250 ${
+                className={`w-full flex items-center gap-3.5 px-5 py-3.5 rounded-xl font-bold transition-all duration-300 transform ${
                   currentView === 'settings'
-                    ? 'liquid-glass-premium text-[#5AA6FF] shadow-sm border border-[#5AA6FF]/25'
-                    : 'liquid-glass-light text-[#0F172A] hover:border-[#C7D2E1]/30'
+                    ? 'liquid-glass-premium text-[#5AA6FF] shadow-lg shadow-[#5AA6FF]/30 border border-[#5AA6FF]/40 scale-105'
+                    : 'liquid-glass text-[#0F172A] hover:border-[#C7D2E1]/50 hover:shadow-md hover:scale-102 active:scale-98'
                 }`}
               >
-                <Settings size={20} />
-                <span>Settings</span>
+                <Settings size={21} className="flex-shrink-0" />
+                <span className="text-base">Settings</span>
               </button>
 
               {/* Close Button */}
               <button
                 onClick={() => setIsOpen(false)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold liquid-glass-light text-[#0F172A] hover:border-[#C7D2E1]/30 transition-all duration-250 mt-3 border border-[#C7D2E1]/25"
+                className="w-full flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-xl font-bold liquid-glass text-[#0F172A] hover:border-[#C7D2E1]/50 hover:shadow-md transition-all duration-300 mt-3 border border-[#C7D2E1]/35 transform hover:scale-102 active:scale-98"
               >
-                <X size={20} />
-                <span>Close</span>
+                <X size={21} />
+                <span className="text-base">Close</span>
               </button>
             </div>
           </div>
@@ -141,7 +141,7 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
       {/* Overlay */}
       {isOpen && (
         <div
-          className="md:hidden fixed inset-0 z-30 bg-black/25 backdrop-blur-sm pointer-events-auto transition-all duration-250"
+          className="md:hidden fixed inset-0 z-30 bg-black/30 backdrop-blur-md pointer-events-auto transition-all duration-300 animate-fadeIn"
           onClick={() => setIsOpen(false)}
         />
       )}

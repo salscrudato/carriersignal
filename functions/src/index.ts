@@ -570,8 +570,8 @@ async function refreshFeedsLogic(apiKey: string) {
  * Defines the recurring schedule for news article batch processing
  */
 const BATCH_CONFIG = {
-  // Primary batch: Every 60 minutes (hourly)
-  interval: 60,
+  // Primary batch: Every 720 minutes (12 hours)
+  interval: 720,
   timeZone: "America/New_York",
   // Batch size: Process up to 50 articles per batch
   batchSize: 50,

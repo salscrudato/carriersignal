@@ -118,24 +118,24 @@ export function SearchFirst({
       {/* Results - Scrollable */}
       <div ref={scrollContainerRef} className="flex-1 w-full max-w-full overflow-y-auto overflow-x-hidden">
         {/* Sort Controls Header - Mobile Optimized - Scrolls with content */}
-        <div className="liquid-glass-premium border-b border-[#C7D2E1]/25 shadow-sm p-3 sm:p-4 flex-shrink-0 w-full max-w-full overflow-x-hidden sticky top-0 z-40">
-          <div className="flex items-center gap-2 sm:gap-3 w-full max-w-full overflow-x-hidden">
+        <div className="liquid-glass-premium border-b border-[#C7D2E1]/30 shadow-md p-4 sm:p-5 flex-shrink-0 w-full max-w-full overflow-x-hidden sticky top-0 z-40 backdrop-blur-xl">
+          <div className="flex items-center gap-3 sm:gap-4 w-full max-w-full overflow-x-hidden">
             {/* Sort Buttons - Two Options Only */}
-            <div className="flex items-center gap-1 sm:gap-1.5 liquid-glass-light rounded-lg p-1 border border-[#C7D2E1]/25 flex-shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 liquid-glass-light rounded-xl p-1.5 border border-[#C7D2E1]/35 flex-shrink-0 shadow-sm">
               <button
                 onClick={() => {
                   console.log('[SearchFirst] Changing sort to smart');
                   setLocalSortBy('smart');
                   onSortChange?.('smart');
                 }}
-                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all duration-300 whitespace-nowrap flex-shrink-0 transform hover:scale-105 active:scale-95 ${
                   localSortBy === 'smart'
-                    ? 'liquid-glass-premium text-[#5AA6FF] shadow-md border border-[#5AA6FF]/30'
-                    : 'text-[#5AA6FF] hover:text-[#8B7CFF] hover:bg-[#F9FBFF]/50'
+                    ? 'liquid-glass-premium text-[#5AA6FF] shadow-lg shadow-[#5AA6FF]/25 border border-[#5AA6FF]/40'
+                    : 'text-[#5AA6FF] hover:text-[#8B7CFF] hover:bg-[#F9FBFF]/60 hover:shadow-md'
                 }`}
               >
-                <Zap size={13} className="hidden sm:inline flex-shrink-0" />
-                <Zap size={12} className="sm:hidden flex-shrink-0" />
+                <Zap size={14} className="hidden sm:inline flex-shrink-0" />
+                <Zap size={13} className="sm:hidden flex-shrink-0" />
                 <span className="hidden sm:inline">AI Sort</span>
                 <span className="sm:hidden">AI</span>
               </button>
@@ -145,23 +145,23 @@ export function SearchFirst({
                   setLocalSortBy('recency');
                   onSortChange?.('recency');
                 }}
-                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all duration-300 whitespace-nowrap flex-shrink-0 transform hover:scale-105 active:scale-95 ${
                   localSortBy === 'recency'
-                    ? 'liquid-glass-premium text-[#8B7CFF] shadow-md border border-[#8B7CFF]/30'
-                    : 'text-[#8B7CFF] hover:text-[#5AA6FF] hover:bg-[#F9FBFF]/50'
+                    ? 'liquid-glass-premium text-[#8B7CFF] shadow-lg shadow-[#8B7CFF]/25 border border-[#8B7CFF]/40'
+                    : 'text-[#8B7CFF] hover:text-[#5AA6FF] hover:bg-[#F9FBFF]/60 hover:shadow-md'
                 }`}
               >
-                <Clock size={13} className="hidden sm:inline flex-shrink-0" />
-                <Clock size={12} className="sm:hidden flex-shrink-0" />
+                <Clock size={14} className="hidden sm:inline flex-shrink-0" />
+                <Clock size={13} className="sm:hidden flex-shrink-0" />
                 <span className="hidden sm:inline">Recent</span>
                 <span className="sm:hidden">New</span>
               </button>
             </div>
 
             {/* Results Count - Right Aligned */}
-            <div className="ml-auto text-xs text-[#5AA6FF] font-semibold whitespace-nowrap flex-shrink-0">
+            <div className="ml-auto text-xs text-[#5AA6FF] font-bold whitespace-nowrap flex-shrink-0 tracking-wide">
               <span className="hidden sm:inline">{searchResults.length} articles</span>
-              <span className="sm:hidden">{searchResults.length} ARTICLES</span>
+              <span className="sm:hidden">{searchResults.length}</span>
             </div>
           </div>
         </div>
