@@ -118,24 +118,26 @@ export function SearchFirst({
       {/* Results - Scrollable */}
       <div ref={scrollContainerRef} className="flex-1 w-full max-w-full overflow-y-auto overflow-x-hidden">
         {/* Sort Controls Header - Mobile Optimized - Scrolls with content */}
-        <div className="liquid-glass-premium border-b border-[#C7D2E1]/30 shadow-md p-4 sm:p-5 flex-shrink-0 w-full max-w-full overflow-x-hidden sticky top-0 z-40 backdrop-blur-xl">
-          <div className="flex items-center gap-3 sm:gap-4 w-full max-w-full overflow-x-hidden">
-            {/* Sort Buttons - Two Options Only */}
-            <div className="flex items-center gap-1.5 sm:gap-2 liquid-glass-light rounded-xl p-1.5 border border-[#C7D2E1]/35 flex-shrink-0 shadow-sm">
+        <div className="liquid-glass-premium border-b border-[#C7D2E1]/30 p-4 sm:p-5 flex-shrink-0 w-full max-w-full overflow-x-hidden sticky top-0 z-40 backdrop-blur-xl flex justify-center">
+          <div className="flex items-center gap-3 sm:gap-4 w-full max-w-4xl overflow-x-hidden">
+            {/* Sort Buttons - Two Options Only - Mobile Optimized */}
+            <div className="sort-button-group flex items-center gap-1.5 sm:gap-2 liquid-glass-light rounded-xl p-1.5 border border-[#C7D2E1]/35 flex-shrink-0 shadow-sm">
               <button
                 onClick={() => {
                   console.log('[SearchFirst] Changing sort to smart');
                   setLocalSortBy('smart');
                   onSortChange?.('smart');
                 }}
-                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all duration-300 whitespace-nowrap flex-shrink-0 transform hover:scale-105 active:scale-95 ${
+                className={`sort-button flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-2 rounded-lg text-xs font-bold transition-all duration-250 whitespace-nowrap flex-shrink-0 transform hover:scale-105 active:scale-95 min-h-[44px] sm:min-h-[36px] ${
                   localSortBy === 'smart'
-                    ? 'liquid-glass-premium text-[#5AA6FF] shadow-lg shadow-[#5AA6FF]/25 border border-[#5AA6FF]/40'
-                    : 'text-[#5AA6FF] hover:text-[#8B7CFF] hover:bg-[#F9FBFF]/60 hover:shadow-md'
+                    ? 'liquid-glass-premium text-[#5AA6FF] shadow-lg shadow-[#5AA6FF]/25 border border-[#5AA6FF]/40 animate-enhancedPremiumGlow'
+                    : 'text-[#5AA6FF] hover:text-[#8B7CFF] hover:bg-[#F9FBFF]/60 hover:shadow-md hover:border-[#5AA6FF]/30 border border-transparent'
                 }`}
+                aria-label="Sort by AI relevance"
+                aria-pressed={localSortBy === 'smart'}
               >
-                <Zap size={14} className="hidden sm:inline flex-shrink-0" />
-                <Zap size={13} className="sm:hidden flex-shrink-0" />
+                <Zap size={14} className={`hidden sm:inline flex-shrink-0 ${localSortBy === 'smart' ? 'animate-pulse' : ''}`} />
+                <Zap size={16} className={`sm:hidden flex-shrink-0 ${localSortBy === 'smart' ? 'animate-pulse' : ''}`} />
                 <span className="hidden sm:inline">AI Sort</span>
                 <span className="sm:hidden">AI</span>
               </button>
@@ -145,14 +147,16 @@ export function SearchFirst({
                   setLocalSortBy('recency');
                   onSortChange?.('recency');
                 }}
-                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all duration-300 whitespace-nowrap flex-shrink-0 transform hover:scale-105 active:scale-95 ${
+                className={`sort-button flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-2 rounded-lg text-xs font-bold transition-all duration-250 whitespace-nowrap flex-shrink-0 transform hover:scale-105 active:scale-95 min-h-[44px] sm:min-h-[36px] ${
                   localSortBy === 'recency'
-                    ? 'liquid-glass-premium text-[#8B7CFF] shadow-lg shadow-[#8B7CFF]/25 border border-[#8B7CFF]/40'
-                    : 'text-[#8B7CFF] hover:text-[#5AA6FF] hover:bg-[#F9FBFF]/60 hover:shadow-md'
+                    ? 'liquid-glass-premium text-[#8B7CFF] shadow-lg shadow-[#8B7CFF]/25 border border-[#8B7CFF]/40 animate-enhancedPremiumGlow'
+                    : 'text-[#8B7CFF] hover:text-[#5AA6FF] hover:bg-[#F9FBFF]/60 hover:shadow-md hover:border-[#8B7CFF]/30 border border-transparent'
                 }`}
+                aria-label="Sort by recency"
+                aria-pressed={localSortBy === 'recency'}
               >
-                <Clock size={14} className="hidden sm:inline flex-shrink-0" />
-                <Clock size={13} className="sm:hidden flex-shrink-0" />
+                <Clock size={14} className={`hidden sm:inline flex-shrink-0 ${localSortBy === 'recency' ? 'animate-pulse' : ''}`} />
+                <Clock size={16} className={`sm:hidden flex-shrink-0 ${localSortBy === 'recency' ? 'animate-pulse' : ''}`} />
                 <span className="hidden sm:inline">Recent</span>
                 <span className="sm:hidden">New</span>
               </button>
@@ -166,8 +170,8 @@ export function SearchFirst({
           </div>
         </div>
 
-        <div className="w-full max-w-full px-4 pb-20 pt-4 overflow-x-hidden">
-          <div className="space-y-3 w-full max-w-full">
+        <div className="w-full flex justify-center px-2 sm:px-4 pb-20 pt-4 overflow-x-hidden">
+          <div className="space-y-2.5 sm:space-y-3 w-full max-w-4xl">
             {searchResults.map((result, idx) => (
               <SearchResultCard
                 key={`${result.article.url}-${idx}`}
@@ -235,8 +239,8 @@ function SearchResultCard({ result, isSelected, onSelect, index = 0 }: SearchRes
       style={{ animationDelay: `${index * 50}ms` }}
       className={`w-full max-w-full rounded-xl border-2 transition-all duration-250 animate-slideInWithBounce overflow-hidden flex flex-col cursor-pointer ${
         isSelected
-          ? 'liquid-glass-ultra border-[#5AA6FF]/60 shadow-lg shadow-[#5AA6FF]/25 animate-premiumGlow elevated-glow scale-101'
-          : 'liquid-glass border-[#C7D2E1]/40 hover:border-[#5AA6FF]/60 hover:shadow-lg hover:shadow-[#5AA6FF]/20 hover:scale-101 hover:animate-subtleGlowPulse micro-glow'
+          ? 'liquid-glass-ultra border-[#5AA6FF]/60 animate-premiumGlow elevated-glow scale-101'
+          : 'liquid-glass border-[#C7D2E1]/40 hover:border-[#5AA6FF]/60 hover:scale-101 hover:animate-subtleGlowPulse micro-glow'
       }`}
     >
       {/* Gradient Accent Top - Aurora Colors */}

@@ -93,14 +93,14 @@ export function Dashboard({ articles }: DashboardProps) {
     .slice(0, 5);
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 sm:p-6">
       {/* Today's Signal - Key Metrics */}
       <div>
-        <h2 className="text-2xl font-bold text-[#0F172A] mb-4 flex items-center gap-2">
-          <Zap size={28} className="text-[#5AA6FF]" />
+        <h2 className="text-2xl font-bold text-[#0F172A] mb-4 flex items-center gap-2 group">
+          <Zap size={28} className="text-[#5AA6FF] group-hover:animate-pulse transition-all duration-250" />
           Today's Signal
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
           <MetricCard
             icon={<BarChart3 size={24} />}
             label="Total Articles"
@@ -129,18 +129,18 @@ export function Dashboard({ articles }: DashboardProps) {
       </div>
 
       {/* CAT Ticker & Regulatory Tracker */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
         {/* CAT Ticker */}
         <InsightCard title="Active Catastrophes" icon={<Cloud size={20} />} color="blue">
           {storms.length > 0 ? (
             <div className="space-y-2.5">
               {storms.map((storm, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 bg-[#F9FBFF]/50 rounded-lg hover:bg-[#F9FBFF]/80 transition-all duration-300">
+                <div key={idx} className="flex items-center justify-between p-3 bg-[#F9FBFF]/60 rounded-lg hover:bg-[#F0F7FF]/80 transition-all duration-250 hover:shadow-md hover:scale-102 transform">
                   <div className="flex items-center gap-2">
-                    <Cloud size={16} className="text-[#5AA6FF]" />
+                    <Cloud size={16} className="text-[#5AA6FF] group-hover:animate-pulse" />
                     <span className="text-sm font-semibold text-[#0F172A]">{storm}</span>
                   </div>
-                  <span className="px-2.5 py-1 rounded-full bg-gradient-to-r from-[#E8F2FF] to-[#E8F2FF] text-[#5AA6FF] text-xs font-bold">Active</span>
+                  <span className="px-2.5 py-1 rounded-full bg-gradient-to-r from-[#E8F2FF] to-[#E8F2FF] text-[#5AA6FF] text-xs font-bold hover:shadow-md transition-all duration-250">Active</span>
                 </div>
               ))}
             </div>
@@ -152,14 +152,14 @@ export function Dashboard({ articles }: DashboardProps) {
         {/* Regulatory Tracker */}
         <InsightCard title="Regulatory Updates" icon={<FileText size={20} />} color="red">
           {regulatoryItems.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {regulatoryItems.map((item, idx) => (
-                <div key={idx} className="flex items-start justify-between p-3 bg-[#F9FBFF]/50 rounded-lg hover:bg-[#F9FBFF]/80 transition-all duration-300">
+                <div key={idx} className="flex items-start justify-between p-3 bg-[#F9FBFF]/60 rounded-lg hover:bg-[#FEE2E2]/60 transition-all duration-250 hover:shadow-md hover:scale-102 transform">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-[#0F172A] line-clamp-2">{item.title}</p>
                     <p className="text-xs text-[#64748B] mt-1">{item.tags?.regulations?.[0] || 'Regulatory'}</p>
                   </div>
-                  <Clock size={14} className="text-[#EF4444] flex-shrink-0 ml-2" />
+                  <Clock size={14} className="text-[#EF4444] flex-shrink-0 ml-2 group-hover:animate-pulse" />
                 </div>
               ))}
             </div>
@@ -170,7 +170,7 @@ export function Dashboard({ articles }: DashboardProps) {
       </div>
 
       {/* Insights Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {/* Top Trends */}
         <InsightCard title="Top Trends" icon={<TrendingUp size={20} />} color="blue">
           <div className="space-y-3">

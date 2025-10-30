@@ -62,43 +62,43 @@ function ArticleCardComponent({
       variant={isSelected ? 'premium' : 'default'}
       interactive
       onClick={onClick}
-      className={`group cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-[#5AA6FF]/20 hover:scale-102 ${
-        isSelected ? 'ring-2 ring-[#5AA6FF]/70 shadow-xl shadow-[#5AA6FF]/25 scale-102' : 'hover:ring-1 hover:ring-[#5AA6FF]/40'
+      className={`group cursor-pointer transition-all duration-250 hover:shadow-md hover:shadow-[#5AA6FF]/15 hover:scale-101 ${
+        isSelected ? 'ring-2 ring-[#5AA6FF]/60 shadow-lg shadow-[#5AA6FF]/20 scale-101' : 'hover:ring-1 hover:ring-[#5AA6FF]/30'
       } ${isLoading ? 'opacity-60 pointer-events-none' : ''} animate-fadeIn`}
       role="article"
       aria-label={ariaLabel || `Article: ${article.title}`}
       aria-selected={isSelected}
     >
-      <div className="space-y-3.5">
+      <div className="space-y-4">
         {/* Header with source and date */}
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-[#5AA6FF] uppercase tracking-widest truncate group-hover:text-[#3B82F6] transition-colors duration-200">
+            <p className="text-xs font-semibold text-[#5AA6FF] uppercase tracking-wide truncate group-hover:text-[#3B82F6] transition-colors duration-200">
               {article.source}
             </p>
-            <p className="text-xs text-[#94A3B8] mt-1 group-hover:text-[#64748B] transition-colors duration-200 font-medium">
+            <p className="text-xs text-[#94A3B8] mt-0.5 group-hover:text-[#64748B] transition-colors duration-200">
               {article.publishedAt ? getTimeAgo(article.publishedAt) : 'Recently'}
             </p>
           </div>
           {score > 0 && (
             <Tooltip content={`Relevance Score: ${Math.round(score)}`}>
-              <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#E8F2FF] ${scoreColor} transition-all duration-200 group-hover:shadow-md group-hover:shadow-[#5AA6FF]/25 animate-scoreGlow font-bold text-xs`}>
-                <TrendingUp size={14} className="group-hover:scale-125 transition-transform duration-200" />
-                <span>{Math.round(score)}</span>
+              <div className={`flex items-center gap-1 px-2 py-1 rounded-lg bg-[#E8F2FF] ${scoreColor} transition-all duration-200 group-hover:shadow-md group-hover:shadow-[#5AA6FF]/20 animate-scoreGlow`}>
+                <TrendingUp size={14} className="group-hover:scale-110 transition-transform duration-200" />
+                <span className="text-xs font-semibold">{Math.round(score)}</span>
               </div>
             </Tooltip>
           )}
         </div>
 
-        {/* Title - Enhanced Typography */}
-        <h3 className="text-base font-bold text-[#0F172A] line-clamp-2 group-hover:text-[#5AA6FF] transition-colors duration-200 leading-tight">
+        {/* Title */}
+        <h3 className="text-sm font-semibold text-[#0F172A] line-clamp-2 group-hover:text-[#5AA6FF] transition-colors duration-200">
           {article.title}
         </h3>
 
         {/* Pull Quote - Key verbatim excerpt */}
         {(article as any).leadQuote && (
-          <div className="pl-3.5 border-l-2 border-[#5AA6FF]/50 py-2.5 bg-gradient-to-r from-[#F9FBFF]/80 to-[#F0F7FF]/40 rounded-r-lg hover:from-[#F0F7FF] hover:to-[#E8F2FF]/60 transition-all duration-200">
-            <p className="text-xs italic text-[#475569] line-clamp-2 group-hover:text-[#0F172A] transition-colors duration-200 leading-relaxed">
+          <div className="pl-3 border-l-2 border-[#5AA6FF]/40 py-2 bg-[#F9FBFF]/50 rounded-r-lg">
+            <p className="text-xs italic text-[#475569] line-clamp-2 group-hover:text-[#0F172A] transition-colors duration-200">
               "{(article as any).leadQuote}"
             </p>
           </div>
@@ -106,15 +106,15 @@ function ArticleCardComponent({
 
         {/* AI Summary Bullets - Truncated with expand */}
         {article.bullets5 && article.bullets5.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-[#5AA6FF] uppercase tracking-wide">
-              <Sparkles size={13} className="animate-pulse" />
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#5AA6FF]">
+              <Sparkles size={12} className="animate-pulse" />
               <span>AI Summary</span>
             </div>
-            <div className={`space-y-1.5 overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-96' : 'max-h-14'}`}>
+            <div className={`space-y-1 overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-96' : 'max-h-12'}`}>
               {article.bullets5.slice(0, isExpanded ? 5 : 1).map((bullet, idx) => (
-                <div key={idx} className="flex gap-2.5 text-xs text-[#64748B] group-hover:text-[#475569] transition-colors duration-200 leading-relaxed">
-                  <span className="text-[#5AA6FF] font-bold flex-shrink-0 mt-0.5">•</span>
+                <div key={idx} className="flex gap-2 text-xs text-[#64748B] group-hover:text-[#475569] transition-colors duration-200">
+                  <span className="text-[#5AA6FF] font-bold flex-shrink-0">•</span>
                   <span className="line-clamp-2">{bullet}</span>
                 </div>
               ))}
@@ -125,11 +125,11 @@ function ArticleCardComponent({
                   e.stopPropagation();
                   setIsExpanded(!isExpanded);
                 }}
-                className="text-xs text-[#5AA6FF] hover:text-[#3B82F6] font-bold flex items-center gap-1 transition-all duration-200 hover:gap-1.5 uppercase tracking-wide"
+                className="text-xs text-[#5AA6FF] hover:text-[#3B82F6] font-medium flex items-center gap-1 transition-colors duration-200"
                 aria-label={isExpanded ? 'Collapse summary' : 'Expand summary'}
               >
                 {isExpanded ? 'Show less' : `Show ${article.bullets5.length - 1} more`}
-                <ChevronDown size={13} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                <ChevronDown size={12} className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
               </button>
             )}
           </div>
@@ -167,20 +167,20 @@ function ArticleCardComponent({
         )}
 
         {/* Action buttons with enhanced hover effects */}
-        <div className="flex items-center gap-2.5 pt-3 border-t border-[#C7D2E1]/25 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+        <div className="flex items-center gap-2 pt-2 border-t border-[#C7D2E1]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-250">
           {onBookmark && (
             <Tooltip content={isBookmarked ? 'Remove bookmark' : 'Bookmark article'}>
               <button
                 onClick={handleBookmark}
-                className={`p-2 rounded-lg transition-all duration-250 transform hover:scale-120 active:scale-95 ${
+                className={`p-1.5 rounded-lg transition-all duration-250 transform hover:scale-110 active:scale-95 ${
                   isBookmarked
-                    ? 'bg-gradient-to-br from-[#5AA6FF] to-[#4A96EF] text-white shadow-md shadow-[#5AA6FF]/40 hover:shadow-lg'
-                    : 'hover:bg-[#E8F2FF] text-[#64748B] hover:shadow-md hover:shadow-[#5AA6FF]/25 hover:text-[#5AA6FF]'
+                    ? 'bg-[#5AA6FF] text-white shadow-lg shadow-[#5AA6FF]/20'
+                    : 'hover:bg-[#E8F2FF] text-[#64748B] hover:shadow-md hover:shadow-[#5AA6FF]/15'
                 }`}
                 aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark article'}
                 aria-pressed={isBookmarked}
               >
-                <Bookmark size={17} fill={isBookmarked ? 'currentColor' : 'none'} />
+                <Bookmark size={16} fill={isBookmarked ? 'currentColor' : 'none'} />
               </button>
             </Tooltip>
           )}
@@ -189,14 +189,14 @@ function ArticleCardComponent({
               <button
                 onClick={handleShare}
                 disabled={isSharing}
-                className={`p-2 rounded-lg transition-all duration-250 transform hover:scale-120 active:scale-95 ${
+                className={`p-1.5 rounded-lg transition-all duration-250 transform hover:scale-110 active:scale-95 ${
                   isSharing
-                    ? 'bg-gradient-to-br from-green-400 to-green-500 text-white shadow-md shadow-green-500/40 hover:shadow-lg'
-                    : 'hover:bg-[#E8F2FF] text-[#64748B] hover:shadow-md hover:shadow-[#5AA6FF]/25 hover:text-[#5AA6FF]'
+                    ? 'bg-green-100 text-green-600 shadow-lg shadow-green-500/20'
+                    : 'hover:bg-[#E8F2FF] text-[#64748B] hover:shadow-md hover:shadow-[#5AA6FF]/15'
                 }`}
                 aria-label="Share article"
               >
-                <Share2 size={17} />
+                <Share2 size={16} />
               </button>
             </Tooltip>
           )}

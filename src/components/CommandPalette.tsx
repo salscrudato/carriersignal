@@ -99,11 +99,11 @@ export function CommandPalette({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-md flex items-start justify-center pt-20"
+      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-md flex items-start justify-center pt-20 animate-fadeIn"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl liquid-glass-ultra rounded-2xl shadow-xl shadow-[#5AA6FF]/15 overflow-hidden border border-[#C7D2E1]/30 animate-commandPaletteSlideIn"
+        className="w-full max-w-2xl liquid-glass-ultra rounded-2xl shadow-xl shadow-[#5AA6FF]/20 overflow-hidden border border-[#C7D2E1]/30 animate-commandPaletteSlideIn mx-4"
         onClick={e => e.stopPropagation()}
       >
         {/* Search Input */}
@@ -139,10 +139,10 @@ export function CommandPalette({
                     onArticleSelect(article);
                     onClose();
                   }}
-                  className={`w-full text-left p-4 transition-all duration-200 ${
+                  className={`w-full text-left p-4 transition-all duration-250 ${
                     idx === selectedIndex
-                      ? 'liquid-glass-premium border-l-4 border-[#5AA6FF] bg-gradient-to-r from-[#F9FBFF]/30 to-[#E8F2FF]/15'
-                      : 'hover:bg-gradient-to-r hover:from-[#F9FBFF]/15 hover:to-[#E8F2FF]/08'
+                      ? 'liquid-glass-premium border-l-4 border-[#5AA6FF] bg-gradient-to-r from-[#F9FBFF]/40 to-[#E8F2FF]/20 shadow-md shadow-[#5AA6FF]/10'
+                      : 'hover:bg-gradient-to-r hover:from-[#F9FBFF]/20 hover:to-[#E8F2FF]/10 hover:shadow-sm'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
