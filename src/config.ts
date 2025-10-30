@@ -74,6 +74,7 @@ export const LINK_CONFIG = {
     'insurancejournal.com',
     'claimsjournal.com',
     'insurancenewsnet.com',
+    'riskandinsurance.com',
     'naic.org',
     'reuters.com',
     'bloomberg.com',
@@ -159,6 +160,11 @@ export const DEFAULT_FEED_SOURCES = [
     url: 'https://insurancenewsnet.com/topics/property-casualty-insurance-news/feed',
     category: 'news',
     priority: 3,
+  },
+  {
+    url: 'https://riskandinsurance.com/feed/',
+    category: 'news',
+    priority: 4,
   },
   {
     url: 'https://www.reinsurancene.ws/feed/',
