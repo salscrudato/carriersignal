@@ -803,7 +803,7 @@ async function logBatchCompletion(metrics: Record<string, unknown>) {
   }
 }
 
-// 1) Scheduled gatherer (hourly batch refresh)
+// 1) Scheduled gatherer (daily batch refresh - every 24 hours)
 export const refreshFeeds = onSchedule(
   {schedule: `every ${BATCH_CONFIG.interval} minutes`, timeZone: BATCH_CONFIG.timeZone, secrets: [OPENAI_API_KEY]},
   async () => {
