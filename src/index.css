@@ -898,6 +898,118 @@ button:focus-visible {
   }
 }
 
+/* Fluid Button Morphing - Context-Sensitive Bubble Effect */
+@keyframes fluidButtonMorph {
+  0%, 100% {
+    border-radius: 9999px;
+    transform: scale(1);
+  }
+  25% {
+    border-radius: 9999px;
+    transform: scale(1.05) scaleX(1.08);
+  }
+  50% {
+    border-radius: 9999px;
+    transform: scale(1.08) scaleX(1.05);
+  }
+  75% {
+    border-radius: 9999px;
+    transform: scale(1.04) scaleX(1.06);
+  }
+}
+
+/* Smooth Button Hover Lift - Fluid Transition */
+@keyframes smoothButtonLift {
+  from {
+    transform: translateY(0) scale(1);
+    filter: brightness(1);
+  }
+  to {
+    transform: translateY(-4px) scale(1.08);
+    filter: brightness(1.1);
+  }
+}
+
+/* Button Shimmer - Specular Highlight Animation */
+@keyframes buttonShimmer {
+  0%, 100% {
+    opacity: 0.2;
+    transform: translateX(-100%);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateX(100%);
+  }
+}
+
+/* Bubble Detach Animation - Morphing from fixed to floating */
+@keyframes bubbleDetach {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-8px) scale(1.05);
+    opacity: 0.95;
+  }
+  100% {
+    transform: translateY(-12px) scale(1.08);
+    opacity: 1;
+  }
+}
+
+/* Icon Shimmer - Layered Gradient Shimmer Effect */
+@keyframes iconShimmer {
+  0%, 100% {
+    background-position: -1000px 0;
+    opacity: 0.8;
+  }
+  50% {
+    background-position: 1000px 0;
+    opacity: 1;
+  }
+}
+
+/* Icon Glow Pulse - Micro-illumination on icons */
+@keyframes iconGlowPulse {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(90, 166, 255, 0.2), 0 0 16px rgba(139, 124, 255, 0.1);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(90, 166, 255, 0.4), 0 0 24px rgba(139, 124, 255, 0.2);
+    transform: scale(1.05);
+  }
+}
+
+/* Icon Layer Shift - Layered translucency effect */
+@keyframes iconLayerShift {
+  0%, 100% {
+    opacity: 1;
+    transform: translateZ(0);
+  }
+  50% {
+    opacity: 0.95;
+    transform: translateZ(2px);
+  }
+}
+
+/* Icon Shimmer Response - Movement-responsive shimmer */
+@keyframes iconShimmerResponse {
+  0% {
+    background-position: -200% 0;
+    opacity: 0.3;
+  }
+  50% {
+    background-position: 0 0;
+    opacity: 0.8;
+  }
+  100% {
+    background-position: 200% 0;
+    opacity: 0.3;
+  }
+}
+
 /* Premium Glow Effects - AI Polished with Aurora Gradient - Smooth & Clean */
 @keyframes premiumGlow {
   0%, 100% {
@@ -1186,6 +1298,46 @@ header {
   animation: liquidBubble 2s ease-in-out infinite;
 }
 
+/* Fluid button morphing - context-sensitive bubble effect */
+.animate-fluidButtonMorph {
+  animation: fluidButtonMorph 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Smooth button hover lift - fluid transition */
+.animate-smoothButtonLift {
+  animation: smoothButtonLift 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Button shimmer - specular highlight animation */
+.animate-buttonShimmer {
+  animation: buttonShimmer 2s ease-in-out infinite;
+}
+
+/* Bubble detach animation - morphing from fixed to floating */
+.animate-bubbleDetach {
+  animation: bubbleDetach 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Icon shimmer - layered gradient shimmer effect */
+.animate-iconShimmer {
+  animation: iconShimmer 2.5s ease-in-out infinite;
+}
+
+/* Icon glow pulse - micro-illumination on icons */
+.animate-iconGlowPulse {
+  animation: iconGlowPulse 2s ease-in-out infinite;
+}
+
+/* Icon layer shift - layered translucency effect */
+.animate-iconLayerShift {
+  animation: iconLayerShift 3s ease-in-out infinite;
+}
+
+/* Icon shimmer response - movement-responsive shimmer */
+.animate-iconShimmerResponse {
+  animation: iconShimmerResponse 1.5s ease-in-out infinite;
+}
+
 .animate-cardLiquidLift {
   animation: cardLiquidLift 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
@@ -1427,8 +1579,8 @@ header {
 /* Translucency: 40-70% opacity with dynamic refraction and light scattering */
 .glass {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.88) 0%, rgba(240, 249, 255, 0.78) 100%);
-  backdrop-filter: blur(28px) saturate(210%) brightness(1.12);
-  -webkit-backdrop-filter: blur(28px) saturate(210%) brightness(1.12);
+  backdrop-filter: blur(28px) saturate(210%) brightness(1.12) contrast(1.05);
+  -webkit-backdrop-filter: blur(28px) saturate(210%) brightness(1.12) contrast(1.05);
   border: 1px solid rgba(37, 99, 235, 0.2);
   box-shadow:
     0 8px 32px 0 rgba(37, 99, 235, 0.12),
@@ -1437,9 +1589,18 @@ header {
     inset 0 1px 2px 0 rgba(255, 255, 255, 0.75),
     inset 0 -1px 1px 0 rgba(0, 0, 0, 0.02);
   transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-  will-change: transform, box-shadow;
+  will-change: transform, box-shadow, filter;
   position: relative;
   overflow: hidden;
+}
+
+/* Light scattering gradient layer - refraction effect */
+.glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(90, 166, 255, 0.04) 0%, transparent 50%, rgba(176, 140, 255, 0.02) 100%);
+  pointer-events: none;
 }
 
 /* Specular highlight layer - dynamic light reflection */
@@ -1450,7 +1611,7 @@ header {
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.4) 0%, transparent 50%);
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.2) 30%, transparent 60%);
   opacity: 0;
   transition: opacity 0.3s ease-out;
   pointer-events: none;
@@ -1466,6 +1627,7 @@ header {
     inset 0 1px 1px 0 rgba(255, 255, 255, 0.7),
     inset 0 -1px 1px 0 rgba(0, 0, 0, 0.03);
   transform: translateY(-2px);
+  filter: brightness(1.15);
 }
 
 .glass:hover::after {
@@ -1478,8 +1640,8 @@ header {
 /* Implements Apple Liquid Glass: translucency, refraction, light scattering, specular highlights */
 .liquid-glass {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.97) 0%, rgba(249, 251, 255, 0.94) 100%);
-  backdrop-filter: blur(12px) saturate(180%) brightness(1.08);
-  -webkit-backdrop-filter: blur(12px) saturate(180%) brightness(1.08);
+  backdrop-filter: blur(12px) saturate(180%) brightness(1.08) contrast(1.03);
+  -webkit-backdrop-filter: blur(12px) saturate(180%) brightness(1.08) contrast(1.03);
   border: 1px solid rgba(90, 166, 255, 0.18);
   box-shadow:
     0 2px 8px 0 rgba(90, 166, 255, 0.06),
@@ -1489,18 +1651,19 @@ header {
   border-radius: 0.75rem;
   position: relative;
   overflow: hidden;
+  will-change: transform, box-shadow, filter;
 }
 
-/* Light scattering gradient layer */
+/* Light scattering gradient layer - enhanced refraction */
 .liquid-glass::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(90, 166, 255, 0.02) 0%, transparent 50%, rgba(176, 140, 255, 0.01) 100%);
+  background: linear-gradient(135deg, rgba(90, 166, 255, 0.04) 0%, transparent 50%, rgba(176, 140, 255, 0.02) 100%);
   pointer-events: none;
 }
 
-/* Specular highlight - dynamic light reflection */
+/* Specular highlight - dynamic light reflection with enhanced intensity */
 .liquid-glass::after {
   content: '';
   position: absolute;
@@ -1508,7 +1671,7 @@ header {
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.35) 0%, transparent 50%);
+  background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.15) 35%, transparent 60%);
   opacity: 0;
   transition: opacity 0.3s ease-out;
   pointer-events: none;
@@ -1522,6 +1685,7 @@ header {
     0 0 16px rgba(139, 124, 255, 0.05),
     inset 0 1px 2px 0 rgba(255, 255, 255, 0.92);
   transform: translateY(-2px);
+  filter: brightness(1.12);
 }
 
 .liquid-glass:hover::after {
@@ -1532,8 +1696,8 @@ header {
 /* Enhanced with fluid morphing and dynamic light responses */
 .liquid-glass-premium {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 251, 255, 0.95) 100%);
-  backdrop-filter: blur(16px) saturate(195%) brightness(1.12);
-  -webkit-backdrop-filter: blur(16px) saturate(195%) brightness(1.12);
+  backdrop-filter: blur(16px) saturate(195%) brightness(1.12) contrast(1.04);
+  -webkit-backdrop-filter: blur(16px) saturate(195%) brightness(1.12) contrast(1.04);
   border: 1px solid rgba(90, 166, 255, 0.24);
   box-shadow:
     0 8px 24px 0 rgba(90, 166, 255, 0.10),
@@ -1543,18 +1707,19 @@ header {
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   border-radius: 0.875rem;
+  will-change: transform, box-shadow, filter;
 }
 
-/* Light scattering layer */
+/* Light scattering layer - enhanced refraction */
 .liquid-glass-premium::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(90, 166, 255, 0.05) 0%, transparent 50%, rgba(176, 140, 255, 0.02) 100%);
+  background: linear-gradient(135deg, rgba(90, 166, 255, 0.06) 0%, transparent 50%, rgba(176, 140, 255, 0.03) 100%);
   pointer-events: none;
 }
 
-/* Specular highlight with enhanced intensity */
+/* Specular highlight with enhanced intensity and gradient */
 .liquid-glass-premium::after {
   content: '';
   position: absolute;
@@ -1562,7 +1727,7 @@ header {
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.45) 0%, transparent 50%);
+  background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.2) 35%, transparent 65%);
   opacity: 0;
   transition: opacity 0.3s ease-out;
   pointer-events: none;
@@ -1576,6 +1741,7 @@ header {
     0 0 28px rgba(139, 124, 255, 0.08),
     inset 0 1px 2px 0 rgba(255, 255, 255, 0.96);
   transform: translateY(-2px);
+  filter: brightness(1.15);
 }
 
 .liquid-glass-premium:hover::after {
@@ -1586,8 +1752,8 @@ header {
 /* Maximum translucency with enhanced refraction and light scattering */
 .liquid-glass-ultra {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.99) 0%, rgba(249, 251, 255, 0.97) 100%);
-  backdrop-filter: blur(20px) saturate(210%) brightness(1.14);
-  -webkit-backdrop-filter: blur(20px) saturate(210%) brightness(1.14);
+  backdrop-filter: blur(20px) saturate(210%) brightness(1.14) contrast(1.05);
+  -webkit-backdrop-filter: blur(20px) saturate(210%) brightness(1.14) contrast(1.05);
   border: 1px solid rgba(90, 166, 255, 0.28);
   box-shadow:
     0 12px 32px 0 rgba(90, 166, 255, 0.14),
@@ -1597,18 +1763,19 @@ header {
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   border-radius: 1rem;
+  will-change: transform, box-shadow, filter;
 }
 
-/* Enhanced light scattering layer */
+/* Enhanced light scattering layer - maximum refraction */
 .liquid-glass-ultra::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(90, 166, 255, 0.07) 0%, transparent 50%, rgba(176, 140, 255, 0.03) 100%);
+  background: linear-gradient(135deg, rgba(90, 166, 255, 0.08) 0%, transparent 50%, rgba(176, 140, 255, 0.04) 100%);
   pointer-events: none;
 }
 
-/* Maximum specular highlight intensity */
+/* Maximum specular highlight intensity with gradient */
 .liquid-glass-ultra::after {
   content: '';
   position: absolute;
@@ -1616,7 +1783,7 @@ header {
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.55) 0%, transparent 50%);
+  background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0.25) 35%, transparent 70%);
   opacity: 0;
   transition: opacity 0.3s ease-out;
   pointer-events: none;
@@ -1630,6 +1797,7 @@ header {
     0 0 32px rgba(139, 124, 255, 0.12),
     inset 0 1px 2px 0 rgba(255, 255, 255, 0.97);
   transform: translateY(-2.5px);
+  filter: brightness(1.18);
 }
 
 .liquid-glass-ultra:hover::after {
@@ -1651,6 +1819,40 @@ header {
 
 .gradient-subtle {
   background: linear-gradient(135deg, #F9FBFF 0%, #F0F7FF 100%);
+}
+
+/* Icon Styling with Liquid Glass Effects */
+.icon-shimmer {
+  background: linear-gradient(90deg, rgba(90, 166, 255, 0.1) 0%, rgba(139, 124, 255, 0.2) 50%, rgba(90, 166, 255, 0.1) 100%);
+  background-size: 200% 100%;
+  animation: iconShimmer 2.5s ease-in-out infinite;
+}
+
+.icon-glow {
+  box-shadow: 0 0 8px rgba(90, 166, 255, 0.2), 0 0 16px rgba(139, 124, 255, 0.1);
+  animation: iconGlowPulse 2s ease-in-out infinite;
+  border-radius: 0.75rem;
+  padding: 0.5rem;
+}
+
+.icon-layer {
+  position: relative;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(249, 251, 255, 0.7) 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(90, 166, 255, 0.15);
+  border-radius: 0.75rem;
+  padding: 0.5rem;
+  animation: iconLayerShift 3s ease-in-out infinite;
+}
+
+.icon-layer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(90, 166, 255, 0.03) 0%, transparent 50%, rgba(176, 140, 255, 0.02) 100%);
+  pointer-events: none;
+  border-radius: 0.75rem;
 }
 
 /* AI-Inspired Animated Background - Aurora Theme */
@@ -2931,6 +3133,66 @@ select:focus-visible {
   }
 }
 
+/* Reduced transparency mode - Apple Liquid Glass accessibility */
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .liquid-glass,
+  .liquid-glass-premium,
+  .liquid-glass-ultra {
+    background-color: rgba(255, 255, 255, 0.99) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-width: 2px;
+  }
+
+  .glass::before,
+  .liquid-glass::before,
+  .liquid-glass-premium::before,
+  .liquid-glass-ultra::before {
+    display: none;
+  }
+
+  .glass::after,
+  .liquid-glass::after,
+  .liquid-glass-premium::after,
+  .liquid-glass-ultra::after {
+    display: none;
+  }
+
+  /* Reduce animation for reduced transparency mode */
+  .animate-liquidGlassShimmer,
+  .animate-liquidGlassGlow,
+  .animate-fluidMorph,
+  .animate-liquidRipple,
+  .animate-liquidShimmer,
+  .animate-liquidWiggle,
+  .animate-liquidSquish,
+  .animate-advancedButtonPress,
+  .animate-liquidPulsate,
+  .animate-liquidBubble,
+  .animate-fluidButtonMorph,
+  .animate-smoothButtonLift,
+  .animate-buttonShimmer,
+  .animate-bubbleDetach,
+  .animate-iconShimmer,
+  .animate-iconGlowPulse,
+  .animate-iconLayerShift,
+  .animate-iconShimmerResponse {
+    animation: none !important;
+  }
+
+  /* Ensure sufficient contrast in reduced transparency mode */
+  button {
+    border: 2px solid var(--color-primary);
+  }
+
+  .icon-glow,
+  .icon-layer {
+    box-shadow: none;
+    animation: none;
+  }
+}
+
 /* Forced colors mode support (Windows High Contrast) */
 @media (forced-colors: active) {
   .liquid-glass,
@@ -3034,6 +3296,74 @@ a[role="button"],
 ::-moz-selection {
   background-color: var(--color-primary);
   color: white;
+}
+
+/* Reduced motion support - Apple Liquid Glass accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  /* Disable all Liquid Glass animations */
+  .animate-liquidGlassShimmer,
+  .animate-liquidGlassGlow,
+  .animate-fluidMorph,
+  .animate-liquidRipple,
+  .animate-liquidShimmer,
+  .animate-liquidWiggle,
+  .animate-liquidSquish,
+  .animate-advancedButtonPress,
+  .animate-liquidPulsate,
+  .animate-liquidBubble,
+  .animate-fluidButtonMorph,
+  .animate-smoothButtonLift,
+  .animate-buttonShimmer,
+  .animate-bubbleDetach,
+  .animate-iconShimmer,
+  .animate-iconGlowPulse,
+  .animate-iconLayerShift,
+  .animate-iconShimmerResponse,
+  .animate-slideInUp,
+  .animate-slideInDown,
+  .animate-slideInLeft,
+  .animate-slideInRight,
+  .animate-scaleIn,
+  .animate-float,
+  .animate-glow,
+  .animate-cardHoverLift,
+  .animate-smoothPulse,
+  .animate-fadeInScale,
+  .animate-borderGlow,
+  .animate-enhancedCardHover,
+  .animate-smoothScale,
+  .animate-fadeIn,
+  .animate-fadeInWithScale,
+  .animate-rotateIn,
+  .animate-expandIn {
+    animation: none !important;
+  }
+
+  /* Ensure transitions are instant */
+  .glass,
+  .liquid-glass,
+  .liquid-glass-premium,
+  .liquid-glass-ultra,
+  button,
+  a {
+    transition: none !important;
+  }
+
+  /* Keep hover states but without animation */
+  .glass:hover,
+  .liquid-glass:hover,
+  .liquid-glass-premium:hover,
+  .liquid-glass-ultra:hover {
+    transform: none !important;
+  }
 }
 
 /* Ensure sufficient spacing between interactive elements */

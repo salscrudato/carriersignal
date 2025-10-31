@@ -39,12 +39,13 @@ export function GlowButton({
   ...props
 }: GlowButtonProps) {
   const [isPressed, setIsPressed] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
-  const baseClasses = 'font-bold rounded-lg transition-all duration-300 flex items-center justify-center gap-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF] will-change-transform relative overflow-hidden';
+  const baseClasses = 'font-bold rounded-full transition-all duration-300 flex items-center justify-center gap-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF] will-change-transform relative overflow-hidden backdrop-blur-sm';
 
   const variantClasses = {
-    primary: 'bg-gradient-to-r from-[#5AA6FF] via-[#6BB3FF] to-[#8B7CFF] text-white hover:shadow-xl hover:shadow-[#5AA6FF]/50 hover:scale-105 active:scale-95 hover:-translate-y-1 font-bold',
+    primary: 'bg-gradient-to-r from-[#5AA6FF] via-[#6BB3FF] to-[#8B7CFF] text-white hover:shadow-xl hover:shadow-[#5AA6FF]/50 hover:scale-110 active:scale-95 hover:-translate-y-1 font-bold',
     secondary: 'bg-[#E8F2FF] text-[#5AA6FF] border border-[#C7D2E1]/80 hover:bg-[#D8E8FF] hover:border-[#5AA6FF]/70 hover:shadow-lg hover:shadow-[#5AA6FF]/25 active:bg-[#C8DEFF] font-bold',
     ghost: 'text-[#5AA6FF] hover:bg-[#E8F2FF]/70 hover:shadow-md hover:shadow-[#5AA6FF]/15 active:bg-[#D8E8FF] font-bold',
     danger: 'bg-gradient-to-r from-[#EF4444] to-[#DC2626] text-white hover:shadow-xl hover:shadow-[#EF4444]/40 active:scale-95 font-bold',
@@ -71,7 +72,12 @@ export function GlowButton({
 
   const handleMouseDown = () => setIsPressed(true);
   const handleMouseUp = () => setIsPressed(false);
-  const handleMouseLeave = () => setIsPressed(false);
+  const handleMouseLeave = () => {
+    setIsPressed(false);
+    setIsHovering(false);
+  };
+
+  const handleMouseEnter = () => setIsHovering(true);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (enableSpecularHighlight) {
@@ -93,15 +99,19 @@ export function GlowButton({
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
+      onMouseEnter={handleMouseEnter}
       onMouseMove={handleMouseMove}
       {...props}
     >
+      {/* Light scattering layer - refraction effect */}
+      <div className="absolute inset-0 pointer-events-none rounded-full bg-gradient-to-br from-transparent via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
       {/* Specular highlight layer - dynamic light reflection with mouse tracking */}
-      {enableSpecularHighlight && (
+      {enableSpecularHighlight && isHovering && (
         <div
-          className="absolute inset-0 pointer-events-none rounded-lg opacity-0 hover:opacity-100 transition-opacity duration-300"
+          className="absolute inset-0 pointer-events-none rounded-full opacity-70 transition-opacity duration-300"
           style={{
-            background: `radial-gradient(circle at ${mousePos.x}px ${mousePos.y}px, rgba(255, 255, 255, 0.35) 0%, transparent 50%)`,
+            background: `radial-gradient(circle at ${mousePos.x}px ${mousePos.y}px, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.15) 35%, transparent 65%)`,
           }}
         />
       )}
