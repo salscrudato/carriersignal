@@ -27,14 +27,14 @@ function HeaderComponent({
 
   // Calculate shadow intensity based on scroll position (0-8px)
   const shadowIntensity = Math.min(scrollY / 20, 1);
-  const shadowOpacity = shadowIntensity * 0.12;
+  const shadowOpacity = shadowIntensity * 0.08;
 
   return (
     <header
-      className="w-full liquid-glass-ultra border-b border-[#C7D2E1]/25 transition-all duration-200 backdrop-blur-lg relative"
+      className="w-full liquid-glass-ultra border-b border-[#C7D2E1]/20 transition-all duration-200 backdrop-blur-lg relative"
       style={{
         paddingTop: 'env(safe-area-inset-top)',
-        boxShadow: `0 ${Math.min(scrollY / 10, 8)}px ${16 + shadowIntensity * 8}px rgba(0, 0, 0, ${shadowOpacity})`,
+        boxShadow: `0 ${Math.min(scrollY / 10, 6)}px ${12 + shadowIntensity * 6}px rgba(0, 0, 0, ${shadowOpacity})`,
       }}
       onMouseMove={handleMouseMove}
     >
@@ -53,16 +53,16 @@ function HeaderComponent({
           {/* Center: Logo & Branding - Centered */}
           <div className="flex items-center justify-center gap-2.5 sm:gap-3 group flex-shrink-0">
             {/* Shield Icon with Blue Background - Smooth Modern Glow */}
-            <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-[#5AA6FF] via-[#6BB3FF] to-[#4A96EF] flex items-center justify-center group-hover:scale-110 transition-all duration-250 animate-softGlow group-hover:animate-enhancedPremiumGlow">
+            <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-[#5AA6FF] via-[#6BB3FF] to-[#4A96EF] flex items-center justify-center group-hover:scale-103 transition-all duration-300 animate-softGlow group-hover:animate-enhancedPremiumGlow shadow-md shadow-[#5AA6FF]/25">
               {/* Inner shine effect - Subtle */}
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-white/30 to-transparent opacity-0 group-hover:opacity-80 transition-opacity duration-300"></div>
-              <Shield size={20} className="text-white sm:w-6 sm:h-6 relative z-10 group-hover:scale-125 transition-transform duration-250" />
+              <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <Shield size={20} className="text-white sm:w-6 sm:h-6 relative z-10 group-hover:scale-110 transition-transform duration-250" />
             </div>
 
             {/* Title & Tagline */}
             <div className="flex flex-col justify-center items-start gap-0.5">
               <h1
-                className="font-bold tracking-tight transition-all duration-250 group-hover:scale-105 whitespace-nowrap"
+                className="font-bold tracking-tight transition-all duration-250 group-hover:scale-102 whitespace-nowrap"
                 style={{
                   fontSize: 'clamp(1.1rem, 4vw, 1.5rem)',
                   fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif',
@@ -86,10 +86,10 @@ function HeaderComponent({
           {/* Right: Status Indicators */}
           <div className="flex items-center gap-2 flex-shrink-0 flex-1 justify-end">
             {isLoading && (
-              <div className="flex items-center gap-2 px-3 py-1.5 liquid-glass rounded-full border border-[#5AA6FF]/30 shadow-sm hover:shadow-md transition-all duration-250">
+              <div className="flex items-center gap-2 px-3 py-1.5 liquid-glass rounded-full border border-[#5AA6FF]/25 shadow-sm transition-all duration-250">
                 <div className="relative w-2 h-2">
                   <div className="absolute inset-0 bg-gradient-to-r from-[#5AA6FF] to-[#8B7CFF] rounded-full animate-pulse"></div>
-                  <div className="absolute inset-0 bg-gradient-to-r from-[#5AA6FF] to-[#8B7CFF] rounded-full animate-pulseGlow opacity-40"></div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#5AA6FF] to-[#8B7CFF] rounded-full animate-pulseGlow opacity-30"></div>
                 </div>
                 <span className="text-xs font-semibold text-[#5AA6FF] hidden sm:inline">Analyzing…</span>
               </div>

@@ -92,10 +92,10 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
             isOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
           }`}
         >
-          <div className="liquid-glass-ultra border-t border-[#C7D2E1]/35 rounded-t-3xl shadow-2xl shadow-[#5AA6FF]/25 animate-enhancedPremiumGlow" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          <div className="liquid-glass-ultra border-t border-[#C7D2E1]/40 rounded-t-3xl shadow-2xl shadow-[#5AA6FF]/30 animate-enhancedPremiumGlow" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
             {/* Handle Bar - Aurora Gradient */}
             <div className="flex justify-center pt-5 pb-4">
-              <div className="w-12 h-1.5 bg-gradient-to-r from-[#5AA6FF] via-[#8B7CFF] to-[#B08CFF] rounded-full opacity-90 transition-all duration-300 hover:opacity-100" />
+              <div className="w-12 h-1.5 bg-gradient-to-r from-[#5AA6FF] via-[#8B7CFF] to-[#B08CFF] rounded-full opacity-100 transition-all duration-300 hover:opacity-100 hover:scale-110" />
             </div>
 
             {/* Navigation Items */}
@@ -104,10 +104,10 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
               <button
                 onClick={() => handleNavClick('feed')}
                 onMouseMove={(e) => handleNavButtonMouseMove(e, 'feed')}
-                className={`nav-button w-full flex items-center gap-3.5 px-5 py-3 rounded-xl font-bold transition-all duration-250 transform min-h-[48px] animate-slideInUp relative overflow-hidden ${
+                className={`nav-button w-full flex items-center gap-3.5 px-5 py-3 rounded-xl font-bold transition-all duration-300 transform min-h-[52px] animate-slideInUp relative overflow-hidden ${
                   currentView === 'feed'
-                    ? 'liquid-glass-premium text-[#5AA6FF] shadow-lg shadow-[#5AA6FF]/30 border border-[#5AA6FF]/40 scale-105'
-                    : 'liquid-glass text-[#0F172A] hover:border-[#C7D2E1]/50 hover:shadow-md hover:scale-102 active:scale-98'
+                    ? 'liquid-glass-premium text-[#5AA6FF] shadow-lg shadow-[#5AA6FF]/35 border border-[#5AA6FF]/50 scale-105'
+                    : 'liquid-glass text-[#0F172A] hover:border-[#C7D2E1]/60 hover:shadow-md hover:shadow-[#5AA6FF]/15 hover:scale-[1.02] active:scale-95'
                 }`}
                 style={{ animationDelay: '0ms' }}
                 aria-label="News Feed"

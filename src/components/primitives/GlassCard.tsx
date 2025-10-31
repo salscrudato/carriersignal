@@ -46,7 +46,7 @@ export function GlassCard({
   };
 
   const interactiveClasses = interactive
-    ? 'cursor-pointer hover:shadow-lg hover:shadow-[#5AA6FF]/20 hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF] transition-all duration-300'
+    ? 'cursor-pointer hover:shadow-lg hover:shadow-[#5AA6FF]/20 hover:scale-[1.01] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF] transition-all duration-300 hover:border-[#5AA6FF]/30'
     : '';
 
   const fluidAnimationClasses = enableFluidAnimation && isHovering

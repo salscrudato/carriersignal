@@ -6,9 +6,9 @@
 
 export function SkeletonLoader() {
   return (
-    <div className="skeleton-item liquid-glass-premium rounded-3xl border border-[#C7D2E1]/40 overflow-hidden transition-all duration-400 animate-slideInWithBounce animate-enhancedPremiumGlow" role="status" aria-label="Loading article details" aria-busy="true">
+    <div className="skeleton-item liquid-glass-premium rounded-3xl border border-[#C7D2E1]/50 overflow-hidden transition-all duration-400 animate-slideInWithBounce animate-enhancedPremiumGlow shadow-lg shadow-[#5AA6FF]/10" role="status" aria-label="Loading article details" aria-busy="true">
       {/* Premium accent line with Aurora gradient */}
-      <div className="h-2 bg-gradient-to-r from-[#5AA6FF] via-[#8B7CFF] to-[#B08CFF] opacity-90 animate-liquidGlassShimmer"></div>
+      <div className="h-2.5 bg-gradient-to-r from-[#5AA6FF] via-[#8B7CFF] to-[#B08CFF] opacity-100 animate-liquidGlassShimmer"></div>
 
       {/* Header with liquid glass effect */}
       <div className="px-7 py-6 border-b border-[#C7D2E1]/30 bg-gradient-to-br from-white/50 to-[#F9FBFF]/30 backdrop-blur-sm">
@@ -54,7 +54,7 @@ export function SkeletonLoader() {
  */
 export function CardSkeleton() {
   return (
-    <div className="glass rounded-2xl border border-[#C7D2E1]/40 p-4 space-y-3.5 animate-fadeIn" role="status" aria-label="Loading article card" aria-busy="true">
+    <div className="glass rounded-2xl border border-[#C7D2E1]/50 p-4 space-y-3.5 animate-fadeIn shadow-md shadow-[#5AA6FF]/10" role="status" aria-label="Loading article card" aria-busy="true">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">

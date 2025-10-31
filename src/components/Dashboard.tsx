@@ -234,13 +234,13 @@ interface MetricCardProps {
 
 function MetricCard({ icon, label, value, color }: MetricCardProps) {
   const colorClasses = {
-    blue: 'from-[#E8F2FF]/60 to-[#E8F2FF]/40 border-[#5AA6FF]/50 text-[#5AA6FF]',
-    red: 'from-[#FEE2E2]/60 to-[#FEE2E2]/40 border-[#EF4444]/50 text-[#EF4444]',
-    orange: 'from-[#FEF3C7]/60 to-[#FEF3C7]/40 border-[#F59E0B]/50 text-[#F59E0B]',
+    blue: 'from-[#E8F2FF]/70 to-[#E8F2FF]/50 border-[#5AA6FF]/60 text-[#5AA6FF]',
+    red: 'from-[#FEE2E2]/70 to-[#FEE2E2]/50 border-[#EF4444]/60 text-[#EF4444]',
+    orange: 'from-[#FEF3C7]/70 to-[#FEF3C7]/50 border-[#F59E0B]/60 text-[#F59E0B]',
   };
 
   return (
-    <div className={`liquid-glass-premium rounded-xl border p-5 bg-gradient-to-br ${colorClasses[color]} hover:shadow-md transition-all duration-250 animate-enhancedPremiumGlow elevated-glow`}>
+    <div className={`liquid-glass-premium rounded-xl border p-5 bg-gradient-to-br ${colorClasses[color]} hover:shadow-lg hover:shadow-[#5AA6FF]/20 transition-all duration-300 animate-enhancedPremiumGlow elevated-glow hover:scale-105`}>
       <div className="flex items-start justify-between mb-3">
         <div className={`p-2.5 rounded-lg liquid-glass-light ${colorClasses[color].split(' ')[2]} animate-iconGlow shadow-sm border border-white/50`}>
           {icon}
@@ -261,13 +261,13 @@ interface InsightCardProps {
 
 function InsightCard({ title, icon, color, children }: InsightCardProps) {
   const colorClasses = {
-    blue: 'from-[#E8F2FF]/60 to-[#E8F2FF]/40 border-[#5AA6FF]/50 text-[#5AA6FF]',
-    red: 'from-[#FEE2E2]/60 to-[#FEE2E2]/40 border-[#EF4444]/50 text-[#EF4444]',
-    green: 'from-[#DCFCE7]/60 to-[#DCFCE7]/40 border-[#16A34A]/50 text-[#16A34A]',
+    blue: 'from-[#E8F2FF]/70 to-[#E8F2FF]/50 border-[#5AA6FF]/60 text-[#5AA6FF]',
+    red: 'from-[#FEE2E2]/70 to-[#FEE2E2]/50 border-[#EF4444]/60 text-[#EF4444]',
+    green: 'from-[#DCFCE7]/70 to-[#DCFCE7]/50 border-[#16A34A]/60 text-[#16A34A]',
   };
 
   return (
-    <div className={`liquid-glass-premium rounded-xl border p-6 bg-gradient-to-br ${colorClasses[color]} hover:shadow-lg transition-all duration-300 animate-enhancedPremiumGlow elevated-glow`}>
+    <div className={`liquid-glass-premium rounded-xl border p-6 bg-gradient-to-br ${colorClasses[color]} hover:shadow-xl hover:shadow-[#5AA6FF]/20 transition-all duration-300 animate-enhancedPremiumGlow elevated-glow hover:scale-[1.01]`}>
       <div className="flex items-center gap-3 mb-6">
         <div className="p-2 rounded-lg liquid-glass-light animate-iconGlow shadow-md border border-white/60">
           {icon}

@@ -39,29 +39,29 @@ export function Badge({
   const [isHovering, setIsHovering] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
-  const baseClasses = 'inline-flex items-center font-bold rounded-full transition-all duration-300 will-change-transform relative overflow-hidden';
+  const baseClasses = 'inline-flex items-center font-semibold rounded-full transition-all duration-300 will-change-transform relative overflow-hidden';
 
   const variantClasses = {
-    default: 'bg-[#E8F2FF] text-[#0F172A] border border-[#5AA6FF]/50 hover:border-[#5AA6FF]/80 hover:bg-[#D8E8FF] hover:shadow-md hover:shadow-[#5AA6FF]/25 hover:text-[#5AA6FF]',
-    success: 'bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7]/70 hover:border-[#6EE7B7]/90 hover:bg-[#A7F3D0] hover:shadow-md hover:shadow-[#059669]/25',
-    warning: 'bg-[#FEF3C7] text-[#92400E] border border-[#FCD34D]/70 hover:border-[#FCD34D]/90 hover:bg-[#FDE68A] hover:shadow-md hover:shadow-[#D97706]/25',
-    danger: 'bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5]/70 hover:border-[#FCA5A5]/90 hover:bg-[#FECACA] hover:shadow-md hover:shadow-[#DC2626]/25',
-    info: 'bg-[#E0E7FF] text-[#3730A3] border border-[#A5B4FC]/70 hover:border-[#A5B4FC]/90 hover:bg-[#C7D2FE] hover:shadow-md hover:shadow-[#4F46E5]/25',
-    lob: 'bg-gradient-to-r from-[#E0E7FF] to-[#C7D2FE] text-[#3730A3] border border-[#A5B4FC]/70 hover:border-[#A5B4FC]/90 hover:shadow-lg hover:shadow-[#4338CA]/30',
-    peril: 'bg-gradient-to-r from-[#FEE2E2] to-[#FECACA] text-[#7F1D1D] border border-[#FCA5A5]/70 hover:border-[#FCA5A5]/90 hover:shadow-lg hover:shadow-[#DC2626]/30',
-    region: 'bg-gradient-to-r from-[#D1FAE5] to-[#A7F3D0] text-[#065F46] border border-[#6EE7B7]/70 hover:border-[#6EE7B7]/90 hover:shadow-lg hover:shadow-[#059669]/30',
-    company: 'bg-gradient-to-r from-[#E0F2FE] to-[#F0F7FF] text-[#0C4A6E] border border-[#7DD3FC]/70 hover:border-[#7DD3FC]/90 hover:shadow-lg hover:shadow-[#0369A1]/30',
-    trend: 'bg-gradient-to-r from-[#FEF3C7] to-[#FDE68A] text-[#78350F] border border-[#FCD34D]/70 hover:border-[#FCD34D]/90 hover:shadow-lg hover:shadow-[#D97706]/30',
-    regulation: 'bg-gradient-to-r from-[#F1F5F9] to-[#E2E8F0] text-[#1E293B] border border-[#CBD5E1]/70 hover:border-[#CBD5E1]/90 hover:shadow-md hover:shadow-[#334155]/20',
+    default: 'bg-[#E8F2FF] text-[#0F172A] border border-[#5AA6FF]/40 hover:border-[#5AA6FF]/60 hover:bg-[#D8E8FF] hover:shadow-sm hover:shadow-[#5AA6FF]/20 hover:text-[#5AA6FF]',
+    success: 'bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7]/50 hover:border-[#6EE7B7]/70 hover:bg-[#A7F3D0] hover:shadow-sm hover:shadow-[#059669]/20',
+    warning: 'bg-[#FEF3C7] text-[#92400E] border border-[#FCD34D]/50 hover:border-[#FCD34D]/70 hover:bg-[#FDE68A] hover:shadow-sm hover:shadow-[#D97706]/20',
+    danger: 'bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5]/50 hover:border-[#FCA5A5]/70 hover:bg-[#FECACA] hover:shadow-sm hover:shadow-[#DC2626]/20',
+    info: 'bg-[#E0E7FF] text-[#3730A3] border border-[#A5B4FC]/50 hover:border-[#A5B4FC]/70 hover:bg-[#C7D2FE] hover:shadow-sm hover:shadow-[#4F46E5]/20',
+    lob: 'bg-gradient-to-r from-[#E0E7FF] to-[#C7D2FE] text-[#3730A3] border border-[#A5B4FC]/50 hover:border-[#A5B4FC]/70 hover:shadow-md hover:shadow-[#4338CA]/20',
+    peril: 'bg-gradient-to-r from-[#FEE2E2] to-[#FECACA] text-[#7F1D1D] border border-[#FCA5A5]/50 hover:border-[#FCA5A5]/70 hover:shadow-md hover:shadow-[#DC2626]/20',
+    region: 'bg-gradient-to-r from-[#D1FAE5] to-[#A7F3D0] text-[#065F46] border border-[#6EE7B7]/50 hover:border-[#6EE7B7]/70 hover:shadow-md hover:shadow-[#059669]/20',
+    company: 'bg-gradient-to-r from-[#E0F2FE] to-[#F0F7FF] text-[#0C4A6E] border border-[#7DD3FC]/50 hover:border-[#7DD3FC]/70 hover:shadow-md hover:shadow-[#0369A1]/20',
+    trend: 'bg-gradient-to-r from-[#FEF3C7] to-[#FDE68A] text-[#78350F] border border-[#FCD34D]/50 hover:border-[#FCD34D]/70 hover:shadow-md hover:shadow-[#D97706]/20',
+    regulation: 'bg-gradient-to-r from-[#F1F5F9] to-[#E2E8F0] text-[#1E293B] border border-[#CBD5E1]/50 hover:border-[#CBD5E1]/70 hover:shadow-sm hover:shadow-[#334155]/15',
   };
 
   const sizeClasses = {
-    sm: 'px-3 py-1.5 text-xs',
-    md: 'px-4 py-2 text-sm',
+    sm: 'px-3 py-1.5 text-xs font-semibold',
+    md: 'px-4 py-2 text-sm font-semibold',
   };
 
   const glowClasses = glow
-    ? 'shadow-md shadow-[#5AA6FF]/25 hover:shadow-lg hover:shadow-[#5AA6FF]/45'
+    ? 'shadow-sm shadow-[#5AA6FF]/20 hover:shadow-md hover:shadow-[#5AA6FF]/30'
     : '';
 
   const fluidAnimationClasses = enableFluidAnimation && isHovering

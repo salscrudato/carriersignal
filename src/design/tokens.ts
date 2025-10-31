@@ -7,7 +7,10 @@ export const colors = {
   // Aurora Accent Set
   aurora: {
     blue: '#5AA6FF',
+    blueDark: '#4A96EF',
+    blueLight: '#6BB3FF',
     violet: '#8B7CFF',
+    violetDark: '#7B6CEF',
     lilac: '#B08CFF',
   },
 
@@ -16,7 +19,8 @@ export const colors = {
     white: '#FFFFFF',
     50: '#F9FBFF',
     100: '#F0F7FF',
-    200: '#E8F2FF',
+    150: '#E8F2FF',
+    200: '#E0ECFF',
     300: '#D4DFE8',
     400: '#C7D2E1',
     500: '#94A3B8',
@@ -26,12 +30,16 @@ export const colors = {
     900: '#0F172A',
   },
 
-  // Semantic Colors
+  // Semantic Colors with enhanced contrast
   semantic: {
     success: '#06B6D4',
+    successDark: '#0891B2',
     warning: '#F59E0B',
+    warningDark: '#D97706',
     danger: '#EF4444',
-    info: '#5AA6FF',
+    dangerDark: '#DC2626',
+    info: '#3B82F6',
+    infoDark: '#2563EB',
   },
 
   // Insurance-Specific
@@ -71,7 +79,7 @@ export const typography = {
   lineHeight: {
     tight: 1.2,
     normal: 1.5,
-    relaxed: 1.6,
+    relaxed: 1.65,
     loose: 1.8,
   },
   letterSpacing: {

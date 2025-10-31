@@ -243,10 +243,10 @@ function SearchResultCard({ result, isSelected, onSelect, index = 0 }: SearchRes
   return (
     <div
       style={{ animationDelay: `${index * 50}ms` }}
-      className={`w-full max-w-full rounded-xl border-2 transition-all duration-250 animate-slideInWithBounce overflow-hidden flex flex-col cursor-pointer ${
+      className={`w-full max-w-full rounded-xl border-2 transition-all duration-300 animate-slideInWithBounce overflow-hidden flex flex-col cursor-pointer ${
         isSelected
-          ? 'liquid-glass-ultra border-[#5AA6FF]/60 animate-premiumGlow elevated-glow scale-101'
-          : 'liquid-glass border-[#C7D2E1]/40 hover:border-[#5AA6FF]/60 hover:scale-101 hover:animate-subtleGlowPulse micro-glow'
+          ? 'liquid-glass-ultra border-[#5AA6FF]/70 animate-premiumGlow elevated-glow scale-101 shadow-xl shadow-[#5AA6FF]/20'
+          : 'liquid-glass border-[#C7D2E1]/40 hover:border-[#5AA6FF]/70 hover:scale-[1.01] hover:animate-subtleGlowPulse micro-glow hover:shadow-lg hover:shadow-[#5AA6FF]/15'
       }`}
     >
       {/* Gradient Accent Top - Aurora Colors */}
@@ -267,7 +267,7 @@ function SearchResultCard({ result, isSelected, onSelect, index = 0 }: SearchRes
         </div>
 
         {/* Title - Enhanced Typography */}
-        <h3 className="font-bold text-[#0F172A] text-sm md:text-base leading-snug line-clamp-3 hover:text-[#5AA6FF] transition-colors w-full max-w-full overflow-hidden break-words">
+        <h3 className="font-bold text-[#0F172A] text-base md:text-lg leading-tight line-clamp-3 hover:text-[#5AA6FF] transition-colors duration-200 w-full max-w-full overflow-hidden break-words">
           {article.title}
         </h3>
 

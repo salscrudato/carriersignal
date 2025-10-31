@@ -42,14 +42,14 @@ export function GlowButton({
   const [isHovering, setIsHovering] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
-  const baseClasses = 'font-bold rounded-full transition-all duration-300 flex items-center justify-center gap-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF] will-change-transform relative overflow-hidden backdrop-blur-sm';
+  const baseClasses = 'font-semibold rounded-full transition-all duration-300 flex items-center justify-center gap-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF] will-change-transform relative overflow-hidden backdrop-blur-sm';
 
   const variantClasses = {
-    primary: 'bg-gradient-to-r from-[#5AA6FF] via-[#6BB3FF] to-[#8B7CFF] text-white hover:shadow-xl hover:shadow-[#5AA6FF]/50 hover:scale-110 active:scale-95 hover:-translate-y-1 font-bold',
-    secondary: 'bg-[#E8F2FF] text-[#5AA6FF] border border-[#C7D2E1]/80 hover:bg-[#D8E8FF] hover:border-[#5AA6FF]/70 hover:shadow-lg hover:shadow-[#5AA6FF]/25 active:bg-[#C8DEFF] font-bold',
-    ghost: 'text-[#5AA6FF] hover:bg-[#E8F2FF]/70 hover:shadow-md hover:shadow-[#5AA6FF]/15 active:bg-[#D8E8FF] font-bold',
-    danger: 'bg-gradient-to-r from-[#EF4444] to-[#DC2626] text-white hover:shadow-xl hover:shadow-[#EF4444]/40 active:scale-95 font-bold',
-    success: 'bg-gradient-to-r from-[#06B6D4] to-[#0891B2] text-white hover:shadow-xl hover:shadow-[#06B6D4]/40 active:scale-95 font-bold',
+    primary: 'bg-gradient-to-r from-[#5AA6FF] via-[#6BB3FF] to-[#8B7CFF] text-white hover:shadow-xl hover:shadow-[#5AA6FF]/35 hover:scale-103 active:scale-95 hover:-translate-y-0.5 font-semibold transition-all duration-300',
+    secondary: 'bg-[#E8F2FF] text-[#5AA6FF] border border-[#C7D2E1]/60 hover:bg-[#D8E8FF] hover:border-[#5AA6FF]/60 hover:shadow-md hover:shadow-[#5AA6FF]/20 active:bg-[#C8DEFF] font-semibold transition-all duration-300',
+    ghost: 'text-[#5AA6FF] hover:bg-[#E8F2FF]/70 hover:shadow-sm hover:shadow-[#5AA6FF]/15 active:bg-[#D8E8FF] font-semibold transition-all duration-300',
+    danger: 'bg-gradient-to-r from-[#EF4444] to-[#DC2626] text-white hover:shadow-xl hover:shadow-[#EF4444]/35 active:scale-95 font-semibold transition-all duration-300',
+    success: 'bg-gradient-to-r from-[#06B6D4] to-[#0891B2] text-white hover:shadow-xl hover:shadow-[#06B6D4]/35 active:scale-95 font-semibold transition-all duration-300',
   };
 
   const sizeClasses = {
@@ -59,7 +59,7 @@ export function GlowButton({
   };
 
   const glowClasses = glow && (variant === 'primary' || variant === 'success' || variant === 'danger')
-    ? 'shadow-lg shadow-[#5AA6FF]/35 hover:shadow-2xl hover:shadow-[#5AA6FF]/45'
+    ? 'shadow-lg shadow-[#5AA6FF]/25 hover:shadow-xl hover:shadow-[#5AA6FF]/35'
     : '';
 
   const fluidAnimationClasses = enableFluidAnimation && isPressed
