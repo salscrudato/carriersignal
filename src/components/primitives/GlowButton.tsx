@@ -62,7 +62,7 @@ export function GlowButton({
     : '';
 
   const fluidAnimationClasses = enableFluidAnimation && isPressed
-    ? 'animate-liquidWiggle'
+    ? 'animate-advancedButtonPress'
     : '';
 
   const disabledClasses = disabled || loading

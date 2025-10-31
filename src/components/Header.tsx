@@ -9,6 +9,7 @@ function HeaderComponent({
   isLoading,
 }: HeaderProps) {
   const [scrollY, setScrollY] = useState(0);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
@@ -16,18 +17,34 @@ function HeaderComponent({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMousePos({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+  };
+
   // Calculate shadow intensity based on scroll position (0-8px)
   const shadowIntensity = Math.min(scrollY / 20, 1);
   const shadowOpacity = shadowIntensity * 0.12;
 
   return (
     <header
-      className="w-full liquid-glass-ultra border-b border-[#C7D2E1]/25 transition-all duration-200 backdrop-blur-lg"
+      className="w-full liquid-glass-ultra border-b border-[#C7D2E1]/25 transition-all duration-200 backdrop-blur-lg relative"
       style={{
         paddingTop: 'env(safe-area-inset-top)',
         boxShadow: `0 ${Math.min(scrollY / 10, 8)}px ${16 + shadowIntensity * 8}px rgba(0, 0, 0, ${shadowOpacity})`,
       }}
+      onMouseMove={handleMouseMove}
     >
+      {/* Specular highlight layer - dynamic light reflection */}
+      <div
+        className="absolute inset-0 pointer-events-none rounded-b-2xl opacity-0 hover:opacity-100 transition-opacity duration-300"
+        style={{
+          background: `radial-gradient(circle at ${mousePos.x}px ${mousePos.y}px, rgba(255, 255, 255, 0.25) 0%, transparent 50%)`,
+        }}
+      />
       <div className="mx-auto w-full max-w-full px-4 sm:px-6 lg:px-8 relative z-10 overflow-x-hidden">
         <div className="flex items-center justify-between h-16 sm:h-20 gap-4 touch-manipulation relative w-full max-w-full overflow-x-hidden">
           {/* Left: Empty space for balance */}
