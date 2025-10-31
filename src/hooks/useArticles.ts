@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { collection, query, orderBy, limit, startAfter, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, limit, startAfter, getDocs, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { QueryConstraint } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { Article } from '../types';
@@ -37,7 +37,7 @@ export function useArticles({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
-  const lastCursorRef = useRef<any>(null);
+  const lastCursorRef = useRef<QueryDocumentSnapshot | null>(null);
   const isLoadingRef = useRef(false);
   const prefetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pageCountRef = useRef(0);
@@ -62,8 +62,6 @@ export function useArticles({
 
       const q = query(collection(db, 'articles'), ...constraints);
       const snapshot = await getDocs(q);
-
-      console.log(`[useArticles] Initial query returned ${snapshot.docs.length} documents with sort: ${sortBy}`);
 
       const docs = snapshot.docs.map((doc) => {
         const data = doc.data();
@@ -117,7 +115,6 @@ export function useArticles({
 
     try {
       pageCountRef.current += 1;
-      console.log(`[useArticles] Loading page ${pageCountRef.current}...`);
 
       const constraints: QueryConstraint[] = [
         orderBy(sortBy, sortOrder),
@@ -128,10 +125,7 @@ export function useArticles({
       const q = query(collection(db, 'articles'), ...constraints);
       const snapshot = await getDocs(q);
 
-      console.log(`[useArticles] Page ${pageCountRef.current}: Fetched ${snapshot.docs.length} articles`);
-
       if (snapshot.docs.length === 0) {
-        console.log('[useArticles] No more articles - reached end');
         setHasMore(false);
         return;
       }
@@ -147,11 +141,7 @@ export function useArticles({
       }) as Article[];
 
       // Update articles
-      setArticles((prev) => {
-        const updated = [...prev, ...docs];
-        console.log(`[useArticles] Total articles now: ${updated.length}`);
-        return updated;
-      });
+      setArticles((prev) => [...prev, ...docs]);
 
       // Update cursor for next page
       lastCursorRef.current = snapshot.docs[snapshot.docs.length - 1];

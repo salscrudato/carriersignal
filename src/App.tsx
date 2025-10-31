@@ -25,11 +25,6 @@ function AppContent() {
   // Map sort mode to query field
   const sortByField = sortMode === 'recency' ? 'publishedAt' : 'aiScore';
 
-  // Log sort mode changes
-  useEffect(() => {
-    console.log('[App] Sort mode changed to:', sortMode, '-> sortByField:', sortByField);
-  }, [sortMode, sortByField]);
-
   // Use custom hook for articles
   const { articles, loading, isLoadingMore, error, hasMore, loadMore } = useArticles({
     pageSize: 20,

@@ -1884,88 +1884,7 @@ main,
   scroll-behavior: smooth;
 }
 
-/* Slide In Down Animation */
-@keyframes slideInDown {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
-.animate-slideInDown {
-  animation: slideInDown 0.4s ease-out;
-}
-
-/* Fade In Animation */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.animate-fadeIn {
-  animation: fadeIn 0.3s ease-in;
-}
-
-/* Smooth Scroll Fade In - For scrolled content */
-@keyframes smoothScrollFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-smoothScrollFadeIn {
-  animation: smoothScrollFadeIn 0.4s ease-out;
-}
-
-/* Scale In Animation */
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.animate-scaleIn {
-  animation: scaleIn 0.3s ease-out;
-}
-
-/* Shimmer Animation for Loading States */
-@keyframes shimmer {
-  0% {
-    background-position: -1000px 0;
-  }
-  100% {
-    background-position: 1000px 0;
-  }
-}
-
-.animate-shimmer {
-  background: linear-gradient(
-    90deg,
-    #f0f0f0 0%,
-    #f8f8f8 50%,
-    #f0f0f0 100%
-  );
-  background-size: 1000px 100%;
-  animation: shimmer 2s infinite;
-}
 
 /* WCAG AA Compliance - Contrast Ratios Verified */
 /* All text combinations meet minimum 4.5:1 for body text, 3:1 for large text */
@@ -2014,11 +1933,7 @@ main,
   }
 }
 
-/* Dark Mode Support (Future-Proofing) */
-@media (prefers-color-scheme: dark) {
-  /* Placeholder for future dark mode implementation */
-  /* Currently light-only, but structure is ready */
-}
+
 
 /* Accessibility - Focus Visible Styles */
 *:focus-visible {
@@ -2128,50 +2043,7 @@ input {
   transform: scale(0.98);
 }
 
-/* Accessibility & Performance Optimizations */
 
-/* Focus Visible Styles - Keyboard Navigation */
-:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-
-button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
-/* High Contrast Mode Support */
-@media (prefers-contrast: more) {
-  :root {
-    --color-text-primary: #000000;
-    --color-text-secondary: #1a1a1a;
-    --color-border: #000000;
-  }
-
-  .glass,
-  .liquid-glass,
-  .liquid-glass-premium {
-    border-width: 2px;
-  }
-}
-
-/* Reduced Motion Support */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
 
 /* Dark Mode Support - DISABLED: Light theme only */
 /* This application uses light theme exclusively */
@@ -2370,20 +2242,9 @@ img {
 }
 
 /* Performance: GPU Acceleration */
-.glass,
-.liquid-glass,
-.liquid-glass-premium,
-button,
-a {
-  will-change: transform, opacity;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-}
-
 /* Performance: Optimize Scrolling - Enhanced Fluidity */
 main,
 .overflow-y-auto {
-  -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
   /* GPU acceleration for smooth scrolling */
   will-change: scroll-position;

@@ -1,11 +1,11 @@
 import { Shield } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 
 interface HeaderProps {
   isLoading: boolean;
 }
 
-export function Header({
+function HeaderComponent({
   isLoading,
 }: HeaderProps) {
   const [scrollY, setScrollY] = useState(0);
@@ -83,4 +83,6 @@ export function Header({
     </header>
   );
 }
+
+export const Header = memo(HeaderComponent);
 

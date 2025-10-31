@@ -5,7 +5,7 @@ import {initializeApp} from "firebase-admin/app";
 import {getFirestore} from "firebase-admin/firestore";
 import OpenAI from "openai";
 import Parser from "rss-parser";
-import {extractArticle, summarizeAndTag, embedForRAG, hashUrl, calculateSmartScore, normalizeRegions, normalizeCompanies, getCanonicalUrl, computeContentHash, detectStormName, isRegulatorySource, scoreArticleWithAI, validateAndCleanArticle, checkRAGQuality} from "./agents";
+import {extractArticle, summarizeAndTag, embedForRAG, hashUrl, calculateSmartScore, normalizeRegions, normalizeCompanies, getCanonicalUrl, computeContentHash, detectStormName, isRegulatorySource, scoreArticleWithAI, validateAndCleanArticle, checkRAGQuality, type Article} from "./agents";
 
 initializeApp();
 const db = getFirestore();
@@ -1184,8 +1184,7 @@ export const askBrief = onRequest({cors: false, secrets: [OPENAI_API_KEY]}, asyn
 
     // Fetch recent articles - reduced from 500 to 200 for better performance
     const snap = await db.collection("articles").orderBy("createdAt", "desc").limit(200).get();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const articles = snap.docs.map((d) => ({id: d.id, ...d.data()} as any));
+    const articles = snap.docs.map((d) => ({id: d.id, ...d.data()} as Article & {id: string}));
 
     if (articles.length === 0) {
       res.json({

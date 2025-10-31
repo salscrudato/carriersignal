@@ -145,7 +145,7 @@ export function sortByDynamicScore(articles: Article[]): Article[] {
  */
 export function sortByRecency(articles: Article[]): Article[] {
   return articles.sort((a, b) => {
-    const getTime = (date: any) => {
+    const getTime = (date: string | Date | { toDate: () => Date } | undefined): number => {
       if (!date) return 0;
       if (date instanceof Date) return date.getTime();
       if (typeof date === 'object' && 'toDate' in date) return date.toDate().getTime();

@@ -13,7 +13,7 @@ export interface TooltipProps {
   children: ReactNode;
   position?: 'top' | 'bottom' | 'left' | 'right';
   delay?: number;
-  variant?: 'dark' | 'light';
+  variant?: 'light';
   disabled?: boolean;
 }
 
@@ -22,7 +22,7 @@ export function Tooltip({
   children,
   position = 'top',
   delay = 200,
-  variant = 'dark',
+  variant = 'light',
   disabled = false,
 }: TooltipProps) {
   const [isVisible, setIsVisible] = useState(false);
@@ -64,12 +64,10 @@ export function Tooltip({
   };
 
   const variantClasses = {
-    dark: 'bg-[#0F172A] text-white',
     light: 'bg-[#F9FBFF] text-[#0F172A] border border-[#C7D2E1]',
   };
 
   const arrowClasses = {
-    dark: 'bg-[#0F172A]',
     light: 'bg-[#F9FBFF] border border-[#C7D2E1]',
   };
 

@@ -37,6 +37,12 @@ interface Article {
   stormName?: string;
 }
 
+interface SearchResult {
+  article: Article;
+  score: number;
+  matchType: string;
+}
+
 interface SearchFirstProps {
   articles: Article[];
   onArticleSelect: (article: Article) => void;
@@ -59,7 +65,7 @@ export function SearchFirst({
   hasMore = true,
   onScroll,
 }: SearchFirstProps) {
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [localSortBy, setLocalSortBy] = useState<'smart' | 'recency'>(sortMode || 'smart');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -84,14 +90,14 @@ export function SearchFirst({
       results.sort((a, b) => b.score - a.score);
     } else if (localSortBy === 'recency') {
       results.sort((a, b) => {
-        const getTime = (date: any) => {
+        const getTime = (date: string | Date | { toDate: () => Date } | undefined): number => {
           if (!date) return 0;
           if (date instanceof Date) return date.getTime();
           if (typeof date === 'object' && 'toDate' in date) return date.toDate().getTime();
           return new Date(date).getTime();
         };
-        const dateA = getTime((a.article as any).publishedAt);
-        const dateB = getTime((b.article as any).publishedAt);
+        const dateA = getTime(a.article.publishedAt);
+        const dateB = getTime(b.article.publishedAt);
         return dateB - dateA;
       });
     }

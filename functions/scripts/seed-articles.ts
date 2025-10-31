@@ -175,7 +175,7 @@ async function fetchArticles(): Promise<RawArticle[]> {
 /**
  * Process articles with AI to generate summaries and tags
  */
-async function processArticleWithAI(article: RawArticle): Promise<any> {
+async function processArticleWithAI(article: RawArticle): Promise<Record<string, unknown> | null> {
   try {
     const prompt = `Analyze this insurance news article and provide structured insights:
 

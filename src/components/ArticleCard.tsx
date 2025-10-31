@@ -5,7 +5,7 @@
  */
 
 import { Bookmark, Share2, TrendingUp, AlertCircle, ChevronDown, Sparkles } from 'lucide-react';
-import { useState, memo } from 'react';
+import { useState, memo, useCallback } from 'react';
 import type { Article } from '../types';
 import { Badge } from './primitives/Badge';
 import { GlassCard } from './primitives/GlassCard';
@@ -44,18 +44,18 @@ function ArticleCardComponent({
     : 100;
   const hasQualityIssues = ragQualityScore < 70;
 
-  const handleBookmark = (e: React.MouseEvent) => {
+  const handleBookmark = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsBookmarked(!isBookmarked);
+    setIsBookmarked(prev => !prev);
     onBookmark?.();
-  };
+  }, [onBookmark]);
 
-  const handleShare = (e: React.MouseEvent) => {
+  const handleShare = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     setIsSharing(true);
     onShare?.();
     setTimeout(() => setIsSharing(false), 1000);
-  };
+  }, [onShare]);
 
   return (
     <GlassCard

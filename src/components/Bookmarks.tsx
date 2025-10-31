@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Bookmark, Trash2, ExternalLink, Calendar } from 'lucide-react';
+import { Bookmark, Trash2, ExternalLink } from 'lucide-react';
+import type { Article } from '../types';
 
 interface BookmarkedArticle {
   id: string;
@@ -13,7 +14,7 @@ interface BookmarkedArticle {
 }
 
 interface BookmarksProps {
-  onArticleSelect?: (article: any) => void;
+  onArticleSelect?: (article: Article) => void;
 }
 
 export function Bookmarks({ onArticleSelect }: BookmarksProps) {
@@ -52,8 +53,7 @@ export function Bookmarks({ onArticleSelect }: BookmarksProps) {
         setBookmarks(items.sort((a, b) => b.savedAt.getTime() - a.savedAt.getTime()));
         setLoading(false);
       },
-      (error) => {
-        console.error('Error fetching bookmarks:', error);
+      () => {
         setLoading(false);
       }
     );
@@ -61,13 +61,13 @@ export function Bookmarks({ onArticleSelect }: BookmarksProps) {
     return () => unsubscribe();
   }, [deviceId]);
 
-  const handleRemoveBookmark = async (bookmarkId: string) => {
+  const handleRemoveBookmark = useCallback(async (bookmarkId: string) => {
     try {
       await deleteDoc(doc(db, 'bookmarks', bookmarkId));
-    } catch (error) {
-      console.error('Error removing bookmark:', error);
+    } catch {
+      // Silently fail - error already handled by Firestore
     }
-  };
+  }, []);
 
   if (loading) {
     return (
@@ -107,7 +107,7 @@ export function Bookmarks({ onArticleSelect }: BookmarksProps) {
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <button
-                  onClick={() => onArticleSelect?.({url: bookmark.url, title: bookmark.title})}
+                  onClick={() => onArticleSelect?.({ url: bookmark.url, title: bookmark.title } as Article)}
                   className="text-left hover:text-[#5AA6FF] transition-colors"
                 >
                   <h3 className="font-semibold text-[#0F172A] line-clamp-2 hover:underline">
@@ -115,10 +115,9 @@ export function Bookmarks({ onArticleSelect }: BookmarksProps) {
                   </h3>
                 </button>
                 <p className="text-sm text-[#64748B] mt-1">{bookmark.source}</p>
-                <div className="flex items-center gap-2 mt-2 text-xs text-[#94A3B8]">
-                  <Calendar size={12} />
-                  <span>{bookmark.savedAt.toLocaleDateString()}</span>
-                </div>
+                <p className="text-xs text-[#94A3B8] mt-2">
+                  {bookmark.savedAt.toLocaleDateString()}
+                </p>
               </div>
 
               <div className="flex items-center gap-1.5 flex-shrink-0">
