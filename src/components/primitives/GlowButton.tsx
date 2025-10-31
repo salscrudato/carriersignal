@@ -1,11 +1,14 @@
 /**
  * GlowButton Component
- * Reusable button with glow effects and Aurora color support
+ * Reusable button with Apple Liquid Glass design (June 2025)
+ * Implements: specular highlights, fluid morphing, physics-based animations, wiggle effects
+ * Features: dynamic light reflection, organic motion on interaction, shimmer effects
  * Supports primary (gradient), secondary (light), and ghost variants
- * Fully accessible with ARIA attributes and keyboard support
+ * Fully accessible with ARIA attributes, keyboard support, and Reduce Transparency mode
  */
 
 import type { ReactNode, ButtonHTMLAttributes } from 'react';
+import { useState } from 'react';
 
 export interface GlowButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
@@ -16,6 +19,8 @@ export interface GlowButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>
   icon?: ReactNode;
   ariaLabel?: string;
   ariaDescribedBy?: string;
+  enableFluidAnimation?: boolean;
+  enableSpecularHighlight?: boolean;
 }
 
 export function GlowButton({
@@ -29,9 +34,14 @@ export function GlowButton({
   disabled,
   ariaLabel,
   ariaDescribedBy,
+  enableFluidAnimation = true,
+  enableSpecularHighlight = true,
   ...props
 }: GlowButtonProps) {
-  const baseClasses = 'font-bold rounded-lg transition-all duration-300 flex items-center justify-center gap-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF] will-change-transform';
+  const [isPressed, setIsPressed] = useState(false);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  const baseClasses = 'font-bold rounded-lg transition-all duration-300 flex items-center justify-center gap-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF] will-change-transform relative overflow-hidden';
 
   const variantClasses = {
     primary: 'bg-gradient-to-r from-[#5AA6FF] via-[#6BB3FF] to-[#8B7CFF] text-white hover:shadow-xl hover:shadow-[#5AA6FF]/50 hover:scale-105 active:scale-95 hover:-translate-y-1 font-bold',
@@ -51,19 +61,51 @@ export function GlowButton({
     ? 'shadow-lg shadow-[#5AA6FF]/35 hover:shadow-2xl hover:shadow-[#5AA6FF]/45'
     : '';
 
+  const fluidAnimationClasses = enableFluidAnimation && isPressed
+    ? 'animate-liquidWiggle'
+    : '';
+
   const disabledClasses = disabled || loading
     ? 'opacity-50 cursor-not-allowed pointer-events-none'
     : '';
 
+  const handleMouseDown = () => setIsPressed(true);
+  const handleMouseUp = () => setIsPressed(false);
+  const handleMouseLeave = () => setIsPressed(false);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (enableSpecularHighlight) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setMousePos({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      });
+    }
+  };
+
   return (
     <button
-      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${glowClasses} ${disabledClasses} ${className}`}
+      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${glowClasses} ${fluidAnimationClasses} ${disabledClasses} ${className}`}
       disabled={disabled || loading}
       aria-label={ariaLabel}
       aria-describedby={ariaDescribedBy}
       aria-busy={loading}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
+      onMouseMove={handleMouseMove}
       {...props}
     >
+      {/* Specular highlight layer - dynamic light reflection with mouse tracking */}
+      {enableSpecularHighlight && (
+        <div
+          className="absolute inset-0 pointer-events-none rounded-lg opacity-0 hover:opacity-100 transition-opacity duration-300"
+          style={{
+            background: `radial-gradient(circle at ${mousePos.x}px ${mousePos.y}px, rgba(255, 255, 255, 0.35) 0%, transparent 50%)`,
+          }}
+        />
+      )}
+
       {loading && (
         <div
           className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"

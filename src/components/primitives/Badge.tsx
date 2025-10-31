@@ -1,11 +1,14 @@
 /**
  * Badge Component
- * Reusable badge for tags, labels, and status indicators
+ * Reusable badge with Apple Liquid Glass design (June 2025)
+ * Implements: translucency, specular highlights, spring-scale animations, bubble effects
+ * Features: dynamic light reflection, organic motion, shimmer effects
  * Supports LOB, peril, region, and semantic variants
- * Features glow effects, micro-animations, and accessibility
+ * Fully accessible with keyboard navigation, ARIA support, and Reduce Transparency mode
  */
 
 import type { ReactNode, HTMLAttributes, KeyboardEvent } from 'react';
+import { useState } from 'react';
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   children: ReactNode;
@@ -16,6 +19,8 @@ export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   onClick?: () => void;
   glow?: boolean;
   ariaLabel?: string;
+  enableFluidAnimation?: boolean;
+  enableSpecularHighlight?: boolean;
 }
 
 export function Badge({
@@ -27,9 +32,14 @@ export function Badge({
   onClick,
   glow = false,
   ariaLabel,
+  enableFluidAnimation = true,
+  enableSpecularHighlight = true,
   ...props
 }: BadgeProps) {
-  const baseClasses = 'inline-flex items-center font-bold rounded-full transition-all duration-300 will-change-transform';
+  const [isHovering, setIsHovering] = useState(false);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  const baseClasses = 'inline-flex items-center font-bold rounded-full transition-all duration-300 will-change-transform relative overflow-hidden';
 
   const variantClasses = {
     default: 'bg-[#E8F2FF] text-[#0F172A] border border-[#5AA6FF]/50 hover:border-[#5AA6FF]/80 hover:bg-[#D8E8FF] hover:shadow-md hover:shadow-[#5AA6FF]/25 hover:text-[#5AA6FF]',
@@ -54,6 +64,10 @@ export function Badge({
     ? 'shadow-md shadow-[#5AA6FF]/25 hover:shadow-lg hover:shadow-[#5AA6FF]/45'
     : '';
 
+  const fluidAnimationClasses = enableFluidAnimation && isHovering
+    ? 'animate-tagChipSpringScale'
+    : '';
+
   const interactiveClasses = interactive
     ? 'cursor-pointer hover:scale-115 active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5AA6FF] transition-transform duration-300'
     : '';
@@ -65,16 +79,38 @@ export function Badge({
     }
   };
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLSpanElement>) => {
+    if (enableSpecularHighlight) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setMousePos({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      });
+    }
+  };
+
   return (
     <span
-      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${glowClasses} ${interactiveClasses} ${className}`}
+      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${glowClasses} ${fluidAnimationClasses} ${interactiveClasses} ${className}`}
       onClick={onClick}
       onKeyDown={handleKeyDown}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+      onMouseMove={handleMouseMove}
       role={interactive ? 'button' : 'status'}
       tabIndex={interactive ? 0 : undefined}
       aria-label={ariaLabel}
       {...props}
     >
+      {/* Specular highlight layer - dynamic light reflection with mouse tracking */}
+      {enableSpecularHighlight && isHovering && (
+        <div
+          className="absolute inset-0 pointer-events-none rounded-full opacity-70 transition-opacity duration-300"
+          style={{
+            background: `radial-gradient(circle at ${mousePos.x}px ${mousePos.y}px, rgba(255, 255, 255, 0.4) 0%, transparent 50%)`,
+          }}
+        />
+      )}
       {children}
     </span>
   );

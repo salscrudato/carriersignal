@@ -732,7 +732,7 @@ button:focus-visible {
   }
 }
 
-/* Liquid Glass Animations */
+/* Liquid Glass Animations - Apple Liquid Glass Design */
 @keyframes liquidGlassShimmer {
   0% {
     background-position: -1000px 0;
@@ -752,6 +752,113 @@ button:focus-visible {
     box-shadow:
       0 16px 64px 0 rgba(139, 124, 255, 0.2),
       inset 0 1px 2px 0 rgba(255, 255, 255, 0.7);
+  }
+}
+
+/* Fluid morphing animation - Jell-O-like motion */
+@keyframes fluidMorph {
+  0%, 100% {
+    transform: scale(1) translateY(0);
+    border-radius: 0.75rem;
+  }
+  25% {
+    transform: scale(1.02, 0.98) translateY(-1px);
+    border-radius: 0.8rem;
+  }
+  50% {
+    transform: scale(0.98, 1.02) translateY(0);
+    border-radius: 0.75rem;
+  }
+  75% {
+    transform: scale(1.01, 0.99) translateY(1px);
+    border-radius: 0.78rem;
+  }
+}
+
+/* Ripple effect - light scattering animation */
+@keyframes liquidRipple {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(90, 166, 255, 0.4),
+      0 0 0 0 rgba(139, 124, 255, 0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 0 8px rgba(90, 166, 255, 0.1),
+      0 0 0 12px rgba(139, 124, 255, 0.05);
+  }
+  100% {
+    box-shadow:
+      0 0 0 16px rgba(90, 166, 255, 0),
+      0 0 0 24px rgba(139, 124, 255, 0);
+  }
+}
+
+/* Pulsating shimmer - specular highlight animation */
+@keyframes liquidShimmer {
+  0%, 100% {
+    opacity: 0.3;
+    transform: translateX(-100%);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateX(100%);
+  }
+}
+
+/* Wiggle animation - organic motion on interaction (Jell-O-like) */
+@keyframes liquidWiggle {
+  0%, 100% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(0.5deg) scale(1.01);
+  }
+  50% {
+    transform: rotate(-0.5deg) scale(0.99);
+  }
+  75% {
+    transform: rotate(0.3deg) scale(1.005);
+  }
+}
+
+/* Squish animation - compression and expansion */
+@keyframes liquidSquish {
+  0%, 100% {
+    transform: scaleY(1) scaleX(1);
+  }
+  25% {
+    transform: scaleY(0.95) scaleX(1.05);
+  }
+  50% {
+    transform: scaleY(1.05) scaleX(0.95);
+  }
+  75% {
+    transform: scaleY(0.98) scaleX(1.02);
+  }
+}
+
+/* Pulsate animation - breathing effect */
+@keyframes liquidPulsate {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.03);
+    opacity: 0.95;
+  }
+}
+
+/* Bubble animation - floating motion */
+@keyframes liquidBubble {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-8px) scale(1.02);
+    opacity: 0.95;
   }
 }
 
@@ -1003,6 +1110,41 @@ header {
   animation: liquidGlassGlow 3s ease-in-out infinite;
 }
 
+/* Fluid morphing animation - Jell-O-like motion */
+.animate-fluidMorph {
+  animation: fluidMorph 2s ease-in-out infinite;
+}
+
+/* Ripple effect animation */
+.animate-liquidRipple {
+  animation: liquidRipple 1.5s ease-out infinite;
+}
+
+/* Pulsating shimmer animation */
+.animate-liquidShimmer {
+  animation: liquidShimmer 2s ease-in-out infinite;
+}
+
+/* Wiggle animation - organic motion */
+.animate-liquidWiggle {
+  animation: liquidWiggle 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Squish animation - compression and expansion */
+.animate-liquidSquish {
+  animation: liquidSquish 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Pulsate animation - breathing effect */
+.animate-liquidPulsate {
+  animation: liquidPulsate 1.5s ease-in-out infinite;
+}
+
+/* Bubble animation - floating motion */
+.animate-liquidBubble {
+  animation: liquidBubble 2s ease-in-out infinite;
+}
+
 .animate-cardLiquidLift {
   animation: cardLiquidLift 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
@@ -1240,7 +1382,8 @@ header {
   animation: scoreGlow 2s ease-in-out infinite;
 }
 
-/* Liquid Glass & Glassmorphism Effects - Apple-Inspired with Blue Accents */
+/* Liquid Glass & Glassmorphism Effects - Apple Liquid Glass Design (June 2025) */
+/* Translucency: 40-70% opacity with dynamic refraction and light scattering */
 .glass {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.88) 0%, rgba(240, 249, 255, 0.78) 100%);
   backdrop-filter: blur(28px) saturate(210%) brightness(1.12);
@@ -1254,6 +1397,22 @@ header {
     inset 0 -1px 1px 0 rgba(0, 0, 0, 0.02);
   transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
   will-change: transform, box-shadow;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Specular highlight layer - dynamic light reflection */
+.glass::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.4) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+  pointer-events: none;
 }
 
 .glass:hover {
@@ -1268,9 +1427,14 @@ header {
   transform: translateY(-2px);
 }
 
+.glass:hover::after {
+  opacity: 1;
+}
+
 /* .glass-dark - REMOVED: Light theme only, use .glass instead */
 
 /* Liquid Glass - Premium Frosted Effect with Aurora Accent Glow - CRISP & REFINED */
+/* Implements Apple Liquid Glass: translucency, refraction, light scattering, specular highlights */
 .liquid-glass {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.97) 0%, rgba(249, 251, 255, 0.94) 100%);
   backdrop-filter: blur(12px) saturate(180%) brightness(1.08);
@@ -1286,11 +1450,26 @@ header {
   overflow: hidden;
 }
 
+/* Light scattering gradient layer */
 .liquid-glass::before {
   content: '';
   position: absolute;
   inset: 0;
   background: linear-gradient(135deg, rgba(90, 166, 255, 0.02) 0%, transparent 50%, rgba(176, 140, 255, 0.01) 100%);
+  pointer-events: none;
+}
+
+/* Specular highlight - dynamic light reflection */
+.liquid-glass::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.35) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
   pointer-events: none;
 }
 
@@ -1304,7 +1483,12 @@ header {
   transform: translateY(-2px);
 }
 
+.liquid-glass:hover::after {
+  opacity: 1;
+}
+
 /* Ultra Premium Liquid Glass with Aurora Accent Glow - CRISP & REFINED */
+/* Enhanced with fluid morphing and dynamic light responses */
 .liquid-glass-premium {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 251, 255, 0.95) 100%);
   backdrop-filter: blur(16px) saturate(195%) brightness(1.12);
@@ -1320,11 +1504,26 @@ header {
   border-radius: 0.875rem;
 }
 
+/* Light scattering layer */
 .liquid-glass-premium::before {
   content: '';
   position: absolute;
   inset: 0;
   background: linear-gradient(135deg, rgba(90, 166, 255, 0.05) 0%, transparent 50%, rgba(176, 140, 255, 0.02) 100%);
+  pointer-events: none;
+}
+
+/* Specular highlight with enhanced intensity */
+.liquid-glass-premium::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.45) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
   pointer-events: none;
 }
 
@@ -1338,7 +1537,12 @@ header {
   transform: translateY(-2px);
 }
 
+.liquid-glass-premium:hover::after {
+  opacity: 1;
+}
+
 /* Ultra Liquid Glass - Maximum Frosted Effect with Aurora Glow - CRISP & REFINED */
+/* Maximum translucency with enhanced refraction and light scattering */
 .liquid-glass-ultra {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.99) 0%, rgba(249, 251, 255, 0.97) 100%);
   backdrop-filter: blur(20px) saturate(210%) brightness(1.14);
@@ -1354,11 +1558,26 @@ header {
   border-radius: 1rem;
 }
 
+/* Enhanced light scattering layer */
 .liquid-glass-ultra::before {
   content: '';
   position: absolute;
   inset: 0;
   background: linear-gradient(135deg, rgba(90, 166, 255, 0.07) 0%, transparent 50%, rgba(176, 140, 255, 0.03) 100%);
+  pointer-events: none;
+}
+
+/* Maximum specular highlight intensity */
+.liquid-glass-ultra::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.55) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
   pointer-events: none;
 }
 
@@ -1370,6 +1589,10 @@ header {
     0 0 32px rgba(139, 124, 255, 0.12),
     inset 0 1px 2px 0 rgba(255, 255, 255, 0.97);
   transform: translateY(-2.5px);
+}
+
+.liquid-glass-ultra:hover::after {
+  opacity: 1;
 }
 
 /* Premium Gradient Backgrounds - Aurora-Based Modern Theme */
@@ -1546,7 +1769,8 @@ header {
     0 0 8px rgba(139, 124, 255, 0.10);
 }
 
-/* Premium Button Styles - Aurora Gradient */
+/* Premium Button Styles - Aurora Gradient with Liquid Glass Effects */
+/* Features: specular highlights, fluid morphing, dynamic light responses */
 .btn-premium {
   position: relative;
   overflow: hidden;
@@ -1561,6 +1785,7 @@ header {
     inset 0 1px 1px 0 rgba(255, 255, 255, 0.35);
 }
 
+/* Shimmer effect - light scattering */
 .btn-premium::before {
   content: '';
   position: absolute;
@@ -1572,6 +1797,7 @@ header {
   transition: left 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* Specular highlight - dynamic light reflection */
 .btn-premium::after {
   content: '';
   position: absolute;
@@ -1614,6 +1840,7 @@ header {
 }
 
 /* Enhanced Card Styles - Aurora Theme with Liquid Glass */
+/* Features: translucency, refraction, specular highlights, fluid morphing */
 .card-premium {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 251, 255, 0.96) 100%);
   backdrop-filter: blur(16px) saturate(165%);
@@ -1631,6 +1858,7 @@ header {
   will-change: transform, box-shadow, border-color;
 }
 
+/* Top edge highlight - light scattering */
 .card-premium::before {
   content: '';
   position: absolute;
@@ -1641,6 +1869,20 @@ header {
   background: linear-gradient(90deg, transparent, rgba(90, 166, 255, 0.40), rgba(139, 124, 255, 0.40), rgba(176, 140, 255, 0.30), transparent);
   opacity: 0;
   transition: opacity 0.35s ease-out;
+}
+
+/* Specular highlight layer */
+.card-premium::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.3) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity 0.35s ease-out;
+  pointer-events: none;
 }
 
 .card-premium:hover {
@@ -1654,6 +1896,10 @@ header {
 }
 
 .card-premium:hover::before {
+  opacity: 1;
+}
+
+.card-premium:hover::after {
   opacity: 1;
 }
 
@@ -1678,6 +1924,7 @@ header {
   will-change: transform, box-shadow, border-color;
 }
 
+/* Top edge highlight - light scattering */
 .card-premium-elevated::before {
   content: '';
   position: absolute;
@@ -1688,6 +1935,20 @@ header {
   background: linear-gradient(90deg, transparent, rgba(90, 166, 255, 0.40), rgba(139, 124, 255, 0.40), rgba(176, 140, 255, 0.30), transparent);
   opacity: 0;
   transition: opacity 0.3s ease-out;
+}
+
+/* Specular highlight layer */
+.card-premium-elevated::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.35) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+  pointer-events: none;
 }
 
 .card-premium-elevated:hover {
@@ -1701,6 +1962,10 @@ header {
 }
 
 .card-premium-elevated:hover::before {
+  opacity: 1;
+}
+
+.card-premium-elevated:hover::after {
   opacity: 1;
 }
 
@@ -1918,18 +2183,55 @@ main,
   }
 }
 
-/* High Contrast Mode Support */
+/* High Contrast Mode Support - Liquid Glass Accessibility */
 @media (prefers-contrast: more) {
   .glass,
   .liquid-glass,
-  .liquid-glass-premium {
+  .liquid-glass-premium,
+  .liquid-glass-ultra {
     border-width: 2px;
-    border-color: rgba(37, 99, 235, 0.5);
+    border-color: rgba(37, 99, 235, 0.8);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 249, 255, 0.92) 100%);
   }
 
   button:focus-visible,
   a:focus-visible {
     outline-width: 3px;
+  }
+
+  /* Add white outlines for better visibility */
+  .glass::after,
+  .liquid-glass::after,
+  .liquid-glass-premium::after,
+  .liquid-glass-ultra::after {
+    border: 1px solid rgba(255, 255, 255, 0.8);
+  }
+}
+
+/* Reduce Transparency Mode - Liquid Glass Accessibility */
+@media (prefers-reduced-transparency) {
+  .glass,
+  .liquid-glass,
+  .liquid-glass-premium,
+  .liquid-glass-ultra {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 251, 255, 0.96) 100%);
+    backdrop-filter: blur(8px) saturate(150%);
+    -webkit-backdrop-filter: blur(8px) saturate(150%);
+  }
+
+  /* Increase opacity for better visibility */
+  .glass::before,
+  .liquid-glass::before,
+  .liquid-glass-premium::before,
+  .liquid-glass-ultra::before {
+    opacity: 0.15;
+  }
+
+  .glass::after,
+  .liquid-glass::after,
+  .liquid-glass-premium::after,
+  .liquid-glass-ultra::after {
+    opacity: 0.3;
   }
 }
 

@@ -69,29 +69,5 @@ export function useRealTimeScoring({
   }, [updateScores, updateInterval, enabled]);
 }
 
-/**
- * Hook for tracking time spent on an article
- * Useful for engagement metrics
- */
-export function useArticleTimeTracking(
-  articleId: string | undefined,
-  onTimeUpdate?: (seconds: number) => void
-): void {
-  const startTimeRef = useRef<number | null>(null);
-  const accumulatedTimeRef = useRef<number>(0);
 
-  useEffect(() => {
-    if (!articleId) return;
-
-    startTimeRef.current = Date.now();
-
-    return () => {
-      if (startTimeRef.current) {
-        const timeSpent = Math.floor((Date.now() - startTimeRef.current) / 1000);
-        accumulatedTimeRef.current += timeSpent;
-        onTimeUpdate?.(accumulatedTimeRef.current);
-      }
-    };
-  }, [articleId, onTimeUpdate]);
-}
 

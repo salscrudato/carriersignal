@@ -14,7 +14,6 @@ export const API_CONFIG = {
   
   // API endpoints
   ENDPOINTS: {
-    ASK_BRIEF: '/askBrief',
     REFRESH_FEEDS: '/refreshFeedsWithBatching',
   },
 };
