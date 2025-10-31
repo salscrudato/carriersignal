@@ -143,14 +143,14 @@ async function fetchArticles(): Promise<RawArticle[]> {
           
           // Only include articles from the past 2 days
           if (pubDate >= twoDaysAgo) {
-            const itemData = item as any;
+            const itemData = item as unknown;
             const article: RawArticle = {
               title: item.title || '',
               url: item.link || '',
               source: feed.name,
               publishedAt: item.isoDate || item.pubDate || new Date().toISOString(),
               description: item.contentSnippet || '',
-              html: itemData.content || item.content || itemData.description || '',
+              html: ((itemData as Record<string, unknown>).content as string) || item.content || ((itemData as Record<string, unknown>).description as string) || '',
               text: item.contentSnippet || '',
             };
 
@@ -223,7 +223,7 @@ Provide a JSON response with:
 /**
  * Calculate composite smart score using improved ranking algorithm
  */
-function calculateSmartScore(article: any): number {
+function calculateSmartScore(article: Record<string, unknown>): number {
   // Weights: AI Relevance 40%, Newsworthiness 30%, Recency 15%, RAG Quality 10%, User Feedback 5%
   const aiRelevanceWeight = 0.40;
   const newsworthinessWeight = 0.30;
@@ -232,17 +232,18 @@ function calculateSmartScore(article: any): number {
   const userFeedbackWeight = 0.05;
 
   // AI Relevance Score (0-100)
-  const aiScore = Math.min(100, (article.impactScore || 50) * (article.confidence || 0.7) * 100);
+  const aiScore = Math.min(100, ((article.impactScore as number) || 50) * ((article.confidence as number) || 0.7) * 100);
 
   // Newsworthiness Score (0-100) - based on impact breakdown
   let newsworthinessScore = 50;
   if (article.impactBreakdown) {
-    const { regulatory = 0, catastrophe = 0, market = 0, technology = 0 } = article.impactBreakdown;
+    const breakdown = article.impactBreakdown as Record<string, number>;
+    const { regulatory = 0, catastrophe = 0, market = 0, technology = 0 } = breakdown;
     newsworthinessScore = (regulatory + catastrophe + market + technology) / 4;
   }
 
   // Recency Score (0-100) - articles from today get 100, older articles decay
-  const publishedDate = new Date(article.publishedAt);
+  const publishedDate = new Date(article.publishedAt as string);
   const now = new Date();
   const hoursOld = (now.getTime() - publishedDate.getTime()) / (1000 * 60 * 60);
   const recencyScore = Math.max(0, 100 - (hoursOld * 2)); // Decay 2 points per hour
@@ -267,7 +268,7 @@ function calculateSmartScore(article: any): number {
 /**
  * Store processed articles in Firestore with improved ranking
  */
-async function storeArticles(articles: any[]) {
+async function storeArticles(articles: Record<string, unknown>[]) {
   console.log('💾 Storing articles in Firestore with improved ranking...');
 
   let stored = 0;
@@ -279,7 +280,7 @@ async function storeArticles(articles: any[]) {
       const smartScore = calculateSmartScore(article);
 
       // Generate unique ID using hash of URL + title to avoid collisions
-      const hash = crypto.createHash('md5').update(article.url + article.title).digest('hex').substring(0, 20);
+      const hash = crypto.createHash('md5').update((article.url as string) + (article.title as string)).digest('hex').substring(0, 20);
       const docId = `${hash}_${Date.now()}`;
 
       await db.collection('articles').doc(docId).set({

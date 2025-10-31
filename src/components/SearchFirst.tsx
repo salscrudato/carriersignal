@@ -13,6 +13,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Zap, Clock, ExternalLink } from 'lucide-react';
 import { InfiniteScrollLoader, ScrollSentinelLoader } from './InfiniteScrollLoader';
 import { calculateDynamicArticleScore } from '../utils/scoring';
+import { logger } from '../utils/logger';
 
 interface Article {
   title: string;
@@ -72,7 +73,7 @@ export function SearchFirst({
   // Display articles with dynamic scoring and sorting
   useEffect(() => {
     // Map to results format with dynamic score calculation
-    let results = articles.map(article => {
+    const results = articles.map(article => {
       // Calculate dynamic score in real-time to account for article age
       const dynamicScore = calculateDynamicArticleScore(article);
       return {
@@ -112,7 +113,7 @@ export function SearchFirst({
 
     // Use passive listener for better scroll performance
     container.addEventListener('scroll', onScroll, { passive: true });
-    return () => container.removeEventListener('scroll', onScroll, { passive: true } as any);
+    return () => container.removeEventListener('scroll', onScroll, { passive: true } as AddEventListenerOptions);
   }, [onScroll]);
 
 
@@ -130,7 +131,7 @@ export function SearchFirst({
             <div className="sort-button-group flex items-center gap-1.5 sm:gap-2 liquid-glass-light rounded-xl p-1.5 border border-[#C7D2E1]/35 flex-shrink-0 shadow-sm">
               <button
                 onClick={() => {
-                  console.log('[SearchFirst] Changing sort to smart');
+                  logger.debug('SearchFirst', 'Changing sort to smart');
                   setLocalSortBy('smart');
                   onSortChange?.('smart');
                 }}
@@ -149,7 +150,7 @@ export function SearchFirst({
               </button>
               <button
                 onClick={() => {
-                  console.log('[SearchFirst] Changing sort to recency');
+                  logger.debug('SearchFirst', 'Changing sort to recency');
                   setLocalSortBy('recency');
                   onSortChange?.('recency');
                 }}
@@ -217,8 +218,15 @@ export function SearchFirst({
 /**
  * Individual search result card
  */
+interface SearchResult {
+  article: Article;
+  score: number;
+  matchType: string;
+  highlights: string[];
+}
+
 interface SearchResultCardProps {
-  result: any;
+  result: SearchResult;
   isSelected: boolean;
   onSelect: () => void;
   index?: number;
@@ -294,7 +302,7 @@ function SearchResultCard({ result, isSelected, onSelect, index = 0 }: SearchRes
         )}
 
         {/* Tags Section */}
-        {article.tags && Object.values(article.tags).some((tagArray: any) => tagArray && tagArray.length > 0) && (
+        {article.tags && Object.values(article.tags).some((tagArray: string[] | undefined) => tagArray && tagArray.length > 0) && (
           <div className="space-y-2 py-3 border-t border-[#C7D2E1]/25 pt-3 w-full max-w-full overflow-x-hidden">
             <div className="flex flex-wrap gap-2 w-full max-w-full">
               {/* LOB Tags - Cyan */}

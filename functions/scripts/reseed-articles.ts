@@ -155,7 +155,7 @@ async function fetchArticles(): Promise<RawArticle[]> {
                 source: feed.name,
                 publishedAt: item.isoDate || item.pubDate || new Date().toISOString(),
                 description: item.contentSnippet || '',
-                content: extractedContent?.content || (item as any).content || item.content || (item as any).description || '',
+                content: extractedContent?.content || (item as Record<string, unknown>).content as string || item.content || (item as Record<string, unknown>).description as string || '',
                 html: extractedContent?.html || '',
               };
 
@@ -163,7 +163,7 @@ async function fetchArticles(): Promise<RawArticle[]> {
                 allArticles.push(article);
               }
             }
-          } catch (itemError) {
+          } catch {
             // Skip individual items that fail to parse
             continue;
           }
@@ -229,7 +229,7 @@ async function upsertArticles(articles: RawArticle[]) {
       const existingDoc = await docRef.get();
       const isNew = !existingDoc.exists;
 
-      const docData: any = {
+      const docData: Record<string, unknown> = {
         title: article.title,
         url: article.url,
         source: article.source,
@@ -247,7 +247,7 @@ async function upsertArticles(articles: RawArticle[]) {
 
       // Only set createdAt if this is a new document
       if (isNew) {
-        (docData as any).createdAt = new Date();
+        docData.createdAt = new Date();
       }
 
       // Use set with merge to be idempotent

@@ -18,7 +18,7 @@ export function SettingsPanel({
 
   // Load settings from localStorage
   useEffect(() => {
-    const sort = localStorage.getItem('carriersignal_sort') as any;
+    const sort = localStorage.getItem('carriersignal_sort') as 'smart' | 'recency' | null;
 
     if (sort) setSelectedSort(sort);
   }, []);
@@ -53,7 +53,7 @@ export function SettingsPanel({
               return (
                 <button
                   key={sort.id}
-                  onClick={() => setSelectedSort(sort.id as any)}
+                  onClick={() => setSelectedSort(sort.id as 'smart' | 'recency')}
                   className={`w-full p-4 rounded-lg border-2 transition-all duration-250 text-left flex items-center gap-3 ${
                     selectedSort === sort.id
                       ? 'liquid-glass-premium border-[#5AA6FF]/50 bg-gradient-to-r from-[#E8F2FF]/30 to-[#E8F2FF]/15'

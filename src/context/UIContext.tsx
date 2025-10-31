@@ -3,24 +3,9 @@
  * Manages global UI state: view mode, sort mode, palette state, etc.
  */
 
-import { createContext, useContext, useState } from 'react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
-
-type ViewMode = 'feed' | 'dashboard' | 'bookmarks' | 'settings' | 'test';
-type SortMode = 'smart' | 'recency';
-
-interface UIContextType {
-  view: ViewMode;
-  setView: (view: ViewMode) => void;
-  sortMode: SortMode;
-  setSortMode: (mode: SortMode) => void;
-  isPaletteOpen: boolean;
-  setIsPaletteOpen: (open: boolean) => void;
-  quickReadArticleUrl: string | null;
-  setQuickReadArticleUrl: (url: string | null) => void;
-}
-
-const UIContext = createContext<UIContextType | undefined>(undefined);
+import { UIContext, type UIContextType, type ViewMode, type SortMode } from './UIContextType';
 
 export function UIProvider({ children }: { children: ReactNode }) {
   const [view, setView] = useState<ViewMode>('feed');
@@ -44,13 +29,5 @@ export function UIProvider({ children }: { children: ReactNode }) {
       {children}
     </UIContext.Provider>
   );
-}
-
-export function useUI() {
-  const context = useContext(UIContext);
-  if (!context) {
-    throw new Error('useUI must be used within UIProvider');
-  }
-  return context;
 }
 

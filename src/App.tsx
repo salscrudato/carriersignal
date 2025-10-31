@@ -7,7 +7,7 @@ import { SkeletonGrid } from "./components/SkeletonLoader";
 import { CommandPalette } from "./components/CommandPalette";
 import { useArticles } from "./hooks/useArticles";
 import { useRealTimeScoring } from "./hooks/useRealTimeScoring";
-import { useUI } from "./context/UIContext";
+import { useUI } from "./hooks/useUI";
 import { ErrorBoundary } from "./utils/errorBoundary";
 import { logger } from "./utils/logger";
 import type { Article } from "./types";
@@ -64,11 +64,9 @@ function AppContent() {
       const { scrollTop, scrollHeight, clientHeight } = container;
       const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
 
-      console.log('[App] Scroll event - distance from bottom:', distanceFromBottom, 'isLoadingMore:', isLoadingMore, 'hasMore:', hasMore);
-
       if (distanceFromBottom < 500) {
         lastLoadTimeRef.current = now;
-        console.log('[App] ✅ Loading more articles');
+        logger.debug('App', 'Loading more articles', { distanceFromBottom, isLoadingMore, hasMore });
         void loadMore();
       }
     });
@@ -85,7 +83,7 @@ function AppContent() {
 
   // Manual test button for pagination
   const handleManualLoadMore = async () => {
-    console.log('[App] Manual loadMore triggered');
+    logger.debug('App', 'Manual loadMore triggered');
     await loadMore();
   };
 

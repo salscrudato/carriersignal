@@ -84,12 +84,9 @@ export function useArticles({
         docsLength: docs.length,
         hasMoreArticles,
       });
-
-      console.log(`[useArticles] Initial load: ${docs.length} articles, hasMore: ${hasMoreArticles}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load articles';
       logger.error('useArticles', 'Failed to load initial articles', { error: message });
-      console.error('[useArticles] Error loading initial articles:', err);
       setError(message);
     } finally {
       setLoading(false);
@@ -100,13 +97,13 @@ export function useArticles({
   const loadMore = useCallback(async () => {
     // Prevent concurrent loads
     if (isLoadingRef.current) {
-      console.log('[useArticles] Already loading, skipping loadMore');
+      logger.debug('useArticles', 'Already loading, skipping loadMore');
       return;
     }
 
     // Don't load if we don't have a cursor
     if (!lastCursorRef.current) {
-      console.log('[useArticles] No cursor available, skipping loadMore');
+      logger.debug('useArticles', 'No cursor available, skipping loadMore');
       return;
     }
 
@@ -149,10 +146,9 @@ export function useArticles({
       // Check if there are more articles
       const hasMoreArticles = snapshot.docs.length === pageSize;
       setHasMore(hasMoreArticles);
-      console.log(`[useArticles] Page ${pageCountRef.current} complete. hasMore: ${hasMoreArticles}`);
+      logger.debug('useArticles', `Page ${pageCountRef.current} complete. hasMore: ${hasMoreArticles}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load more articles';
-      console.error('[useArticles] Error loading more:', message);
       logger.error('useArticles', 'Failed to load more articles', { error: message });
       setError(message);
     } finally {
@@ -177,9 +173,10 @@ export function useArticles({
     loadInitial();
 
     // Cleanup prefetch timeout on unmount
+    const timeoutId = prefetchTimeoutRef.current;
     return () => {
-      if (prefetchTimeoutRef.current) {
-        clearTimeout(prefetchTimeoutRef.current);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
       }
     };
   }, [loadInitial]);
