@@ -31,6 +31,36 @@ service cloud.firestore {
       allow write: if false; // Only Cloud Functions can write
     }
 
+    // News sources collection - public read, Cloud Functions write only
+    match /newsSources/{sourceId} {
+      allow read: if true;
+      allow write: if false; // Only Cloud Functions can write
+    }
+
+    // Raw news articles (ingestion) - Cloud Functions write only, no client read
+    match /newsRaw/{docId} {
+      allow read: if false;
+      allow write: if false; // Only Cloud Functions can write
+    }
+
+    // Normalized news articles - public read, Cloud Functions write only
+    match /newsArticles/{articleId} {
+      allow read: if true;
+      allow write: if false; // Only Cloud Functions can write
+    }
+
+    // News clusters - public read, Cloud Functions write only
+    match /newsClusters/{clusterId} {
+      allow read: if true;
+      allow write: if false; // Only Cloud Functions can write
+    }
+
+    // User watchlists - authenticated users can read/write their own
+    match /users/{userId}/watchlistItems/{id} {
+      allow read: if request.auth.uid == userId;
+      allow write: if request.auth.uid == userId;
+    }
+
     // Catch-all: deny all other access
     match /{document=**} {
       allow read: if false;

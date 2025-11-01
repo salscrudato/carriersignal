@@ -13,6 +13,76 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "newsArticles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "publishedAt",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "score",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "newsArticles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "states",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "publishedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "newsArticles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "lobs",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "publishedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "newsArticles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "regulators",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "publishedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "newsClusters",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "score",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [
@@ -29,6 +99,26 @@
     {
       "collectionGroup": "articles",
       "fieldPath": "canonicalUrl",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "newsArticles",
+      "fieldPath": "canonicalLink",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "newsArticles",
+      "fieldPath": "clusterKey",
       "indexes": [
         {
           "order": "ASCENDING",
