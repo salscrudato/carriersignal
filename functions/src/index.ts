@@ -1694,5 +1694,27 @@ async function comprehensiveIngestionWithAI(apiKey: string) {
   return stats;
 }
 
+// 5b) Manual trigger for comprehensive ingestion (HTTP endpoint)
+export const triggerComprehensiveIngest = onRequest(
+  {cors: true, timeoutSeconds: 540, secrets: [OPENAI_API_KEY]},
+  async (_req, res) => {
+    try {
+      console.log("[TRIGGER COMPREHENSIVE INGEST] Manual trigger initiated");
+      const stats = await comprehensiveIngestionWithAI(OPENAI_API_KEY.value());
+      res.json({
+        success: true,
+        message: "Comprehensive ingestion completed",
+        stats,
+      });
+    } catch (error) {
+      console.error("[TRIGGER COMPREHENSIVE INGEST] Error:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);
+
 
 

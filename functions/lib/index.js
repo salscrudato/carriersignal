@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.comprehensiveIngest = exports.readerView = exports.askBrief = exports.feedHealthReport = exports.testSingleArticle = exports.refreshFeedsManual = exports.initializeFeeds = exports.refreshFeeds = void 0;
+exports.triggerComprehensiveIngest = exports.comprehensiveIngest = exports.readerView = exports.askBrief = exports.feedHealthReport = exports.testSingleArticle = exports.refreshFeedsManual = exports.initializeFeeds = exports.refreshFeeds = void 0;
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const https_1 = require("firebase-functions/v2/https");
 const params_1 = require("firebase-functions/params");
@@ -1413,4 +1413,23 @@ async function comprehensiveIngestionWithAI(apiKey) {
     }
     return stats;
 }
+// 5b) Manual trigger for comprehensive ingestion (HTTP endpoint)
+exports.triggerComprehensiveIngest = (0, https_1.onRequest)({ cors: true, timeoutSeconds: 540, secrets: [OPENAI_API_KEY] }, async (_req, res) => {
+    try {
+        console.log("[TRIGGER COMPREHENSIVE INGEST] Manual trigger initiated");
+        const stats = await comprehensiveIngestionWithAI(OPENAI_API_KEY.value());
+        res.json({
+            success: true,
+            message: "Comprehensive ingestion completed",
+            stats,
+        });
+    }
+    catch (error) {
+        console.error("[TRIGGER COMPREHENSIVE INGEST] Error:", error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+        });
+    }
+});
 //# sourceMappingURL=index.js.map
