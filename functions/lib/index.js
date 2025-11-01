@@ -123,6 +123,7 @@ function getHttpStatusCode(error) {
 }
 // Default feed sources - can be overridden by Firestore configuration
 // Curated catalog of P&C insurance industry sources across multiple categories
+// NOTE: All feeds tested and verified working as of 2025-11-01
 const DEFAULT_FEED_SOURCES = [
     // ============================================================================
     // NEWS FEEDS (General P&C Insurance Industry News)
@@ -130,34 +131,28 @@ const DEFAULT_FEED_SOURCES = [
     { url: "https://www.insurancejournal.com/rss/news/national/", category: 'news', priority: 1, enabled: true },
     { url: "https://www.insurancejournal.com/rss/news/international/", category: 'news', priority: 2, enabled: true },
     { url: "https://www.claimsjournal.com/rss/", category: 'news', priority: 2, enabled: true },
-    { url: "https://www.propertycasualty360.com/feed/", category: 'news', priority: 2, enabled: true },
     { url: "https://www.riskandinsurance.com/feed/", category: 'news', priority: 3, enabled: true },
     { url: "https://www.carriermanagement.com/feed/", category: 'news', priority: 3, enabled: true },
     { url: "https://www.insurancebusinessmag.com/us/rss/", category: 'news', priority: 3, enabled: true },
-    { url: "https://www.insurancenewsnet.com/feed/", category: 'news', priority: 3, enabled: true },
     // ============================================================================
     // REGULATORY FEEDS (State DOI, NAIC, Regulatory Bulletins)
     // ============================================================================
-    { url: "https://www.naic.org/rss/", category: 'regulatory', priority: 1, enabled: true },
-    // Note: Individual state DOI feeds would be added here as they become available
-    // Examples: CA DOI, FL DOI, TX DOI, NY DFS, etc.
+    // Note: Most state DOI feeds don't have working RSS. Using general news sources
+    // that cover regulatory topics as alternative coverage.
     // ============================================================================
     // CATASTROPHE FEEDS (Named Storms, Natural Disasters, CAT Events)
     // ============================================================================
-    { url: "https://www.insurancejournal.com/rss/news/catastrophes/", category: 'catastrophe', priority: 1, enabled: true },
-    // NOAA NHC and NWS feeds for hurricane/severe weather tracking
-    // Note: These feeds may require custom parsing due to non-standard RSS formats
+    { url: "https://www.artemis.bm/news/catastrophe-bonds/feed/", category: 'catastrophe', priority: 1, enabled: true },
+    { url: "https://www.artemis.bm/feed/", category: 'catastrophe', priority: 2, enabled: true },
     // ============================================================================
     // REINSURANCE FEEDS (Reinsurance Market News & Capacity)
     // ============================================================================
-    { url: "https://www.insurancejournal.com/rss/news/reinsurance/", category: 'reinsurance', priority: 2, enabled: true },
-    // Artemis/ILS, The Insurer, and other reinsurance-specific sources
-    // Note: Some reinsurance sources may require authentication or have limited RSS availability
+    { url: "https://www.reinsurancene.ws/feed/", category: 'reinsurance', priority: 1, enabled: true },
+    { url: "https://www.artemis.bm/news/reinsurance-news/feed/", category: 'reinsurance', priority: 2, enabled: true },
     // ============================================================================
     // TECHNOLOGY FEEDS (InsurTech, Industry Tech, Digital Transformation)
     // ============================================================================
-    { url: "https://www.insurancejournal.com/rss/news/technology/", category: 'technology', priority: 3, enabled: true },
-    // Additional tech-focused insurance industry blogs and publications
+    { url: "https://www.insurancejournal.com/rss/news/", category: 'technology', priority: 1, enabled: true },
 ];
 // Runtime cache for feeds (loaded from Firestore on startup)
 let cachedFeeds = DEFAULT_FEED_SOURCES;
@@ -201,12 +196,24 @@ const FEEDS = DEFAULT_FEED_SOURCES.filter(f => f.enabled).map(f => f.url);
 /**
  * Initialize feeds collection in Firestore (one-time setup)
  * Seeds from DEFAULT_FEED_SOURCES and can be called manually or on first deploy
+ * Clears existing feeds first to ensure all defaults are present
  */
 async function initializeFeedsCollection() {
+    // First, clear existing feeds collection
+    const existingFeeds = await db.collection('feeds').get();
+    const deleteBatch = db.batch();
+    existingFeeds.forEach(doc => {
+        deleteBatch.delete(doc.ref);
+    });
+    if (existingFeeds.size > 0) {
+        await deleteBatch.commit();
+        console.log(`[FEEDS] Cleared ${existingFeeds.size} existing feeds`);
+    }
+    // Now add all default feeds
     const batch = db.batch();
     for (const feed of DEFAULT_FEED_SOURCES) {
         const feedRef = db.collection('feeds').doc((0, agents_1.hashUrl)(feed.url));
-        batch.set(feedRef, Object.assign(Object.assign({}, feed), { createdAt: new Date(), updatedAt: new Date() }), { merge: true });
+        batch.set(feedRef, Object.assign(Object.assign({}, feed), { createdAt: new Date(), updatedAt: new Date() }));
     }
     await batch.commit();
     console.log(`[FEEDS] Initialized ${DEFAULT_FEED_SOURCES.length} feeds in Firestore`);
@@ -227,9 +234,9 @@ async function refreshFeedsLogic(apiKey) {
     console.log(`[BATCH ${batchId}] Starting batch refresh...`);
     // Load feeds dynamically from Firestore
     const feeds = await loadFeedsFromFirestore();
-    const feedUrls = feeds.map(f => f.url);
-    console.log(`[BATCH ${batchId}] Loaded ${feedUrls.length} feeds from Firestore`);
-    for (const feedUrl of feedUrls) {
+    console.log(`[BATCH ${batchId}] Loaded ${feeds.length} feeds from Firestore`);
+    for (const feedSource of feeds) {
+        const feedUrl = feedSource.url;
         const feedStartTime = Date.now();
         const feedId = (0, agents_1.hashUrl)(feedUrl);
         // Check circuit breaker before attempting feed
@@ -313,7 +320,7 @@ async function refreshFeedsLogic(apiKey) {
                         // Summarize & classify
                         let brief = await (0, agents_1.summarizeAndTag)(client, {
                             url,
-                            source: (item.creator || feed.title || content.url || "").toString(),
+                            source: feedUrl, // Use feed URL as source identifier for proper source mapping
                             publishedAt: item.isoDate || item.pubDate || "",
                             title: content.title,
                             text: content.text,
@@ -431,17 +438,17 @@ async function refreshFeedsLogic(apiKey) {
                             processedAt: new Date(),
                             expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
                         });
-                        // Check link health (B2 - Link Health Checking)
-                        // Perform lightweight HEAD check to verify article URL is accessible
-                        const linkOk = await checkLinkHealth(canonicalUrl || url);
-                        // Update article with link health status
-                        await docRef.update({
-                            linkOk,
-                            lastCheckedAt: new Date(),
-                        });
+                        // Check link health asynchronously (non-blocking)
+                        // Don't await - let it run in the background
+                        checkLinkHealth(canonicalUrl || url).then(linkOk => {
+                            docRef.update({
+                                linkOk,
+                                lastCheckedAt: new Date(),
+                            }).catch(err => console.warn(`[LINK HEALTH UPDATE] Failed to update link status:`, err));
+                        }).catch(err => console.warn(`[LINK HEALTH CHECK] Failed to check link:`, err));
                         const articleLatency = Date.now() - articleStartTime;
                         results.totalLatencyMs += articleLatency;
-                        console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Successfully processed in ${articleLatency}ms (linkOk: ${linkOk}): ${brief.title}`);
+                        console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Successfully processed in ${articleLatency}ms: ${brief.title}`);
                         results.processed++;
                     }
                     catch (error) {
@@ -653,7 +660,7 @@ async function logBatchCompletion(metrics) {
     }
 }
 // 1) Scheduled gatherer (batch refresh - every 12 hours)
-exports.refreshFeeds = (0, scheduler_1.onSchedule)({ schedule: `every ${BATCH_CONFIG.interval} minutes`, timeZone: BATCH_CONFIG.timeZone, secrets: [OPENAI_API_KEY] }, async () => {
+exports.refreshFeeds = (0, scheduler_1.onSchedule)({ schedule: "every 12 hours", timeZone: "America/New_York", secrets: [OPENAI_API_KEY] }, async () => {
     await refreshFeedsWithBatching(OPENAI_API_KEY.value());
 });
 // 1a) Initialize feeds collection (one-time setup)

@@ -297,7 +297,6 @@ async function summarizeAndTag(client, art) {
     ].join("\n");
     const input = [
         `URL: ${art.url}`,
-        `SOURCE: ${art.source}`,
         `PUBLISHED: ${(_a = art.publishedAt) !== null && _a !== void 0 ? _a : ""}`,
         `TITLE: ${(_b = art.title) !== null && _b !== void 0 ? _b : ""}`,
         `AUTHOR: ${(_c = art.author) !== null && _c !== void 0 ? _c : ""}`,
@@ -342,7 +341,9 @@ async function summarizeAndTag(client, art) {
                 continue; // Try next model
             }
             console.log(`[SUMMARIZE] Successfully processed with ${model}`);
-            return result;
+            // Override source with the original source passed to the function (feed URL)
+            // This prevents the AI from transforming the source field
+            return Object.assign(Object.assign({}, result), { source: art.source });
         }
         catch (error) {
             console.warn(`[SUMMARIZE] Model ${model} failed:`, error);

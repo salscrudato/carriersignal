@@ -321,7 +321,6 @@ export async function summarizeAndTag(
 
   const input = [
     `URL: ${art.url}`,
-    `SOURCE: ${art.source}`,
     `PUBLISHED: ${art.publishedAt ?? ""}`,
     `TITLE: ${art.title ?? ""}`,
     `AUTHOR: ${art.author ?? ""}`,
@@ -370,7 +369,12 @@ export async function summarizeAndTag(
       }
 
       console.log(`[SUMMARIZE] Successfully processed with ${model}`);
-      return result;
+      // Override source with the original source passed to the function (feed URL)
+      // This prevents the AI from transforming the source field
+      return {
+        ...result,
+        source: art.source,
+      };
     } catch (error) {
       console.warn(`[SUMMARIZE] Model ${model} failed:`, error);
       lastError = error instanceof Error ? error : new Error(String(error));

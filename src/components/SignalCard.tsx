@@ -6,6 +6,7 @@
 import React from 'react';
 import { ExternalLink, AlertCircle, MapPin, TrendingUp, Clock } from 'lucide-react';
 import { SEVERITY_LABELS } from '../constants/news';
+import { getFeedSourceName, getFeedSourceColor } from '../constants/feedSources';
 import type { NewsArticle } from '../types/news';
 
 interface SignalCardProps {
@@ -58,8 +59,8 @@ export const SignalCard: React.FC<SignalCardProps> = ({
             </a>
           </h3>
           <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-            <span className="inline-block px-2 py-1 bg-gray-100 rounded text-gray-700 font-medium">
-              {article.sourceId}
+            <span className={`inline-block px-2 py-1 rounded text-gray-700 font-medium border ${getFeedSourceColor(article.sourceId)}`}>
+              {getFeedSourceName(article.sourceId)}
             </span>
             <span className="flex items-center gap-1">
               <Clock size={12} />

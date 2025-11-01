@@ -26,7 +26,7 @@ export function InfiniteScrollLoader({
   // Empty state
   if (isEmpty) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 px-4">
+      <div className="flex flex-col items-center justify-center py-12 px-4 w-full max-w-full">
         <div className="rounded-full liquid-glass-premium p-3 mb-4 border border-[#5AA6FF]/40 animate-iconGlow">
           <CheckCircle2 className="w-6 h-6 text-[#5AA6FF]" />
         </div>
@@ -39,7 +39,7 @@ export function InfiniteScrollLoader({
   // End of list
   if (!hasMore && !isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 px-4">
+      <div className="flex flex-col items-center justify-center py-12 px-4 w-full max-w-full">
         <div className="rounded-full liquid-glass-light p-3 mb-4 border border-[#5AA6FF]/40 animate-iconGlow">
           <CheckCircle2 className="w-6 h-6 text-[#5AA6FF]" />
         </div>
