@@ -804,9 +804,11 @@ async function logBatchCompletion(metrics: Record<string, unknown>) {
 }
 
 // 1) Scheduled gatherer (batch refresh - every 12 hours)
+// Schedule: 0 0,12 * * * (midnight and noon UTC)
 export const refreshFeeds = onSchedule(
-  {schedule: `every ${BATCH_CONFIG.interval} minutes`, timeZone: BATCH_CONFIG.timeZone, secrets: [OPENAI_API_KEY]},
+  {schedule: "every 12 hours", timeZone: "UTC", secrets: [OPENAI_API_KEY]},
   async () => {
+    console.log(`[REFRESH FEEDS] Starting 12-hour scheduled refresh at ${new Date().toISOString()}`);
     await refreshFeedsWithBatching(OPENAI_API_KEY.value());
   }
 );
@@ -1476,6 +1478,228 @@ function sanitizeHtml(html: string): string {
 
   return sanitized;
 }
+
+/**
+ * Comprehensive ingestion function that fetches from all sources and applies AI enhancement
+ * Runs on 12-hour schedule to ensure fresh, AI-enriched content
+ */
+async function comprehensiveIngestionWithAI(apiKey: string) {
+  const client = new OpenAI({apiKey});
+  const parser = new Parser({timeout: 15000});
+
+  const batchId = `comprehensive_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const startTime = Date.now();
+
+  console.log(`[COMPREHENSIVE INGEST ${batchId}] Starting comprehensive ingestion with AI enhancement`);
+
+  const stats = {
+    totalFetched: 0,
+    totalProcessed: 0,
+    totalSkipped: 0,
+    totalErrors: 0,
+    sourcesSucceeded: 0,
+    sourcesFailed: 0,
+  };
+
+  // Comprehensive list of all sources
+  const allSources = [
+    // Insurance Industry News
+    { name: "Insurance Journal - National", url: "https://www.insurancejournal.com/rss/news/national/", category: "news" },
+    { name: "Insurance Journal - International", url: "https://www.insurancejournal.com/rss/news/international/", category: "news" },
+    { name: "Insurance Journal - Catastrophes", url: "https://www.insurancejournal.com/rss/news/catastrophes/", category: "catastrophe" },
+    { name: "Insurance Journal - Reinsurance", url: "https://www.insurancejournal.com/rss/news/reinsurance/", category: "reinsurance" },
+    { name: "Insurance Journal - Technology", url: "https://www.insurancejournal.com/rss/news/technology/", category: "technology" },
+    { name: "Claims Journal", url: "https://www.claimsjournal.com/rss/", category: "news" },
+    { name: "Property Casualty 360", url: "https://www.propertycasualty360.com/feed/", category: "news" },
+    { name: "Risk and Insurance", url: "https://www.riskandinsurance.com/feed/", category: "news" },
+    { name: "Carrier Management", url: "https://www.carriermanagement.com/feed/", category: "news" },
+    { name: "Insurance Business Magazine", url: "https://www.insurancebusinessmag.com/us/rss/", category: "news" },
+    { name: "Insurance News Net", url: "https://www.insurancenewsnet.com/feed/", category: "news" },
+
+    // Regulatory
+    { name: "NAIC", url: "https://www.naic.org/rss/", category: "regulatory" },
+
+    // Catastrophe/Hazards
+    { name: "USGS Earthquakes", url: "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.atom", category: "catastrophe" },
+  ];
+
+  // Process each source
+  for (const source of allSources) {
+    try {
+      console.log(`[COMPREHENSIVE INGEST ${batchId}] Fetching from ${source.name}...`);
+
+      const feed = await parser.parseURL(source.url);
+      const items = feed.items || [];
+
+      console.log(`[COMPREHENSIVE INGEST ${batchId}] Found ${items.length} items from ${source.name}`);
+      stats.totalFetched += items.length;
+      stats.sourcesSucceeded++;
+
+      // Process each item with AI enhancement
+      for (const item of items.slice(0, 50)) { // Limit to 50 per source to avoid rate limits
+        try {
+          if (!item.link || !item.title) {
+            stats.totalSkipped++;
+            continue;
+          }
+
+          const url = item.link;
+          const id = hashUrl(url);
+          const docRef = db.collection("articles").doc(id);
+
+          // Check if already exists
+          const existing = await docRef.get();
+          if (existing.exists) {
+            stats.totalSkipped++;
+            continue;
+          }
+
+          // Extract content
+          let content: Awaited<ReturnType<typeof extractArticle>> | undefined;
+          try {
+            content = await extractArticle(url);
+          } catch (error) {
+            console.warn(`[COMPREHENSIVE INGEST ${batchId}] Failed to extract content from ${url}:`, error);
+            content = {
+              url,
+              title: item.title,
+              text: item.contentSnippet || "",
+              html: "",
+              author: (item as Record<string, unknown>).creator as string || "",
+              mainImage: undefined,
+            };
+          }
+
+          if (!content) {
+            stats.totalSkipped++;
+            continue;
+          }
+
+          // Summarize and tag with AI
+          let processed: Awaited<ReturnType<typeof summarizeAndTag>> | undefined;
+          try {
+            processed = await summarizeAndTag(client, {
+              ...content,
+              source: source.name,
+            });
+          } catch (error) {
+            console.warn(`[COMPREHENSIVE INGEST ${batchId}] Failed to process article ${content.title}:`, error);
+            processed = {
+              title: content.title,
+              url,
+              source: source.name,
+              bullets5: [content.text.substring(0, 200)],
+              whyItMatters: {
+                underwriting: "Relevant to underwriting decisions",
+                claims: "May impact claims handling",
+                brokerage: "Important for broker guidance",
+                actuarial: "Relevant to actuarial analysis",
+              },
+              tags: {lob: [], perils: [], regions: [], companies: [], trends: [], regulations: []},
+              riskPulse: "MEDIUM",
+              sentiment: "NEUTRAL",
+              confidence: 0.5,
+              citations: [],
+              impactScore: 50,
+              impactBreakdown: {market: 50, regulatory: 50, catastrophe: 50, technology: 50},
+              confidenceRationale: "Fallback processing",
+              leadQuote: content.text.substring(0, 300),
+              disclosure: "",
+            };
+          }
+
+          if (!processed) {
+            stats.totalSkipped++;
+            continue;
+          }
+
+          // Calculate smart score
+          const smartScore = calculateSmartScore({
+            publishedAt: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
+            impactScore: processed.impactScore,
+            impactBreakdown: processed.impactBreakdown,
+            tags: processed.tags,
+            regulatory: isRegulatorySource(url, source.name),
+            riskPulse: processed.riskPulse,
+          });
+
+          // Store article
+          await docRef.set({
+            title: processed.title,
+            url: processed.url,
+            source: processed.source,
+            category: source.category,
+            publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
+            author: content.author,
+            content: content.text,
+            bullets5: processed.bullets5,
+            whyItMatters: processed.whyItMatters,
+            tags: processed.tags,
+            riskPulse: processed.riskPulse,
+            sentiment: processed.sentiment,
+            confidence: processed.confidence,
+            citations: processed.citations,
+            impactScore: processed.impactScore,
+            impactBreakdown: processed.impactBreakdown,
+            confidenceRationale: processed.confidenceRationale,
+            leadQuote: processed.leadQuote,
+            disclosure: processed.disclosure,
+            smartScore,
+            ragQualityScore: 85,
+            createdAt: new Date(),
+            processed: true,
+          });
+
+          stats.totalProcessed++;
+          console.log(`[COMPREHENSIVE INGEST ${batchId}] ✓ Processed: ${processed.title.substring(0, 60)}`);
+
+        } catch (error) {
+          console.error(`[COMPREHENSIVE INGEST ${batchId}] Error processing item from ${source.name}:`, error);
+          stats.totalErrors++;
+        }
+      }
+
+    } catch (error) {
+      console.error(`[COMPREHENSIVE INGEST ${batchId}] Error fetching from ${source.name}:`, error);
+      stats.sourcesFailed++;
+    }
+
+    // Rate limiting: wait 2 seconds between sources
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+
+  const duration = Date.now() - startTime;
+  console.log(`[COMPREHENSIVE INGEST ${batchId}] Completed in ${duration}ms`);
+  console.log(`[COMPREHENSIVE INGEST ${batchId}] Stats:`, stats);
+
+  // Log to Firestore
+  try {
+    await db.collection('ingestion_logs').add({
+      batchId,
+      timestamp: new Date(),
+      duration,
+      stats,
+      type: 'comprehensive_with_ai',
+    });
+  } catch (error) {
+    console.error(`[COMPREHENSIVE INGEST ${batchId}] Failed to log stats:`, error);
+  }
+
+  return stats;
+}
+
+// 1c) Comprehensive ingestion with AI (runs every 12 hours)
+export const comprehensiveIngest = onSchedule(
+  {schedule: "every 12 hours", timeZone: "UTC", secrets: [OPENAI_API_KEY]},
+  async () => {
+    console.log(`[COMPREHENSIVE INGEST] Starting at ${new Date().toISOString()}`);
+    try {
+      await comprehensiveIngestionWithAI(OPENAI_API_KEY.value());
+    } catch (error) {
+      console.error('[COMPREHENSIVE INGEST] Failed:', error);
+    }
+  }
+);
 
 
 
