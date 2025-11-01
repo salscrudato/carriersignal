@@ -325,7 +325,7 @@ button {
   overflow: hidden;
   will-change: transform, box-shadow, filter;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(249, 251, 255, 0.90) 100%);
-  border: 1px solid rgba(90, 166, 255, 0.15);
+  border: 1.5px solid rgba(90, 166, 255, 0.35);
   box-shadow: 0 2px 8px rgba(90, 166, 255, 0.06), inset 0 1px 1px rgba(255, 255, 255, 0.8);
 }
 
@@ -340,7 +340,7 @@ button::before {
 button:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(90, 166, 255, 0.12), inset 0 1px 1px rgba(255, 255, 255, 0.9);
-  border-color: rgba(90, 166, 255, 0.25);
+  border-color: rgba(90, 166, 255, 0.45);
 }
 
 button:active {
@@ -358,7 +358,8 @@ button:focus-visible {
   outline: 3px solid var(--color-primary);
   outline-offset: 2px;
   border-radius: var(--radius-md);
-  box-shadow: 0 0 0 4px rgba(90, 166, 255, 0.15), 0 4px 12px rgba(90, 166, 255, 0.12);
+  box-shadow: 0 0 0 4px rgba(90, 166, 255, 0.25), 0 4px 12px rgba(90, 166, 255, 0.12);
+  border-color: rgba(90, 166, 255, 0.55);
 }
 
 /* Enhanced Focus States for Accessibility */
