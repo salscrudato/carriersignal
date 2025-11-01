@@ -3,31 +3,11 @@
  * Checks if articles are properly stored in Firestore
  */
 
-import * as admin from 'firebase-admin';
-import * as fs from 'fs';
-import * as path from 'path';
-
-// Initialize Firebase Admin
-function initializeFirebase() {
-  const serviceAccountPath = path.join(__dirname, '../serviceAccountKey.json');
-
-  if (fs.existsSync(serviceAccountPath)) {
-    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf-8'));
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-    console.log('✅ Using service account key for Firebase authentication');
-  } else {
-    admin.initializeApp({
-      projectId: process.env.FIREBASE_PROJECT_ID || 'carriersignal-app',
-    });
-    console.log('✅ Using default credentials for Firebase authentication');
-  }
-}
+import { initializeFirebase, getDb } from './firebase-init';
 
 initializeFirebase();
 
-const db = admin.firestore();
+const db = getDb();
 
 async function verifyArticles() {
   try {

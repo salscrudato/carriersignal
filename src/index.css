@@ -3841,3 +3841,29 @@ img[loading="lazy"] {
 .filter-bar::-webkit-scrollbar-thumb:hover {
   background: rgba(90, 166, 255, 0.5);
 }
+
+/* ============================================================================
+ * UTILITY CLASSES - Extracted from Repeated Tailwind Patterns
+ * ============================================================================ */
+
+/* Border Utilities - Aurora Theme */
+.border-aurora-light {
+  @apply border border-[#C7D2E1]/25;
+}
+
+.border-aurora-medium {
+  @apply border border-[#5AA6FF]/30;
+}
+
+.border-aurora-dark {
+  @apply border border-[#8B7CFF]/25;
+}
+
+/* Liquid Glass Borders */
+.liquid-glass-border {
+  @apply border border-[#C7D2E1]/25;
+}
+
+.liquid-glass-border-accent {
+  @apply border border-[#5AA6FF]/30;
+}

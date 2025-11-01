@@ -5,36 +5,14 @@
  * Usage: npx ts-node scripts/seed-articles.ts
  */
 
-import * as admin from 'firebase-admin';
 import Parser from 'rss-parser';
 import OpenAI from 'openai';
-import * as fs from 'fs';
-import * as path from 'path';
 import * as crypto from 'crypto';
-
-// Initialize Firebase Admin
-function initializeFirebase() {
-  const serviceAccountPath = path.join(__dirname, '../serviceAccountKey.json');
-
-  if (fs.existsSync(serviceAccountPath)) {
-    // Use service account key if available
-    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf-8'));
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-    console.log('✅ Using service account key for Firebase authentication');
-  } else {
-    // Use default credentials (works with Firebase CLI authentication)
-    admin.initializeApp({
-      projectId: process.env.FIREBASE_PROJECT_ID || 'carriersignal-app',
-    });
-    console.log('✅ Using default credentials for Firebase authentication');
-  }
-}
+import { initializeFirebase, getDb } from './firebase-init';
 
 initializeFirebase();
 
-const db = admin.firestore();
+const db = getDb();
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });

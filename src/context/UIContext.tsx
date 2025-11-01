@@ -11,7 +11,6 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const [view, setView] = useState<ViewMode>('feed');
   const [sortMode, setSortMode] = useState<SortMode>('smart');
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
-  const [quickReadArticleUrl, setQuickReadArticleUrl] = useState<string | null>(null);
 
   const value: UIContextType = {
     view,
@@ -20,8 +19,6 @@ export function UIProvider({ children }: { children: ReactNode }) {
     setSortMode,
     isPaletteOpen,
     setIsPaletteOpen,
-    quickReadArticleUrl,
-    setQuickReadArticleUrl,
   };
 
   return (

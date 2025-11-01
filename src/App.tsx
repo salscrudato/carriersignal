@@ -20,7 +20,7 @@ const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
 
 function AppContent() {
   // Use context for UI state
-  const { view, setView, sortMode, setSortMode, isPaletteOpen, setIsPaletteOpen, quickReadArticleUrl, setQuickReadArticleUrl } = useUI();
+  const { view, setView, sortMode, setSortMode, isPaletteOpen, setIsPaletteOpen } = useUI();
 
   // Map sort mode to query field
   const sortByField = sortMode === 'recency' ? 'publishedAt' : 'aiScore';
@@ -95,10 +95,9 @@ function AppContent() {
         e.preventDefault();
         setIsPaletteOpen(!isPaletteOpen);
       }
-      // Escape to close palette or quick read
+      // Escape to close palette
       if (e.key === 'Escape') {
         setIsPaletteOpen(false);
-        setQuickReadArticleUrl(null);
       }
       // Ctrl+Shift+T to open test view
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'T') {
@@ -109,7 +108,7 @@ function AppContent() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPaletteOpen, setIsPaletteOpen, setQuickReadArticleUrl, view, setView]);
+  }, [isPaletteOpen, setIsPaletteOpen, view, setView]);
 
   // Render
   if (loading) {
@@ -199,26 +198,6 @@ function AppContent() {
           >
             <div className="overflow-y-auto flex-1">
               <BriefPanel article={selectedArticle} onClose={() => setSelectedArticle(null)} />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Quick Read Modal */}
-      {quickReadArticleUrl && (
-        <div
-          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 animate-fadeIn overflow-hidden"
-          onClick={() => setQuickReadArticleUrl(null)}
-        >
-          <div
-            className="w-full max-w-2xl liquid-glass-ultra rounded-3xl max-h-[90vh] shadow-2xl border border-[#C7D2E1]/30 animate-scaleIn flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="overflow-y-auto flex-1">
-              {/* Quick Read content will be rendered here by QuickReadModal component */}
-              <div className="p-6 text-center text-[#64748B]">
-                <p>Quick Read feature coming soon...</p>
-              </div>
             </div>
           </div>
         </div>

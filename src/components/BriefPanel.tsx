@@ -1,16 +1,15 @@
-import { AlertTriangle, Eye, X } from 'lucide-react';
+import { AlertTriangle, X } from 'lucide-react';
 import { memo } from 'react';
 import type { Article } from '../types';
+import { getTimeAgo } from '../utils/validation';
 
 interface BriefPanelProps {
   article: Article | null;
-  onReaderView?: (url: string) => void;
   onClose?: () => void;
 }
 
 function BriefPanelComponent({
   article,
-  onReaderView,
   onClose,
 }: BriefPanelProps) {
   if (!article) {
@@ -52,16 +51,7 @@ function BriefPanelComponent({
                 <span className="text-[#64748B] font-medium">{timeAgo}</span>
               </>
             )}
-            {onReaderView && (
-              <button
-                onClick={() => onReaderView(article.url)}
-                className="ml-auto p-2 rounded-lg hover:bg-[#E8F2FF]/60 transition-all duration-200 hover:shadow-sm"
-                aria-label="Open reader view"
-                title="Reader view"
-              >
-                <Eye size={16} className="text-[#5AA6FF]" />
-              </button>
-            )}
+
           </div>
         </div>
       </div>
@@ -216,17 +206,4 @@ function BriefPanelComponent({
 }
 
 export const BriefPanel = memo(BriefPanelComponent);
-
-// Helper function for time ago
-function getTimeAgo(date: Date): string {
-  const now = new Date();
-  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (seconds < 60) return 'just now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
 

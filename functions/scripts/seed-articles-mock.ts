@@ -2,21 +2,14 @@
  * Mock Seed Script for CarrierSignal
  * Populates the database with sample insurance news articles
  * Useful for testing without OpenAI API key
- * 
+ *
  * Usage: npx ts-node scripts/seed-articles-mock.ts
  */
 
-import * as admin from 'firebase-admin';
-
-// Initialize Firebase Admin
-function initializeFirebase() {
-  admin.initializeApp({
-    projectId: process.env.FIREBASE_PROJECT_ID || 'carriersignal-app',
-  });
-}
+import { initializeFirebase, getDb } from './firebase-init';
 
 initializeFirebase();
-const db = admin.firestore();
+const db = getDb();
 
 // Sample articles data
 const SAMPLE_ARTICLES = [

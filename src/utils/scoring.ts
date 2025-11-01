@@ -121,37 +121,5 @@ export function calculateDynamicArticleScore(article: Article): number {
   return Math.round(dynamicScore * 10) / 10;
 }
 
-/**
- * Sort articles by dynamic score, recalculating scores in real-time
- * This ensures older articles naturally move down the feed
- * 
- * @param articles - Array of articles to sort
- * @returns Sorted articles with updated dynamic scores
- */
-export function sortByDynamicScore(articles: Article[]): Article[] {
-  return articles
-    .map(article => ({
-      ...article,
-      dynamicScore: calculateDynamicArticleScore(article),
-    }))
-    .sort((a, b) => (b.dynamicScore || 0) - (a.dynamicScore || 0));
-}
 
-/**
- * Sort articles by recency (published date)
- * 
- * @param articles - Array of articles to sort
- * @returns Sorted articles by published date (newest first)
- */
-export function sortByRecency(articles: Article[]): Article[] {
-  return articles.sort((a, b) => {
-    const getTime = (date: string | Date | { toDate: () => Date } | undefined): number => {
-      if (!date) return 0;
-      if (date instanceof Date) return date.getTime();
-      if (typeof date === 'object' && 'toDate' in date) return date.toDate().getTime();
-      return new Date(date).getTime();
-    };
-    return getTime(b.publishedAt) - getTime(a.publishedAt);
-  });
-}
 

@@ -1,19 +1,6 @@
 import { TrendingUp, AlertTriangle, Zap, BarChart3, Globe, Shield, Cloud, FileText, Clock } from 'lucide-react';
 import { useMemo } from 'react';
-
-interface Article {
-  title: string;
-  tags?: {
-    lob?: string[];
-    perils?: string[];
-    regions?: string[];
-    trends?: string[];
-    regulations?: string[];
-  };
-  impactScore?: number;
-  regulatory?: boolean;
-  stormName?: string;
-}
+import type { Article } from '../types';
 
 interface DashboardProps {
   articles: Article[];

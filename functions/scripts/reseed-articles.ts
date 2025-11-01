@@ -4,31 +4,11 @@
  * Idempotent: safe to run multiple times
  */
 
-import * as admin from 'firebase-admin';
-import * as fs from 'fs';
-import * as path from 'path';
 import Parser from 'rss-parser';
 import { calculateSmartScore } from '../src/utils';
 import { Readability } from '@mozilla/readability';
 import { JSDOM } from 'jsdom';
-
-// Initialize Firebase Admin
-function initializeFirebase() {
-  const serviceAccountPath = path.join(__dirname, '../serviceAccountKey.json');
-
-  if (fs.existsSync(serviceAccountPath)) {
-    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf-8'));
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-    console.log('✅ Using service account key for Firebase authentication');
-  } else {
-    admin.initializeApp({
-      projectId: process.env.FIREBASE_PROJECT_ID || 'carriersignal-app',
-    });
-    console.log('✅ Using default credentials for Firebase authentication');
-  }
-}
+import { initializeFirebase, getDb } from './firebase-init';
 
 // Check for force flag
 if (process.env.FORCE_RESEED !== '1') {
@@ -37,7 +17,7 @@ if (process.env.FORCE_RESEED !== '1') {
 }
 
 initializeFirebase();
-const db = admin.firestore();
+const db = getDb();
 const parser = new Parser();
 
 /**

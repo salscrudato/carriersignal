@@ -1,20 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { Search, Loader, AlertCircle } from 'lucide-react';
-
-interface Article {
-  id?: string;
-  title: string;
-  url: string;
-  source: string;
-  bullets5?: string[];
-  tags?: {
-    lob?: string[];
-    perils?: string[];
-    regions?: string[];
-    companies?: string[];
-    trends?: string[];
-  };
-}
+import type { Article } from '../types';
 
 interface CommandPaletteProps {
   isOpen: boolean;

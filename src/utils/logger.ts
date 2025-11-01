@@ -54,8 +54,6 @@ class Logger {
         console.error(formatted);
         break;
     }
-
-    // TODO: Send to Sentry or other error tracking service
   }
 
   debug(module: string, message: string, data?: unknown) {

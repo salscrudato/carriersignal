@@ -8,12 +8,11 @@
  * - Empty states
  */
 
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 
 interface InfiniteScrollLoaderProps {
   isLoading?: boolean;
   hasMore?: boolean;
-  error?: string | null;
   isEmpty?: boolean;
   itemCount?: number;
 }
@@ -21,23 +20,9 @@ interface InfiniteScrollLoaderProps {
 export function InfiniteScrollLoader({
   isLoading = false,
   hasMore = true,
-  error = null,
   isEmpty = false,
   itemCount = 3,
 }: InfiniteScrollLoaderProps) {
-  // Error state
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 px-4">
-        <div className="rounded-full liquid-glass-light p-3 mb-4 border border-[#EF4444]/40 animate-iconGlow">
-          <AlertCircle className="w-6 h-6 text-[#EF4444]" />
-        </div>
-        <p className="text-sm font-semibold text-[#0F172A] mb-1">Failed to load articles</p>
-        <p className="text-xs text-[#64748B] text-center">{error}</p>
-      </div>
-    );
-  }
-
   // Empty state
   if (isEmpty) {
     return (

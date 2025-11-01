@@ -14,29 +14,8 @@ import { Zap, Clock, ExternalLink } from 'lucide-react';
 import { InfiniteScrollLoader, ScrollSentinelLoader } from './InfiniteScrollLoader';
 import { calculateDynamicArticleScore } from '../utils/scoring';
 import { logger } from '../utils/logger';
-
-interface Article {
-  title: string;
-  url: string;
-  source: string;
-  publishedAt?: string;
-  description?: string;
-  image?: string;
-  bullets5?: string[];
-  tags?: {
-    lob?: string[];
-    perils?: string[];
-    regions?: string[];
-    companies?: string[];
-    trends?: string[];
-    regulations?: string[];
-  };
-  smartScore?: number;
-  aiScore?: number;
-  impactScore?: number;
-  regulatory?: boolean;
-  stormName?: string;
-}
+import { getTimeAgo } from '../utils/validation';
+import type { Article } from '../types';
 
 interface SearchResult {
   article: Article;
@@ -52,7 +31,6 @@ interface SearchFirstProps {
   onSortChange?: (sort: 'smart' | 'recency') => void;
   isLoadingMore?: boolean;
   hasMore?: boolean;
-  sentinelRef?: React.RefObject<HTMLDivElement | null>;
   onScroll?: (e: Event) => void;
 }
 
@@ -80,7 +58,6 @@ export function SearchFirst({
         article,
         score: dynamicScore,
         matchType: 'combined',
-        highlights: [],
       };
     });
 
@@ -218,13 +195,6 @@ export function SearchFirst({
 /**
  * Individual search result card
  */
-interface SearchResult {
-  article: Article;
-  score: number;
-  matchType: string;
-  highlights: string[];
-}
-
 interface SearchResultCardProps {
   result: SearchResult;
   isSelected: boolean;
@@ -379,17 +349,5 @@ function SearchResultCard({ result, isSelected, onSelect, index = 0 }: SearchRes
   );
 }
 
-/**
- * Utility: Format time ago
- */
-function getTimeAgo(date: Date): string {
-  const now = new Date();
-  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  if (seconds < 60) return 'now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-  return date.toLocaleDateString();
-}
 

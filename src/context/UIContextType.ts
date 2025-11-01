@@ -14,8 +14,6 @@ export interface UIContextType {
   setSortMode: (mode: SortMode) => void;
   isPaletteOpen: boolean;
   setIsPaletteOpen: (open: boolean) => void;
-  quickReadArticleUrl: string | null;
-  setQuickReadArticleUrl: (url: string | null) => void;
 }
 
 export const UIContext = createContext<UIContextType | undefined>(undefined);

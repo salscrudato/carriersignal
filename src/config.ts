@@ -30,31 +30,6 @@ export const FIRESTORE_COLLECTIONS = {
 };
 
 // ============================================================================
-// RAG & SEARCH
-// ============================================================================
-
-export const RAG_CONFIG = {
-  // Hybrid retrieval parameters
-  HYBRID_RETRIEVAL: {
-    INITIAL_FETCH: 500,      // Fetch top 500 articles for MMR
-    COSINE_SIMILARITY_TOP_K: 20,  // Top 20 for MMR re-ranking
-    MMR_FINAL_K: 12,         // Final 12 articles after MMR
-    MMR_LAMBDA: 0.7,         // Balance between relevance (0.7) and diversity (0.3)
-  },
-  
-  // Cluster diversity
-  CLUSTER_DIVERSITY: {
-    MAX_PER_CLUSTER: 1,      // Max 1 article per cluster
-  },
-  
-  // Recency boost
-  RECENCY_BOOST: {
-    WEIGHT: 0.1,             // Recency boost weight
-    WINDOW_DAYS: 30,         // 30-day window for recency boost
-  },
-};
-
-// ============================================================================
 // RATE LIMITING
 // ============================================================================
 
