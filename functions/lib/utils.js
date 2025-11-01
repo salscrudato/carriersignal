@@ -13,6 +13,7 @@ exports.computeContentHash = computeContentHash;
 exports.detectStormName = detectStormName;
 exports.isRegulatorySource = isRegulatorySource;
 exports.calculateSmartScore = calculateSmartScore;
+exports.calculateDynamicScore = calculateDynamicScore;
 exports.hashUrl = hashUrl;
 const node_crypto_1 = __importDefault(require("node:crypto"));
 /**
@@ -187,32 +188,59 @@ function isRegulatorySource(url, source) {
         regulatorySourceKeywords.some(keyword => sourceLower.includes(keyword));
 }
 /**
- * Calculate SmartScore v3 - Enhanced for P&C Insurance Professionals
+ * Calculate SmartScore v4 - Enhanced Dynamic Ranking for P&C Insurance Professionals
  *
  * Scoring Philosophy:
  * - Balances recency with enduring relevance (breaking news vs. structural changes)
  * - Prioritizes actionable intelligence over general news
  * - Weights catastrophe, regulatory, and market-moving events heavily
  * - Considers multi-dimensional impact (market, regulatory, catastrophe, technology)
+ * - Applies dynamic decay as articles age to ensure older content naturally moves down
+ * - Incorporates engagement metrics and professional interest signals
+ *
+ * Key Improvements:
+ * 1. Dynamic recency decay that properly degrades scores over time
+ * 2. Content-type-aware decay curves (breaking news vs. evergreen)
+ * 3. Interest-based scoring incorporating engagement metrics
+ * 4. Real-time score calculation to ensure accurate ranking
  */
 function calculateSmartScore(params) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
     const now = Date.now();
     const pubDate = params.publishedAt ? new Date(params.publishedAt).getTime() : now;
     const ageHours = Math.max(0, (now - pubDate) / (1000 * 60 * 60));
-    // Enhanced recency decay with different curves for different content types
-    // Catastrophe/regulatory news: slower decay (72h half-life)
-    // Market news: medium decay (48h half-life)
-    // General news: faster decay (24h half-life)
-    // FIX: Correct boolean logic - was using truthy chain that misclassified
+    const ageDays = ageHours / 24;
+    // Classify content type for appropriate decay curve
     const isCatastrophe = !!params.stormName || ((_b = (_a = params.impactBreakdown) === null || _a === void 0 ? void 0 : _a.catastrophe) !== null && _b !== void 0 ? _b : 0) > 50;
     const isRegulatory = params.regulatory || (((_c = params.tags) === null || _c === void 0 ? void 0 : _c.regulations) && params.tags.regulations.length > 0);
-    let halfLife = 24; // Default: 24 hours
-    if (isCatastrophe)
-        halfLife = 72; // Catastrophe news stays relevant longer
-    else if (isRegulatory)
-        halfLife = 48; // Regulatory news has medium longevity
-    const recencyScore = Math.exp(-ageHours / (halfLife * 1.44)) * 100; // 1.44 converts half-life to decay constant
+    const isEvergreen = params.isEvergreen || ((_f = (_e = (_d = params.tags) === null || _d === void 0 ? void 0 : _d.trends) === null || _e === void 0 ? void 0 : _e.length) !== null && _f !== void 0 ? _f : 0) > 0;
+    // ENHANCED RECENCY DECAY: Dynamic decay that properly degrades older articles
+    // Different decay curves for different content types:
+    // - Breaking News (CAT/Regulatory): Steep initial decay, then plateau
+    // - Market News: Medium decay curve
+    // - Evergreen Content: Slow decay, maintains relevance longer
+    // - General News: Fast decay, quickly becomes less relevant
+    let recencyScore;
+    if (isCatastrophe) {
+        // Catastrophe news: High relevance for 72 hours, then gradual decay
+        // Formula: 100 * exp(-age^1.2 / 100) - steep initial drop, then plateau
+        recencyScore = Math.max(0, 100 * Math.exp(-Math.pow(ageHours, 1.2) / 100));
+    }
+    else if (isRegulatory) {
+        // Regulatory news: High relevance for 48 hours, then gradual decay
+        // Formula: 100 * exp(-age^1.1 / 80)
+        recencyScore = Math.max(0, 100 * Math.exp(-Math.pow(ageHours, 1.1) / 80));
+    }
+    else if (isEvergreen) {
+        // Evergreen content: Slow decay, maintains relevance for weeks
+        // Formula: 100 * exp(-age / 240) - very gradual decay (10 day half-life)
+        recencyScore = Math.max(0, 100 * Math.exp(-ageHours / 240));
+    }
+    else {
+        // General news: Fast decay, becomes less relevant quickly
+        // Formula: 100 * exp(-age / 24) - 24 hour half-life
+        recencyScore = Math.max(0, 100 * Math.exp(-ageHours / 24));
+    }
     // Multi-dimensional impact scoring
     const impactBreakdown = params.impactBreakdown || {
         market: params.impactScore * 0.25,
@@ -225,6 +253,20 @@ function calculateSmartScore(params) {
         (impactBreakdown.regulatory || 0) * 0.35 + // Regulatory: 35% (highest - directly affects operations)
         (impactBreakdown.catastrophe || 0) * 0.25 + // Catastrophe: 25% (loss events, exposure)
         (impactBreakdown.technology || 0) * 0.10; // Technology: 10% (innovation, but less immediate)
+    // INTEREST-BASED SCORING: Factor in user engagement metrics
+    // Engagement signals indicate professional interest and value
+    let engagementBoost = 1.0;
+    if (params.engagementMetrics) {
+        const { clicks = 0, saves = 0, shares = 0, timeSpent = 0 } = params.engagementMetrics;
+        // Normalize engagement metrics (assuming reasonable maximums)
+        const clickScore = Math.min(clicks / 100, 1.0) * 0.4; // 40% weight
+        const saveScore = Math.min(saves / 50, 1.0) * 0.35; // 35% weight
+        const shareScore = Math.min(shares / 20, 1.0) * 0.15; // 15% weight
+        const timeScore = Math.min(timeSpent / 300, 1.0) * 0.10; // 10% weight (5 min max)
+        const normalizedEngagement = clickScore + saveScore + shareScore + timeScore;
+        // Boost score by up to 15% based on engagement
+        engagementBoost = 1.0 + (normalizedEngagement * 0.15);
+    }
     // Risk pulse multiplier (industry disruption potential)
     const riskPulseMultiplier = params.riskPulse === 'HIGH' ? 1.25 :
         params.riskPulse === 'MEDIUM' ? 1.10 :
@@ -233,7 +275,7 @@ function calculateSmartScore(params) {
     const regulatoryBoost = isRegulatory ? 1.20 : 1.0;
     // Catastrophe boost with graduated scale
     const catPerils = ['Hurricane', 'Wildfire', 'Earthquake', 'Flood', 'Tornado', 'Severe Weather', 'Hail', 'Winter Storm', 'Convective Storm'];
-    const hasCatPeril = ((_e = (_d = params.tags) === null || _d === void 0 ? void 0 : _d.perils) === null || _e === void 0 ? void 0 : _e.some(p => catPerils.some(cat => p.toLowerCase().includes(cat.toLowerCase())))) || false;
+    const hasCatPeril = ((_h = (_g = params.tags) === null || _g === void 0 ? void 0 : _g.perils) === null || _h === void 0 ? void 0 : _h.some(p => catPerils.some(cat => p.toLowerCase().includes(cat.toLowerCase())))) || false;
     // Named storm gets higher boost
     const catastropheBoost = params.stormName ? 1.30 : (hasCatPeril ? 1.15 : 1.0);
     // High-value trend boost (emerging risks and opportunities)
@@ -242,23 +284,52 @@ function calculateSmartScore(params) {
         'Tort Reform', 'Rate Adequacy', 'Reinsurance', 'Capacity Constraints',
         'Nuclear Verdicts', 'Assignment of Benefits', 'Parametric Insurance'
     ];
-    const hasHighValueTrend = ((_g = (_f = params.tags) === null || _f === void 0 ? void 0 : _f.trends) === null || _g === void 0 ? void 0 : _g.some(t => highValueTrends.some(hvt => t.toLowerCase().includes(hvt.toLowerCase())))) || false;
+    const hasHighValueTrend = ((_k = (_j = params.tags) === null || _j === void 0 ? void 0 : _j.trends) === null || _k === void 0 ? void 0 : _k.some(t => highValueTrends.some(hvt => t.toLowerCase().includes(hvt.toLowerCase())))) || false;
     const trendBoost = hasHighValueTrend ? 1.10 : 1.0;
     // Multi-LOB coverage boost (broader industry relevance)
-    const lobCount = ((_j = (_h = params.tags) === null || _h === void 0 ? void 0 : _h.lob) === null || _j === void 0 ? void 0 : _j.length) || 0;
+    const lobCount = ((_m = (_l = params.tags) === null || _l === void 0 ? void 0 : _l.lob) === null || _m === void 0 ? void 0 : _m.length) || 0;
     const lobBoost = lobCount >= 3 ? 1.08 : (lobCount >= 2 ? 1.04 : 1.0);
-    // Calculate base score with enhanced weighting
-    // Recency: 35% (down from 40% to reduce recency bias)
-    // Impact: 65% (up from 60% to prioritize substance over timing)
-    const baseScore = (recencyScore * 0.35) + (weightedImpact * 0.65);
+    // DYNAMIC WEIGHT ADJUSTMENT: Adjust weights based on content age and type
+    // Fresh breaking news: Higher recency weight (50%)
+    // Older content: Higher impact weight (70%)
+    // This ensures fresh news gets priority while older high-impact content still ranks well
+    let recencyWeight = 0.35;
+    let impactWeight = 0.65;
+    if (ageDays < 1) {
+        // Fresh content (< 24 hours): Prioritize recency
+        recencyWeight = 0.50;
+        impactWeight = 0.50;
+    }
+    else if (ageDays > 7) {
+        // Older content (> 7 days): Prioritize impact
+        recencyWeight = 0.25;
+        impactWeight = 0.75;
+    }
+    // Calculate base score with dynamic weighting
+    const baseScore = (recencyScore * recencyWeight) + (weightedImpact * impactWeight);
     // Apply all multipliers
     const smartScore = Math.min(100, baseScore *
+        engagementBoost *
         riskPulseMultiplier *
         regulatoryBoost *
         catastropheBoost *
         trendBoost *
         lobBoost);
     return Math.round(smartScore * 10) / 10;
+}
+/**
+ * Calculate dynamic score for an article at query time
+ * This function is called when articles are fetched to ensure scores reflect current time
+ *
+ * @param article - Article with original scoring data
+ * @param currentTime - Current timestamp (defaults to now)
+ * @returns Updated score reflecting current recency and engagement
+ */
+function calculateDynamicScore(article) {
+    var _a;
+    // Ensure impactScore is provided, default to 50 if missing
+    const impactScore = (_a = article.impactScore) !== null && _a !== void 0 ? _a : 50;
+    return calculateSmartScore(Object.assign(Object.assign({}, article), { impactScore }));
 }
 /**
  * Hash URL for document ID

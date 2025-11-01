@@ -1,24 +1,26 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.hashUrl = hashUrl;
+exports.isRegulatorySource = exports.detectStormName = exports.computeContentHash = exports.normalizeCompanies = exports.normalizeRegions = exports.calculateSmartScore = exports.hashUrl = void 0;
 exports.extractArticle = extractArticle;
 exports.summarizeAndTag = summarizeAndTag;
 exports.validateAndCleanArticle = validateAndCleanArticle;
 exports.checkRAGQuality = checkRAGQuality;
 exports.embedForRAG = embedForRAG;
-exports.calculateSmartScore = calculateSmartScore;
-exports.normalizeRegions = normalizeRegions;
-exports.normalizeCompanies = normalizeCompanies;
 exports.getCanonicalUrl = getCanonicalUrl;
-exports.computeContentHash = computeContentHash;
-exports.detectStormName = detectStormName;
-exports.isRegulatorySource = isRegulatorySource;
 exports.scoreArticleWithAI = scoreArticleWithAI;
 const jsdom_1 = require("jsdom");
 const readability_1 = require("@mozilla/readability");
 const zod_1 = require("zod");
 const exponential_backoff_1 = require("exponential-backoff"); // Import for retry logic
 const utils_1 = require("./utils");
+// Re-export utility functions directly
+exports.hashUrl = utils_1.hashUrl;
+exports.calculateSmartScore = utils_1.calculateSmartScore;
+exports.normalizeRegions = utils_1.normalizeRegions;
+exports.normalizeCompanies = utils_1.normalizeCompanies;
+exports.computeContentHash = utils_1.computeContentHash;
+exports.detectStormName = utils_1.detectStormName;
+exports.isRegulatorySource = utils_1.isRegulatorySource;
 const schema = zod_1.z.object({
     title: zod_1.z.string(),
     url: zod_1.z.string(),
@@ -54,9 +56,6 @@ const schema = zod_1.z.object({
     leadQuote: zod_1.z.string().max(300), // Key factual excerpt (required for OpenAI structured output)
     disclosure: zod_1.z.string().max(200), // If promotional/opinionated (required for OpenAI structured output)
 });
-function hashUrl(u) {
-    return (0, utils_1.hashUrl)(u);
-}
 async function extractArticle(url) {
     var _a, _b, _c, _d, _e, _f, _g;
     // Validate URL format before attempting fetch
@@ -566,25 +565,6 @@ async function embedForRAG(client, text) {
     }
 }
 /**
- * Calculate SmartScore v3: Enhanced multi-dimensional scoring for P&C insurance
- * Returns a score 0-100 for ranking articles
- */
-function calculateSmartScore(params) {
-    return (0, utils_1.calculateSmartScore)(params);
-}
-/**
- * Normalize regions to ISO 3166-2 codes
- */
-function normalizeRegions(regions) {
-    return (0, utils_1.normalizeRegions)(regions);
-}
-/**
- * Normalize company names to canonical forms
- */
-function normalizeCompanies(companies) {
-    return (0, utils_1.normalizeCompanies)(companies);
-}
-/**
  * Generate canonical URL (respect og:url if present)
  */
 function getCanonicalUrl(url, html) {
@@ -605,25 +585,6 @@ function getCanonicalUrl(url, html) {
         // Ignore parsing errors
     }
     return url;
-}
-/**
- * Compute content hash for deduplication (simhash-style)
- */
-function computeContentHash(text) {
-    return (0, utils_1.computeContentHash)(text);
-}
-/**
- * Detect storm/hurricane names from text
- * Returns storm name if found (e.g., "Hurricane Milton", "Tropical Storm Debby")
- */
-function detectStormName(text) {
-    return (0, utils_1.detectStormName)(text);
-}
-/**
- * Detect if article is from a regulatory source (DOI bulletin, etc.)
- */
-function isRegulatorySource(url, source) {
-    return (0, utils_1.isRegulatorySource)(url, source);
 }
 /**
  * AI-driven article scoring for P&C insurance professionals (v3 Enhanced)

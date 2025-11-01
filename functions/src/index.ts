@@ -804,11 +804,9 @@ async function logBatchCompletion(metrics: Record<string, unknown>) {
 }
 
 // 1) Scheduled gatherer (batch refresh - every 12 hours)
-// Schedule: 0 0,12 * * * (midnight and noon UTC)
 export const refreshFeeds = onSchedule(
-  {schedule: "every 12 hours", timeZone: "UTC", secrets: [OPENAI_API_KEY]},
+  {schedule: `every ${BATCH_CONFIG.interval} minutes`, timeZone: BATCH_CONFIG.timeZone, secrets: [OPENAI_API_KEY]},
   async () => {
-    console.log(`[REFRESH FEEDS] Starting 12-hour scheduled refresh at ${new Date().toISOString()}`);
     await refreshFeedsWithBatching(OPENAI_API_KEY.value());
   }
 );
@@ -1479,6 +1477,14 @@ function sanitizeHtml(html: string): string {
   return sanitized;
 }
 
+// 5) Comprehensive ingestion with AI enhancement (scheduled every 12 hours)
+export const comprehensiveIngest = onSchedule(
+  {schedule: "every 12 hours", timeZone: "America/New_York", secrets: [OPENAI_API_KEY]},
+  async () => {
+    await comprehensiveIngestionWithAI(OPENAI_API_KEY.value());
+  }
+);
+
 /**
  * Comprehensive ingestion function that fetches from all sources and applies AI enhancement
  * Runs on 12-hour schedule to ensure fresh, AI-enriched content
@@ -1687,19 +1693,6 @@ async function comprehensiveIngestionWithAI(apiKey: string) {
 
   return stats;
 }
-
-// 1c) Comprehensive ingestion with AI (runs every 12 hours)
-export const comprehensiveIngest = onSchedule(
-  {schedule: "every 12 hours", timeZone: "UTC", secrets: [OPENAI_API_KEY]},
-  async () => {
-    console.log(`[COMPREHENSIVE INGEST] Starting at ${new Date().toISOString()}`);
-    try {
-      await comprehensiveIngestionWithAI(OPENAI_API_KEY.value());
-    } catch (error) {
-      console.error('[COMPREHENSIVE INGEST] Failed:', error);
-    }
-  }
-);
 
 
 

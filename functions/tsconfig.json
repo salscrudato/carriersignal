@@ -4,6 +4,7 @@
     "noImplicitReturns": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    "rootDir": "src",
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
@@ -29,8 +30,7 @@
   },
   "compileOnSave": true,
   "include": [
-    "src",
-    "scripts"
+    "src"
   ],
   "exclude": [
     "node_modules",

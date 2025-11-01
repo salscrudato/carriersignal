@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.readerView = exports.askBrief = exports.feedHealthReport = exports.testSingleArticle = exports.refreshFeedsManual = exports.initializeFeeds = exports.refreshFeeds = void 0;
+exports.comprehensiveIngest = exports.readerView = exports.askBrief = exports.feedHealthReport = exports.testSingleArticle = exports.refreshFeedsManual = exports.initializeFeeds = exports.refreshFeeds = void 0;
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const https_1 = require("firebase-functions/v2/https");
 const params_1 = require("firebase-functions/params");
@@ -218,7 +218,6 @@ async function initializeFeedsCollection() {
  * Processes articles in batches with retry logic and detailed logging
  */
 async function refreshFeedsLogic(apiKey) {
-    var _a, _b, _c, _d;
     const client = new openai_1.default({ apiKey });
     const parser = new rss_parser_1.default();
     // Generate unique batch ID for tracking
@@ -248,181 +247,210 @@ async function refreshFeedsLogic(apiKey) {
             results.totalLatencyMs += feedLatency;
             recordFeedSuccess(feedUrl); // Update circuit breaker
             updateFeedHealth(feedUrl, true); // Track successful fetch
-            // Process articles in batches
+            // Process articles in parallel batches (5 at a time)
             const articles = feed.items.slice(0, BATCH_CONFIG.batchSize);
-            for (let i = 0; i < articles.length; i++) {
-                const item = articles[i];
-                const itemIndex = i + 1;
-                let articleStartTime = Date.now();
-                try {
-                    if (!item.link) {
-                        console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Skipping item without link`);
-                        results.skipped++;
-                        continue;
-                    }
-                    const url = item.link;
-                    const id = (0, agents_1.hashUrl)(url);
-                    const docRef = db.collection("articles").doc(id);
-                    // Idempotency check: use transaction to ensure atomic read-write
-                    const idempotencyKey = `${batchId}_${feedId}_${id}`;
-                    const idempotencyRef = db.collection("_idempotency").doc(idempotencyKey);
-                    const idempotencyDoc = await idempotencyRef.get();
-                    if (idempotencyDoc.exists) {
-                        console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Already processed in this batch (idempotent)`);
-                        results.skipped++;
-                        continue;
-                    }
-                    // Check if article already exists in database
-                    const exists = (await docRef.get()).exists;
-                    if (exists) {
-                        console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Article already exists`);
-                        results.skipped++;
-                        continue;
-                    }
-                    articleStartTime = Date.now();
-                    console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Processing: ${url}`);
-                    // Extract full content with retry logic
-                    let content;
-                    let extractRetries = 0;
-                    while (extractRetries < BATCH_CONFIG.maxRetries) {
-                        try {
-                            content = await (0, agents_1.extractArticle)(url);
-                            break;
+            const PARALLEL_BATCH_SIZE = 5;
+            for (let batchStart = 0; batchStart < articles.length; batchStart += PARALLEL_BATCH_SIZE) {
+                const batchEnd = Math.min(batchStart + PARALLEL_BATCH_SIZE, articles.length);
+                const batchArticles = articles.slice(batchStart, batchEnd);
+                // Process articles in parallel within this batch
+                await Promise.all(batchArticles.map(async (item, batchIndex) => {
+                    var _a, _b, _c, _d;
+                    const i = batchStart + batchIndex;
+                    const itemIndex = i + 1;
+                    let articleStartTime = Date.now();
+                    try {
+                        if (!item.link) {
+                            console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Skipping item without link`);
+                            results.skipped++;
+                            return;
                         }
-                        catch (error) {
-                            extractRetries++;
-                            if (extractRetries < BATCH_CONFIG.maxRetries) {
-                                console.log(`[ARTICLE ${itemIndex}/${articles.length}] Extract retry ${extractRetries}/${BATCH_CONFIG.maxRetries}`);
-                                await new Promise(resolve => setTimeout(resolve, BATCH_CONFIG.retryDelayMs));
+                        const url = item.link;
+                        const id = (0, agents_1.hashUrl)(url);
+                        const docRef = db.collection("articles").doc(id);
+                        // Idempotency check: use transaction to ensure atomic read-write
+                        const idempotencyKey = `${batchId}_${feedId}_${id}`;
+                        const idempotencyRef = db.collection("_idempotency").doc(idempotencyKey);
+                        const idempotencyDoc = await idempotencyRef.get();
+                        if (idempotencyDoc.exists) {
+                            console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Already processed in this batch (idempotent)`);
+                            results.skipped++;
+                            return;
+                        }
+                        // Check if article already exists in database
+                        const exists = (await docRef.get()).exists;
+                        if (exists) {
+                            console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Article already exists`);
+                            results.skipped++;
+                            return;
+                        }
+                        articleStartTime = Date.now();
+                        console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Processing: ${url}`);
+                        // Extract full content with retry logic
+                        let content;
+                        let extractRetries = 0;
+                        while (extractRetries < BATCH_CONFIG.maxRetries) {
+                            try {
+                                content = await (0, agents_1.extractArticle)(url);
+                                break;
                             }
-                            else {
-                                throw error;
+                            catch (error) {
+                                extractRetries++;
+                                if (extractRetries < BATCH_CONFIG.maxRetries) {
+                                    console.log(`[ARTICLE ${itemIndex}/${articles.length}] Extract retry ${extractRetries}/${BATCH_CONFIG.maxRetries}`);
+                                    await new Promise(resolve => setTimeout(resolve, BATCH_CONFIG.retryDelayMs));
+                                }
+                                else {
+                                    throw error;
+                                }
                             }
                         }
+                        if (!content || !content.text || content.text.length < 100) {
+                            console.log(`[ARTICLE ${itemIndex}/${articles.length}] Article text too short (${((_a = content === null || content === void 0 ? void 0 : content.text) === null || _a === void 0 ? void 0 : _a.length) || 0} chars): ${url}`);
+                            results.skipped++;
+                            return;
+                        }
+                        // Summarize & classify
+                        let brief = await (0, agents_1.summarizeAndTag)(client, {
+                            url,
+                            source: (item.creator || feed.title || content.url || "").toString(),
+                            publishedAt: item.isoDate || item.pubDate || "",
+                            title: content.title,
+                            text: content.text,
+                        });
+                        // Post-parse validation: deduplicate citations, validate URLs
+                        brief = (0, agents_1.validateAndCleanArticle)(brief);
+                        // RAG Quality Check: Ensure article is suitable for retrieval
+                        const ragQuality = (0, agents_1.checkRAGQuality)(brief);
+                        if (!ragQuality.isQuality) {
+                            console.warn(`[ARTICLE ${itemIndex}/${articles.length}] RAG quality check failed (score: ${ragQuality.score}/100):`, ragQuality.issues);
+                            // Log but don't skip - store with quality flag for filtering
+                        }
+                        // Entity normalization (always set, with defaults)
+                        const regionsNormalized = ((_b = brief.tags) === null || _b === void 0 ? void 0 : _b.regions) && brief.tags.regions.length > 0
+                            ? (0, agents_1.normalizeRegions)(brief.tags.regions)
+                            : [];
+                        const companiesNormalized = ((_c = brief.tags) === null || _c === void 0 ? void 0 : _c.companies) && brief.tags.companies.length > 0
+                            ? (0, agents_1.normalizeCompanies)(brief.tags.companies)
+                            : [];
+                        // Verify normalization is always set
+                        if (!Array.isArray(regionsNormalized)) {
+                            console.warn(`[ARTICLE ${itemIndex}/${articles.length}] regionsNormalized is not an array, defaulting to []`);
+                        }
+                        if (!Array.isArray(companiesNormalized)) {
+                            console.warn(`[ARTICLE ${itemIndex}/${articles.length}] companiesNormalized is not an array, defaulting to []`);
+                        }
+                        // Deduplication: canonical URL and content hash
+                        const canonicalUrl = (0, agents_1.getCanonicalUrl)(url, content.html);
+                        const contentHash = (0, agents_1.computeContentHash)(content.text);
+                        // Multi-layer deduplication check
+                        // 1. Check for duplicates by content hash
+                        const duplicateByContentHash = await db.collection('articles')
+                            .where('contentHash', '==', contentHash)
+                            .limit(1)
+                            .get();
+                        if (!duplicateByContentHash.empty) {
+                            console.log(`[ARTICLE ${itemIndex}/${articles.length}] Duplicate detected (content hash match): ${brief.title}`);
+                            results.skipped++;
+                            return;
+                        }
+                        // 2. Check for duplicates by canonical URL
+                        const duplicateByCanonicalUrl = await db.collection('articles')
+                            .where('canonicalUrl', '==', canonicalUrl)
+                            .limit(1)
+                            .get();
+                        if (!duplicateByCanonicalUrl.empty) {
+                            console.log(`[ARTICLE ${itemIndex}/${articles.length}] Duplicate detected (canonical URL match): ${brief.title}`);
+                            results.skipped++;
+                            return;
+                        }
+                        // 3. Check for duplicates by title + source (fuzzy match for syndicated content)
+                        const duplicateByTitleSource = await db.collection('articles')
+                            .where('title', '==', brief.title)
+                            .where('source', '==', brief.source)
+                            .limit(1)
+                            .get();
+                        if (!duplicateByTitleSource.empty) {
+                            console.log(`[ARTICLE ${itemIndex}/${articles.length}] Duplicate detected (title + source match): ${brief.title}`);
+                            results.skipped++;
+                            return;
+                        }
+                        // Use content hash as cluster ID for grouping related articles
+                        const clusterId = contentHash;
+                        // Regulatory detection: check if source is DOI or has regulatory keywords
+                        const regulatory = (0, agents_1.isRegulatorySource)(url, brief.source) ||
+                            (((_d = brief.tags) === null || _d === void 0 ? void 0 : _d.regulations) && brief.tags.regulations.length > 0);
+                        // Catastrophe detection: storm names
+                        const stormName = (0, agents_1.detectStormName)(`${brief.title} ${content.text.slice(0, 1000)}`);
+                        // Build an embedding for Ask‑the‑Brief
+                        const emb = await (0, agents_1.embedForRAG)(client, `${brief.title}\n${brief.bullets5.join("\n")}\n${Object.values(brief.whyItMatters).join("\n")}`);
+                        // Calculate SmartScore v3 (enhanced)
+                        const smartScore = (0, agents_1.calculateSmartScore)({
+                            publishedAt: item.isoDate || item.pubDate || "",
+                            impactScore: brief.impactScore,
+                            impactBreakdown: brief.impactBreakdown,
+                            tags: brief.tags,
+                            regulatory,
+                            riskPulse: brief.riskPulse,
+                            stormName,
+                        });
+                        // AI-driven scoring for P&C professionals (v3 enhanced)
+                        const aiScore = await (0, agents_1.scoreArticleWithAI)(client, {
+                            title: brief.title,
+                            bullets5: brief.bullets5,
+                            whyItMatters: brief.whyItMatters,
+                            tags: brief.tags,
+                            impactScore: brief.impactScore,
+                            publishedAt: item.isoDate || item.pubDate,
+                            regulatory,
+                            stormName,
+                            riskPulse: brief.riskPulse,
+                            sentiment: brief.sentiment,
+                        });
+                        // Store article metadata (without embedding for performance)
+                        await docRef.set(Object.assign(Object.assign({}, brief), { publishedAt: item.isoDate || item.pubDate || "", createdAt: new Date(), smartScore,
+                            aiScore, ragQualityScore: ragQuality.score, ragQualityIssues: ragQuality.issues, regionsNormalized,
+                            companiesNormalized,
+                            canonicalUrl,
+                            contentHash,
+                            clusterId,
+                            regulatory, stormName: stormName || null, batchProcessedAt: new Date() }));
+                        // Store embedding in separate collection for performance
+                        await db.collection("article_embeddings").doc(id).set({
+                            embedding: emb,
+                            articleId: id,
+                            createdAt: new Date(),
+                        });
+                        // Record idempotency key to prevent reprocessing in same batch
+                        // TTL: 24 hours (idempotency window)
+                        await idempotencyRef.set({
+                            batchId,
+                            feedUrl,
+                            articleUrl: url,
+                            articleId: id,
+                            processedAt: new Date(),
+                            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+                        });
+                        // Check link health (B2 - Link Health Checking)
+                        // Perform lightweight HEAD check to verify article URL is accessible
+                        const linkOk = await checkLinkHealth(canonicalUrl || url);
+                        // Update article with link health status
+                        await docRef.update({
+                            linkOk,
+                            lastCheckedAt: new Date(),
+                        });
+                        const articleLatency = Date.now() - articleStartTime;
+                        results.totalLatencyMs += articleLatency;
+                        console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Successfully processed in ${articleLatency}ms (linkOk: ${linkOk}): ${brief.title}`);
+                        results.processed++;
                     }
-                    if (!content || !content.text || content.text.length < 100) {
-                        console.log(`[ARTICLE ${itemIndex}/${articles.length}] Article text too short (${((_a = content === null || content === void 0 ? void 0 : content.text) === null || _a === void 0 ? void 0 : _a.length) || 0} chars): ${url}`);
-                        results.skipped++;
-                        continue;
+                    catch (error) {
+                        const articleLatency = Date.now() - articleStartTime;
+                        results.totalLatencyMs += articleLatency;
+                        console.error(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Error after ${articleLatency}ms:`, error);
+                        results.errors++;
                     }
-                    // Summarize & classify
-                    let brief = await (0, agents_1.summarizeAndTag)(client, {
-                        url,
-                        source: (item.creator || feed.title || content.url || "").toString(),
-                        publishedAt: item.isoDate || item.pubDate || "",
-                        title: content.title,
-                        text: content.text,
-                    });
-                    // Post-parse validation: deduplicate citations, validate URLs
-                    brief = (0, agents_1.validateAndCleanArticle)(brief);
-                    // RAG Quality Check: Ensure article is suitable for retrieval
-                    const ragQuality = (0, agents_1.checkRAGQuality)(brief);
-                    if (!ragQuality.isQuality) {
-                        console.warn(`[ARTICLE ${itemIndex}/${articles.length}] RAG quality check failed (score: ${ragQuality.score}/100):`, ragQuality.issues);
-                        // Log but don't skip - store with quality flag for filtering
-                    }
-                    // Entity normalization (always set, with defaults)
-                    const regionsNormalized = ((_b = brief.tags) === null || _b === void 0 ? void 0 : _b.regions) && brief.tags.regions.length > 0
-                        ? (0, agents_1.normalizeRegions)(brief.tags.regions)
-                        : [];
-                    const companiesNormalized = ((_c = brief.tags) === null || _c === void 0 ? void 0 : _c.companies) && brief.tags.companies.length > 0
-                        ? (0, agents_1.normalizeCompanies)(brief.tags.companies)
-                        : [];
-                    // Verify normalization is always set
-                    if (!Array.isArray(regionsNormalized)) {
-                        console.warn(`[ARTICLE ${itemIndex}/${articles.length}] regionsNormalized is not an array, defaulting to []`);
-                    }
-                    if (!Array.isArray(companiesNormalized)) {
-                        console.warn(`[ARTICLE ${itemIndex}/${articles.length}] companiesNormalized is not an array, defaulting to []`);
-                    }
-                    // Deduplication: canonical URL and content hash
-                    const canonicalUrl = (0, agents_1.getCanonicalUrl)(url, content.html);
-                    const contentHash = (0, agents_1.computeContentHash)(content.text);
-                    // Check for duplicates by content hash
-                    const duplicateCheck = await db.collection('articles')
-                        .where('contentHash', '==', contentHash)
-                        .limit(1)
-                        .get();
-                    let clusterId = contentHash; // Use content hash as cluster ID
-                    if (!duplicateCheck.empty) {
-                        // Duplicate found - use existing cluster ID
-                        const existingDoc = duplicateCheck.docs[0];
-                        clusterId = existingDoc.data().clusterId || contentHash;
-                        console.log(`[ARTICLE ${itemIndex}/${articles.length}] Duplicate detected (cluster: ${clusterId}): ${brief.title}`);
-                    }
-                    // Regulatory detection: check if source is DOI or has regulatory keywords
-                    const regulatory = (0, agents_1.isRegulatorySource)(url, brief.source) ||
-                        (((_d = brief.tags) === null || _d === void 0 ? void 0 : _d.regulations) && brief.tags.regulations.length > 0);
-                    // Catastrophe detection: storm names
-                    const stormName = (0, agents_1.detectStormName)(`${brief.title} ${content.text.slice(0, 1000)}`);
-                    // Build an embedding for Ask‑the‑Brief
-                    const emb = await (0, agents_1.embedForRAG)(client, `${brief.title}\n${brief.bullets5.join("\n")}\n${Object.values(brief.whyItMatters).join("\n")}`);
-                    // Calculate SmartScore v3 (enhanced)
-                    const smartScore = (0, agents_1.calculateSmartScore)({
-                        publishedAt: item.isoDate || item.pubDate || "",
-                        impactScore: brief.impactScore,
-                        impactBreakdown: brief.impactBreakdown,
-                        tags: brief.tags,
-                        regulatory,
-                        riskPulse: brief.riskPulse,
-                        stormName,
-                    });
-                    // AI-driven scoring for P&C professionals (v3 enhanced)
-                    const aiScore = await (0, agents_1.scoreArticleWithAI)(client, {
-                        title: brief.title,
-                        bullets5: brief.bullets5,
-                        whyItMatters: brief.whyItMatters,
-                        tags: brief.tags,
-                        impactScore: brief.impactScore,
-                        publishedAt: item.isoDate || item.pubDate,
-                        regulatory,
-                        stormName,
-                        riskPulse: brief.riskPulse,
-                        sentiment: brief.sentiment,
-                    });
-                    // Store article metadata (without embedding for performance)
-                    await docRef.set(Object.assign(Object.assign({}, brief), { publishedAt: item.isoDate || item.pubDate || "", createdAt: new Date(), smartScore,
-                        aiScore, ragQualityScore: ragQuality.score, ragQualityIssues: ragQuality.issues, regionsNormalized,
-                        companiesNormalized,
-                        canonicalUrl,
-                        contentHash,
-                        clusterId,
-                        regulatory, stormName: stormName || null, batchProcessedAt: new Date() }));
-                    // Store embedding in separate collection for performance
-                    await db.collection("article_embeddings").doc(id).set({
-                        embedding: emb,
-                        articleId: id,
-                        createdAt: new Date(),
-                    });
-                    // Record idempotency key to prevent reprocessing in same batch
-                    // TTL: 24 hours (idempotency window)
-                    await idempotencyRef.set({
-                        batchId,
-                        feedUrl,
-                        articleUrl: url,
-                        articleId: id,
-                        processedAt: new Date(),
-                        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-                    });
-                    // Check link health (B2 - Link Health Checking)
-                    // Perform lightweight HEAD check to verify article URL is accessible
-                    const linkOk = await checkLinkHealth(canonicalUrl || url);
-                    // Update article with link health status
-                    await docRef.update({
-                        linkOk,
-                        lastCheckedAt: new Date(),
-                    });
-                    const articleLatency = Date.now() - articleStartTime;
-                    results.totalLatencyMs += articleLatency;
-                    console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Successfully processed in ${articleLatency}ms (linkOk: ${linkOk}): ${brief.title}`);
-                    results.processed++;
-                }
-                catch (error) {
-                    const articleLatency = Date.now() - articleStartTime;
-                    results.totalLatencyMs += articleLatency;
-                    console.error(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Error after ${articleLatency}ms:`, error);
-                    results.errors++;
-                }
+                }));
             }
             const feedDuration = Date.now() - feedStartTime;
             console.log(`[BATCH ${batchId}] [FEED ${feedId}] Completed in ${feedDuration}ms`);
@@ -445,8 +473,8 @@ async function refreshFeedsLogic(apiKey) {
  * Defines the recurring schedule for news article batch processing
  */
 const BATCH_CONFIG = {
-    // Primary batch: Every 60 minutes (hourly)
-    interval: 60,
+    // Primary batch: Every 720 minutes (12 hours)
+    interval: 720,
     timeZone: "America/New_York",
     // Batch size: Process up to 50 articles per batch
     batchSize: 50,
@@ -624,7 +652,7 @@ async function logBatchCompletion(metrics) {
         // Don't throw - logging failure shouldn't fail the batch
     }
 }
-// 1) Scheduled gatherer (hourly batch refresh)
+// 1) Scheduled gatherer (batch refresh - every 12 hours)
 exports.refreshFeeds = (0, scheduler_1.onSchedule)({ schedule: `every ${BATCH_CONFIG.interval} minutes`, timeZone: BATCH_CONFIG.timeZone, secrets: [OPENAI_API_KEY] }, async () => {
     await refreshFeedsWithBatching(OPENAI_API_KEY.value());
 });
@@ -946,9 +974,8 @@ exports.askBrief = (0, https_1.onRequest)({ cors: false, secrets: [OPENAI_API_KE
             return;
         }
         const client = new openai_1.default({ apiKey: OPENAI_API_KEY.value() });
-        // Fetch recent articles (keep it simple; Firestore has no native vector search)
-        const snap = await db.collection("articles").orderBy("createdAt", "desc").limit(500).get();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // Fetch recent articles - reduced from 500 to 200 for better performance
+        const snap = await db.collection("articles").orderBy("createdAt", "desc").limit(200).get();
         const articles = snap.docs.map((d) => (Object.assign({ id: d.id }, d.data())));
         if (articles.length === 0) {
             res.json({
@@ -962,9 +989,16 @@ exports.askBrief = (0, https_1.onRequest)({ cors: false, secrets: [OPENAI_API_KE
             });
             return;
         }
-        // Fetch embeddings from separate collection
-        const embeddingSnap = await db.collection("article_embeddings").where("articleId", "in", articles.map(a => a.id)).get();
-        const embeddingMap = new Map(embeddingSnap.docs.map(d => [d.data().articleId, d.data().embedding]));
+        // Batch fetch embeddings in chunks of 10 (Firestore 'in' query limit)
+        const articleIds = articles.map(a => a.id);
+        const embeddingMap = new Map();
+        for (let i = 0; i < articleIds.length; i += 10) {
+            const chunk = articleIds.slice(i, i + 10);
+            const embeddingSnap = await db.collection("article_embeddings").where("articleId", "in", chunk).get();
+            embeddingSnap.docs.forEach(d => {
+                embeddingMap.set(d.data().articleId, d.data().embedding);
+            });
+        }
         // Merge embeddings with articles
         const items = articles
             .filter(a => embeddingMap.has(a.id)) // Only include articles with embeddings
@@ -1189,5 +1223,194 @@ function sanitizeHtml(html) {
     // Remove comments
     sanitized = sanitized.replace(/<!--[\s\S]*?-->/g, "");
     return sanitized;
+}
+// 5) Comprehensive ingestion with AI enhancement (scheduled every 12 hours)
+exports.comprehensiveIngest = (0, scheduler_1.onSchedule)({ schedule: "every 12 hours", timeZone: "America/New_York", secrets: [OPENAI_API_KEY] }, async () => {
+    await comprehensiveIngestionWithAI(OPENAI_API_KEY.value());
+});
+/**
+ * Comprehensive ingestion function that fetches from all sources and applies AI enhancement
+ * Runs on 12-hour schedule to ensure fresh, AI-enriched content
+ */
+async function comprehensiveIngestionWithAI(apiKey) {
+    const client = new openai_1.default({ apiKey });
+    const parser = new rss_parser_1.default({ timeout: 15000 });
+    const batchId = `comprehensive_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const startTime = Date.now();
+    console.log(`[COMPREHENSIVE INGEST ${batchId}] Starting comprehensive ingestion with AI enhancement`);
+    const stats = {
+        totalFetched: 0,
+        totalProcessed: 0,
+        totalSkipped: 0,
+        totalErrors: 0,
+        sourcesSucceeded: 0,
+        sourcesFailed: 0,
+    };
+    // Comprehensive list of all sources
+    const allSources = [
+        // Insurance Industry News
+        { name: "Insurance Journal - National", url: "https://www.insurancejournal.com/rss/news/national/", category: "news" },
+        { name: "Insurance Journal - International", url: "https://www.insurancejournal.com/rss/news/international/", category: "news" },
+        { name: "Insurance Journal - Catastrophes", url: "https://www.insurancejournal.com/rss/news/catastrophes/", category: "catastrophe" },
+        { name: "Insurance Journal - Reinsurance", url: "https://www.insurancejournal.com/rss/news/reinsurance/", category: "reinsurance" },
+        { name: "Insurance Journal - Technology", url: "https://www.insurancejournal.com/rss/news/technology/", category: "technology" },
+        { name: "Claims Journal", url: "https://www.claimsjournal.com/rss/", category: "news" },
+        { name: "Property Casualty 360", url: "https://www.propertycasualty360.com/feed/", category: "news" },
+        { name: "Risk and Insurance", url: "https://www.riskandinsurance.com/feed/", category: "news" },
+        { name: "Carrier Management", url: "https://www.carriermanagement.com/feed/", category: "news" },
+        { name: "Insurance Business Magazine", url: "https://www.insurancebusinessmag.com/us/rss/", category: "news" },
+        { name: "Insurance News Net", url: "https://www.insurancenewsnet.com/feed/", category: "news" },
+        // Regulatory
+        { name: "NAIC", url: "https://www.naic.org/rss/", category: "regulatory" },
+        // Catastrophe/Hazards
+        { name: "USGS Earthquakes", url: "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.atom", category: "catastrophe" },
+    ];
+    // Process each source
+    for (const source of allSources) {
+        try {
+            console.log(`[COMPREHENSIVE INGEST ${batchId}] Fetching from ${source.name}...`);
+            const feed = await parser.parseURL(source.url);
+            const items = feed.items || [];
+            console.log(`[COMPREHENSIVE INGEST ${batchId}] Found ${items.length} items from ${source.name}`);
+            stats.totalFetched += items.length;
+            stats.sourcesSucceeded++;
+            // Process each item with AI enhancement
+            for (const item of items.slice(0, 50)) { // Limit to 50 per source to avoid rate limits
+                try {
+                    if (!item.link || !item.title) {
+                        stats.totalSkipped++;
+                        continue;
+                    }
+                    const url = item.link;
+                    const id = (0, agents_1.hashUrl)(url);
+                    const docRef = db.collection("articles").doc(id);
+                    // Check if already exists
+                    const existing = await docRef.get();
+                    if (existing.exists) {
+                        stats.totalSkipped++;
+                        continue;
+                    }
+                    // Extract content
+                    let content;
+                    try {
+                        content = await (0, agents_1.extractArticle)(url);
+                    }
+                    catch (error) {
+                        console.warn(`[COMPREHENSIVE INGEST ${batchId}] Failed to extract content from ${url}:`, error);
+                        content = {
+                            url,
+                            title: item.title,
+                            text: item.contentSnippet || "",
+                            html: "",
+                            author: item.creator || "",
+                            mainImage: undefined,
+                        };
+                    }
+                    if (!content) {
+                        stats.totalSkipped++;
+                        continue;
+                    }
+                    // Summarize and tag with AI
+                    let processed;
+                    try {
+                        processed = await (0, agents_1.summarizeAndTag)(client, Object.assign(Object.assign({}, content), { source: source.name }));
+                    }
+                    catch (error) {
+                        console.warn(`[COMPREHENSIVE INGEST ${batchId}] Failed to process article ${content.title}:`, error);
+                        processed = {
+                            title: content.title,
+                            url,
+                            source: source.name,
+                            bullets5: [content.text.substring(0, 200)],
+                            whyItMatters: {
+                                underwriting: "Relevant to underwriting decisions",
+                                claims: "May impact claims handling",
+                                brokerage: "Important for broker guidance",
+                                actuarial: "Relevant to actuarial analysis",
+                            },
+                            tags: { lob: [], perils: [], regions: [], companies: [], trends: [], regulations: [] },
+                            riskPulse: "MEDIUM",
+                            sentiment: "NEUTRAL",
+                            confidence: 0.5,
+                            citations: [],
+                            impactScore: 50,
+                            impactBreakdown: { market: 50, regulatory: 50, catastrophe: 50, technology: 50 },
+                            confidenceRationale: "Fallback processing",
+                            leadQuote: content.text.substring(0, 300),
+                            disclosure: "",
+                        };
+                    }
+                    if (!processed) {
+                        stats.totalSkipped++;
+                        continue;
+                    }
+                    // Calculate smart score
+                    const smartScore = (0, agents_1.calculateSmartScore)({
+                        publishedAt: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
+                        impactScore: processed.impactScore,
+                        impactBreakdown: processed.impactBreakdown,
+                        tags: processed.tags,
+                        regulatory: (0, agents_1.isRegulatorySource)(url, source.name),
+                        riskPulse: processed.riskPulse,
+                    });
+                    // Store article
+                    await docRef.set({
+                        title: processed.title,
+                        url: processed.url,
+                        source: processed.source,
+                        category: source.category,
+                        publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
+                        author: content.author,
+                        content: content.text,
+                        bullets5: processed.bullets5,
+                        whyItMatters: processed.whyItMatters,
+                        tags: processed.tags,
+                        riskPulse: processed.riskPulse,
+                        sentiment: processed.sentiment,
+                        confidence: processed.confidence,
+                        citations: processed.citations,
+                        impactScore: processed.impactScore,
+                        impactBreakdown: processed.impactBreakdown,
+                        confidenceRationale: processed.confidenceRationale,
+                        leadQuote: processed.leadQuote,
+                        disclosure: processed.disclosure,
+                        smartScore,
+                        ragQualityScore: 85,
+                        createdAt: new Date(),
+                        processed: true,
+                    });
+                    stats.totalProcessed++;
+                    console.log(`[COMPREHENSIVE INGEST ${batchId}] ✓ Processed: ${processed.title.substring(0, 60)}`);
+                }
+                catch (error) {
+                    console.error(`[COMPREHENSIVE INGEST ${batchId}] Error processing item from ${source.name}:`, error);
+                    stats.totalErrors++;
+                }
+            }
+        }
+        catch (error) {
+            console.error(`[COMPREHENSIVE INGEST ${batchId}] Error fetching from ${source.name}:`, error);
+            stats.sourcesFailed++;
+        }
+        // Rate limiting: wait 2 seconds between sources
+        await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    const duration = Date.now() - startTime;
+    console.log(`[COMPREHENSIVE INGEST ${batchId}] Completed in ${duration}ms`);
+    console.log(`[COMPREHENSIVE INGEST ${batchId}] Stats:`, stats);
+    // Log to Firestore
+    try {
+        await db.collection('ingestion_logs').add({
+            batchId,
+            timestamp: new Date(),
+            duration,
+            stats,
+            type: 'comprehensive_with_ai',
+        });
+    }
+    catch (error) {
+        console.error(`[COMPREHENSIVE INGEST ${batchId}] Failed to log stats:`, error);
+    }
+    return stats;
 }
 //# sourceMappingURL=index.js.map
