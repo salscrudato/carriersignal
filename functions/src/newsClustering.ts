@@ -30,35 +30,6 @@ interface NewsCluster {
 }
 
 /**
- * Compute trigram similarity between two strings
- * Returns 0-1 similarity score
- */
-function trigramSimilarity(str1: string, str2: string): number {
-  const normalize = (s: string) => s.toLowerCase().trim();
-  const s1 = normalize(str1);
-  const s2 = normalize(str2);
-
-  if (s1 === s2) return 1.0;
-  if (s1.length < 3 || s2.length < 3) return 0;
-
-  const getTrigrams = (s: string): Set<string> => {
-    const trigrams = new Set<string>();
-    for (let i = 0; i <= s.length - 3; i++) {
-      trigrams.add(s.substring(i, i + 3));
-    }
-    return trigrams;
-  };
-
-  const t1 = getTrigrams(s1);
-  const t2 = getTrigrams(s2);
-
-  const intersection = new Set([...t1].filter(x => t2.has(x)));
-  const union = new Set([...t1, ...t2]);
-
-  return intersection.size / union.size;
-}
-
-/**
  * Generate cluster key from article metadata
  * Used to group similar articles
  */
@@ -143,7 +114,8 @@ function computeArticleScore(
 export async function clusterArticles(
   db: Firestore,
   articles: NewsArticle[],
-  similarityThreshold: number = 0.7
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _similarityThreshold: number = 0.7
 ): Promise<NewsCluster[]> {
   const clusters: Map<string, NewsArticle[]> = new Map();
 

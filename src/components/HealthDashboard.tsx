@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Activity, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react';
+import { Activity, AlertCircle, CheckCircle } from 'lucide-react';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { logger } from '../utils/logger';

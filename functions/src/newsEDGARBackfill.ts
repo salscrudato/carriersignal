@@ -5,7 +5,6 @@
 
 import Parser from 'rss-parser';
 import { Firestore } from 'firebase-admin/firestore';
-import * as crypto from 'crypto';
 
 interface CarrierMapping {
   name: string;
@@ -35,14 +34,6 @@ interface EDGARArticle {
   ticker: string;
   cik: string;
   filingType: string;
-}
-
-/**
- * Compute content hash for deduplication
- */
-function computeHash(title: string, link: string): string {
-  const normalized = `${title.toLowerCase().trim()}|${link.toLowerCase().trim()}`;
-  return crypto.createHash('sha1').update(normalized).digest('hex');
 }
 
 /**
@@ -112,8 +103,6 @@ export async function backfillEDGARFilings(db: Firestore): Promise<void> {
               totalSkipped++;
               continue;
             }
-
-            const contentHash = computeHash(article.title, article.link);
 
             // Check for duplicates
             const existing = await db

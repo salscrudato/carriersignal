@@ -3,6 +3,8 @@
  * Seed data for P&C insurance news sources (RSS, Atom, JSON, HTML)
  */
 
+import { Firestore } from 'firebase-admin/firestore';
+
 // Local type definition for NewsSource
 interface NewsSource {
   id: string;
@@ -188,7 +190,7 @@ export const NEWS_SOURCES_SEED: Omit<NewsSource, 'id' | 'createdAt' | 'updatedAt
  * Initialize news sources in Firestore
  * Call this once during setup to seed the database
  */
-export async function initializeNewsSources(db: any): Promise<void> {
+export async function initializeNewsSources(db: Firestore): Promise<void> {
   const sourcesRef = db.collection('newsSources');
   const now = Date.now();
 

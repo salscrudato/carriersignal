@@ -3,7 +3,7 @@
  * Displays a single news signal with metadata, impact ribbon, and badges
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import { ExternalLink, AlertCircle, MapPin, TrendingUp, Clock } from 'lucide-react';
 import { SEVERITY_LABELS } from '../constants/news';
 import type { NewsArticle } from '../types/news';
@@ -21,7 +21,6 @@ export const SignalCard: React.FC<SignalCardProps> = ({
   onExpand,
   isExpanded = false,
 }) => {
-  const [isHovered, setIsHovered] = useState(false);
 
   // Format time ago
   const timeAgo = (timestamp: number) => {
@@ -49,11 +48,7 @@ export const SignalCard: React.FC<SignalCardProps> = ({
   } as const;
 
   return (
-    <div
-      className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
+    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
       {/* Header with title and source */}
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex-1 min-w-0">

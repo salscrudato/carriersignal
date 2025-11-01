@@ -7,7 +7,6 @@ import React, { useState } from 'react';
 import { X, Plus } from 'lucide-react';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { MAJOR_CARRIERS, US_STATES } from '../constants/news';
-import type { WatchlistItem } from '../types/news';
 
 interface WatchlistManagerProps {
   userId?: string;

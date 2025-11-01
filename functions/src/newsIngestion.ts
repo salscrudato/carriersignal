@@ -87,20 +87,13 @@ async function fetchRssFeed(url: string, timeout: number = 10000): Promise<Parse
       pubDate: item.pubDate,
       content: item.content || item.contentSnippet || '',
       contentSnippet: item.contentSnippet || '',
-      author: item.creator || item.author || '',
+      author: item.creator || '',
       source: feed.title || 'Unknown',
     }));
   } catch (error) {
     console.error(`[INGEST] Failed to fetch RSS from ${url}:`, error);
     return [];
   }
-}
-
-/**
- * Fetch and parse Atom feed (similar to RSS)
- */
-async function fetchAtomFeed(url: string, timeout: number = 10000): Promise<ParsedArticle[]> {
-  return fetchRssFeed(url, timeout);
 }
 
 /**
@@ -174,7 +167,7 @@ async function ingestFromSource(
     // Update source metadata
     await db.collection('newsSources').doc(source.id).update({
       lastFetchedAt: Date.now(),
-      fetchErrorCount: result.errors > 0 ? (source.fetchErrorCount || 0) + 1 : 0,
+      fetchErrorCount: result.errors > 0 ? 1 : 0,
       updatedAt: Date.now(),
     });
 

@@ -68,7 +68,7 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
  * Link hazard data to articles by state and time proximity
  */
 export async function linkHazardsToArticles(
-  db: Firestore,
+  _db: Firestore,
   articles: NewsArticle[],
   hazards: HazardData[],
   timeWindowHours: number = 24,

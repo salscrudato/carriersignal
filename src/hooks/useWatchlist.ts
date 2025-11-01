@@ -8,7 +8,6 @@ import {
   collection,
   query,
   where,
-  getDocs,
   addDoc,
   deleteDoc,
   doc,

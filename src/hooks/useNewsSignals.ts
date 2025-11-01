@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { collection, query, where, orderBy, limit, startAfter, getDocs, Query, QueryConstraint } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, startAfter, getDocs, QueryConstraint } from 'firebase/firestore';
 import { db } from '../firebase';
 import { logger } from '../utils/logger';
 import type { NewsArticle, NewsFilterState } from '../types/news';

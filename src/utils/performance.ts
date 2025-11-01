@@ -43,7 +43,7 @@ export function trackCoreWebVitals() {
     try {
       const lcpObserver = new PerformanceObserver(list => {
         const entries = list.getEntries();
-        const lastEntry = entries[entries.length - 1];
+        const lastEntry = entries[entries.length - 1] as any;
         vitals.lcp = lastEntry.renderTime || lastEntry.loadTime;
       });
       lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
@@ -56,8 +56,9 @@ export function trackCoreWebVitals() {
       const fidObserver = new PerformanceObserver(list => {
         const entries = list.getEntries();
         entries.forEach(entry => {
-          if (!vitals.fid || entry.processingDuration < vitals.fid) {
-            vitals.fid = entry.processingDuration;
+          const fidEntry = entry as any;
+          if (!vitals.fid || fidEntry.processingDuration < vitals.fid) {
+            vitals.fid = fidEntry.processingDuration;
           }
         });
       });
@@ -72,8 +73,9 @@ export function trackCoreWebVitals() {
         const entries = list.getEntries();
         let cls = 0;
         entries.forEach(entry => {
-          if (!entry.hadRecentInput) {
-            cls += entry.value;
+          const clsEntry = entry as any;
+          if (!clsEntry.hadRecentInput) {
+            cls += clsEntry.value;
           }
         });
         vitals.cls = cls;
@@ -150,7 +152,8 @@ export function checkBundleSize() {
   if ('performance' in window && 'getEntriesByType' in window.performance) {
     const resources = window.performance.getEntriesByType('resource');
     const bundleSize = resources.reduce((total, resource) => {
-      return total + (resource.transferSize || 0);
+      const res = resource as any;
+      return total + (res.transferSize || 0);
     }, 0);
 
     const status = bundleSize <= PERFORMANCE_BUDGETS.bundleSize ? 'pass' : 'fail';
