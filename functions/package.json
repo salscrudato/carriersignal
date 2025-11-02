@@ -13,7 +13,9 @@
     "seed:mock": "ts-node scripts/seed-articles-mock.ts",
     "verify": "ts-node scripts/verify-articles.ts",
     "test:pagination": "ts-node scripts/test-pagination.ts",
-    "reseed:2d": "FORCE_RESEED=1 ts-node scripts/reseed-articles.ts"
+    "reseed:2d": "FORCE_RESEED=1 ts-node scripts/reseed-articles.ts",
+    "test:12hour-cycle-comprehensive": "ts-node scripts/test-12hour-cycle-comprehensive.ts",
+    "monitor:cycle-realtime": "ts-node scripts/monitor-cycle-realtime.ts"
   },
   "engines": {
     "node": "20"

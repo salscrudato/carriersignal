@@ -13,6 +13,12 @@ import {realtimeScoring} from "./realtimeScoring";
 import {feedPrioritization} from "./feedPrioritization";
 import {cycleVerification} from "./cycleVerification";
 import {feedRetrieval} from "./feedRetrieval";
+import {cycleMonitoring} from "./cycleMonitoring";
+import {advancedDeduplicationV2} from "./advancedDeduplicationV2";
+import {feedRetrievalV2} from "./feedRetrievalV2";
+import {cycleVerificationV2} from "./cycleVerificationV2";
+import {feedViewerV2} from "./feedViewerV2";
+import {duplicateCleanup} from "./duplicateCleanup";
 
 initializeApp();
 let db: Firestore | null = null;
@@ -161,41 +167,23 @@ interface FeedSource {
   enabled: boolean;
 }
 
-// Default feed sources - can be overridden by Firestore configuration
-// Curated catalog of P&C insurance industry sources across multiple categories
-// NOTE: All feeds tested and verified working as of 2025-11-01
+// Canonical feed sources - single source of truth for all feed configurations
+// All feeds tested and verified working as of 2025-11-02
 const DEFAULT_FEED_SOURCES: FeedSource[] = [
-  // ============================================================================
   // NEWS FEEDS (General P&C Insurance Industry News)
-  // ============================================================================
   { url: "https://www.insurancejournal.com/rss/news/national/", category: 'news', priority: 1, enabled: true },
   { url: "https://www.insurancejournal.com/rss/news/international/", category: 'news', priority: 2, enabled: true },
   { url: "https://www.claimsjournal.com/rss/", category: 'news', priority: 2, enabled: true },
   { url: "https://www.riskandinsurance.com/feed/", category: 'news', priority: 3, enabled: true },
   { url: "https://www.carriermanagement.com/feed/", category: 'news', priority: 3, enabled: true },
   { url: "https://www.insurancebusinessmag.com/us/rss/", category: 'news', priority: 3, enabled: true },
-
-  // ============================================================================
-  // REGULATORY FEEDS (State DOI, NAIC, Regulatory Bulletins)
-  // ============================================================================
-  // Note: Most state DOI feeds don't have working RSS. Using general news sources
-  // that cover regulatory topics as alternative coverage.
-
-  // ============================================================================
   // CATASTROPHE FEEDS (Named Storms, Natural Disasters, CAT Events)
-  // ============================================================================
   { url: "https://www.artemis.bm/news/catastrophe-bonds/feed/", category: 'catastrophe', priority: 1, enabled: true },
   { url: "https://www.artemis.bm/feed/", category: 'catastrophe', priority: 2, enabled: true },
-
-  // ============================================================================
   // REINSURANCE FEEDS (Reinsurance Market News & Capacity)
-  // ============================================================================
   { url: "https://www.reinsurancene.ws/feed/", category: 'reinsurance', priority: 1, enabled: true },
   { url: "https://www.artemis.bm/news/reinsurance-news/feed/", category: 'reinsurance', priority: 2, enabled: true },
-
-  // ============================================================================
   // TECHNOLOGY FEEDS (InsurTech, Industry Tech, Digital Transformation)
-  // ============================================================================
   { url: "https://www.insurancejournal.com/rss/news/", category: 'technology', priority: 1, enabled: true },
 ];
 
@@ -1962,6 +1950,33 @@ export const scheduledRealtimeScoring = onSchedule(
 );
 
 /**
+ * Scheduled Duplicate Cleanup (every 6 hours)
+ * Identifies and marks duplicates, removes old marked duplicates
+ */
+export const scheduledDuplicateCleanup = onSchedule(
+  {schedule: "every 6 hours", timeZone: "America/New_York"},
+  async () => {
+    try {
+      console.log('[DUPLICATE CLEANUP] Starting scheduled duplicate cleanup...');
+
+      // Scan and mark duplicates from past 24 hours
+      const cleanupResult = await duplicateCleanup.cleanupDuplicates24Hours(false);
+      console.log(`[DUPLICATE CLEANUP] Marked ${cleanupResult.duplicatesMarked} duplicates`);
+
+      // Remove old marked duplicates (older than 7 days)
+      const removeResult = await duplicateCleanup.removeOldMarkedDuplicates(7);
+      console.log(`[DUPLICATE CLEANUP] Removed ${removeResult.removed} old duplicates`);
+
+      // Log stats
+      const stats = await duplicateCleanup.getDuplicateStats();
+      console.log(`[DUPLICATE CLEANUP] Current stats:`, stats);
+    } catch (error) {
+      console.error('[DUPLICATE CLEANUP ERROR]', error);
+    }
+  }
+);
+
+/**
  * Scheduled Feed Weight Adjustment (every 6 hours)
  * Dynamically adjusts feed priorities based on performance
  */
@@ -2139,6 +2154,611 @@ export const getTrendingArticles = onRequest(
     }
   }
 );
+
+/**
+ * Advanced Cycle Monitoring Dashboard
+ * Real-time visibility into 12-hour update cycles with comprehensive metrics
+ */
+export const getCycleDashboard = onRequest(
+  {cors: true},
+  async (_req, res) => {
+    try {
+      const dashboard = await cycleMonitoring.getCycleDashboard();
+
+      res.json({
+        success: true,
+        dashboard,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[CYCLE DASHBOARD ERROR]', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+/**
+ * Advanced Deduplication Report
+ * Comprehensive analysis of duplicates across all feeds
+ */
+export const getDeduplicationReport = onRequest(
+  {cors: true},
+  async (_req, res) => {
+    try {
+      const report = await advancedDeduplicationV2.generateDeduplicationReport();
+
+      res.json({
+        success: true,
+        report,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[DEDUP REPORT ERROR]', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+/**
+ * Enhanced 24-Hour Feed Viewer
+ * All articles from past 24 hours with deduplication and quality metrics
+ */
+export const get24HourFeedV2 = onRequest(
+  {cors: true},
+  async (req, res) => {
+    try {
+      const hoursBack = parseInt(req.query.hours as string) || 24;
+      const limit = parseInt(req.query.limit as string) || 100;
+
+      const feedResult = await feedRetrievalV2.get24HourFeed(hoursBack);
+
+      // Apply limit
+      const limitedArticles = feedResult.articles.slice(0, limit);
+
+      res.json({
+        success: true,
+        summary: {
+          totalArticles: feedResult.totalArticles,
+          uniqueArticles: feedResult.uniqueArticles,
+          duplicatesDetected: feedResult.duplicatesDetected,
+          duplicateRemovalRate: (feedResult.duplicateRemovalRate * 100).toFixed(2) + '%',
+          averageScore: feedResult.averageScore.toFixed(2),
+          timeRange: feedResult.timeRange,
+        },
+        sourceBreakdown: feedResult.sourceBreakdown,
+        categoryBreakdown: feedResult.categoryBreakdown,
+        topTrendingTopics: feedResult.topTrendingTopics,
+        articles: limitedArticles,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[24H FEED V2 ERROR]', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+/**
+ * Trending Articles V2
+ * Enhanced trending articles with better deduplication
+ */
+export const getTrendingArticlesV2 = onRequest(
+  {cors: true},
+  async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 20;
+      const hoursBack = parseInt(req.query.hours as string) || 24;
+
+      const articles = await feedRetrievalV2.getTrendingArticles(limit, hoursBack);
+
+      res.json({
+        success: true,
+        count: articles.length,
+        articles,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[TRENDING ARTICLES V2 ERROR]', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+/**
+ * 12-Hour Cycle Verification Dashboard
+ * Comprehensive endpoint to verify cycle execution and health
+ */
+export const getCycleDashboardV2 = onRequest(
+  {cors: true},
+  async (_req, res) => {
+    try {
+      const dashboard = await cycleVerificationV2.getCycleDashboard();
+
+      res.json({
+        success: true,
+        data: dashboard,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[CYCLE DASHBOARD V2 ERROR]', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+/**
+ * 24-Hour Feed Viewer V2
+ * Comprehensive feed with deduplication and quality metrics
+ */
+export const get24HourFeedViewerV2 = onRequest(
+  {cors: true},
+  async (req, res) => {
+    try {
+      const hoursBack = parseInt(req.query.hours as string) || 24;
+      const feedResult = await feedViewerV2.get24HourFeed(hoursBack);
+
+      res.json({
+        success: true,
+        data: feedResult,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[24H FEED VIEWER V2 ERROR]', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+/**
+ * Get Feed by Source
+ * View all articles from a specific source in past 24 hours
+ */
+export const getFeedBySourceV2 = onRequest(
+  {cors: true},
+  async (req, res) => {
+    try {
+      const sourceId = req.query.sourceId as string;
+      const hoursBack = parseInt(req.query.hours as string) || 24;
+
+      if (!sourceId) {
+        res.status(400).json({
+          success: false,
+          error: 'sourceId query parameter is required',
+        });
+        return;
+      }
+
+      const articles = await feedViewerV2.getFeedBySource(sourceId, hoursBack);
+
+      res.json({
+        success: true,
+        sourceId,
+        count: articles.length,
+        articles,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[GET FEED BY SOURCE V2 ERROR]', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+/**
+ * Duplicate Cleanup - Scan and Report
+ * Identify duplicates in past 24 hours (dry run by default)
+ */
+export const scanDuplicates = onRequest(
+  {cors: true},
+  async (_req, res) => {
+    try {
+      const dryRun = _req.query.dryRun !== 'false'; // Default to dry run
+      const result = await duplicateCleanup.cleanupDuplicates24Hours(dryRun);
+
+      res.json({
+        success: true,
+        dryRun,
+        data: result,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[SCAN DUPLICATES ERROR]', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+/**
+ * Get Duplicate Statistics
+ * View current duplicate metrics
+ */
+export const getDuplicateStats = onRequest(
+  {cors: true},
+  async (_req, res) => {
+    try {
+      const stats = await duplicateCleanup.getDuplicateStats();
+
+      res.json({
+        success: true,
+        data: stats,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[GET DUPLICATE STATS ERROR]', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+/**
+ * Remove Old Marked Duplicates
+ * Delete duplicates marked for deletion older than threshold
+ */
+export const removeOldDuplicates = onRequest(
+  {cors: true},
+  async (_req, res) => {
+    try {
+      const daysOld = parseInt(_req.query.daysOld as string) || 7;
+      const result = await duplicateCleanup.removeOldMarkedDuplicates(daysOld);
+
+      res.json({
+        success: true,
+        daysOld,
+        data: result,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[REMOVE OLD DUPLICATES ERROR]', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+// ============================================================================
+// COMPREHENSIVE 12-HOUR CYCLE ENHANCEMENTS V2
+// ============================================================================
+
+/**
+ * Get 24-Hour Feed with Duplicate Detection
+ * Comprehensive view of all articles from past 24 hours with quality metrics
+ */
+export const get24HourFeedV3 = onRequest(
+  {cors: true, timeoutSeconds: 60},
+  async (req, res) => {
+    try {
+      const { feedViewerV3 } = await import('./feedViewerV3');
+
+      const hours = parseInt(req.query.hours as string) || 24;
+      const limit = parseInt(req.query.limit as string) || 500;
+      const minQualityScore = parseInt(req.query.minQualityScore as string) || 0;
+
+      const feed = await feedViewerV3.get24HourFeed({
+        hours,
+        limit,
+        includeQualityFilter: minQualityScore > 0,
+        minQualityScore,
+      });
+
+      res.json({
+        success: true,
+        data: feed,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[GET 24H FEED V3 ERROR]', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+/**
+ * Get Cycle Health Metrics V2
+ * Advanced cycle health monitoring with anomaly detection
+ */
+export const getCycleHealthV2 = onRequest(
+  {cors: true},
+  async (_req, res) => {
+    try {
+      // Cycle health monitor imported but used via Firestore collection
+      await import('./cycleEnhancementsV2');
+
+      // Get latest cycle metrics
+      const snapshot = await getDb().collection('cycle_health_v2')
+        .orderBy('timestamp', 'desc')
+        .limit(1)
+        .get();
+
+      if (snapshot.empty) {
+        res.json({
+          success: true,
+          data: null,
+          message: 'No cycle health data available yet',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const metrics = snapshot.docs[0].data();
+
+      res.json({
+        success: true,
+        data: metrics,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[GET CYCLE HEALTH V2 ERROR]', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+/**
+ * Get Advanced Article Score
+ * Calculate comprehensive score for a specific article
+ */
+export const getAdvancedArticleScore = onRequest(
+  {cors: true},
+  async (req, res) => {
+    try {
+      const articleId = req.query.articleId as string;
+      if (!articleId) {
+        res.status(400).json({ success: false, error: 'articleId required' });
+        return;
+      }
+
+      const { advancedScoringV2 } = await import('./advancedScoringV2');
+
+      // Get article data
+      const doc = await getDb().collection('newsArticles').doc(articleId).get();
+      if (!doc.exists) {
+        res.status(404).json({ success: false, error: 'Article not found' });
+        return;
+      }
+
+      const article = doc.data();
+      if (!article) {
+        res.status(404).json({ success: false, error: 'Article data not found' });
+        return;
+      }
+
+      const score = await advancedScoringV2.calculateAdvancedScore({
+        id: articleId,
+        title: article.title,
+        publishedAt: article.publishedAt?.toDate?.() || new Date(),
+        impactScore: article.impactScore,
+        impactBreakdown: article.impactBreakdown,
+        tags: article.tags,
+        source: article.source,
+      });
+
+      res.json({
+        success: true,
+        articleId,
+        data: score,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[GET ADVANCED SCORE ERROR]', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+/**
+ * Check Article for Duplicates
+ * Comprehensive duplicate detection using multiple strategies
+ */
+export const checkArticleDuplicates = onRequest(
+  {cors: true},
+  async (req, res) => {
+    try {
+      const articleId = req.query.articleId as string;
+      if (!articleId) {
+        res.status(400).json({ success: false, error: 'articleId required' });
+        return;
+      }
+
+      const { deduplicationV4 } = await import('./deduplicationV4');
+
+      // Get article data
+      const doc = await getDb().collection('newsArticles').doc(articleId).get();
+      if (!doc.exists) {
+        res.status(404).json({ success: false, error: 'Article not found' });
+        return;
+      }
+
+      const article = doc.data();
+      if (!article) {
+        res.status(404).json({ success: false, error: 'Article data not found' });
+        return;
+      }
+
+      const result = await deduplicationV4.checkDuplicate({
+        url: article.canonicalLink,
+        title: article.title,
+        content: article.summary,
+        publishedAt: article.publishedAt?.toDate?.(),
+        embedding: article.embedding,
+      });
+
+      res.json({
+        success: true,
+        articleId,
+        data: result,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[CHECK DUPLICATES ERROR]', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+/**
+ * Get Cycle Health History
+ * View historical cycle health metrics for trend analysis
+ */
+export const getCycleHealthHistory = onRequest(
+  {cors: true},
+  async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 7;
+      const startTime = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+      const snapshot = await getDb().collection('cycle_health_v2')
+        .where('timestamp', '>=', startTime)
+        .orderBy('timestamp', 'desc')
+        .limit(100)
+        .get();
+
+      const metrics = snapshot.docs.map(doc => doc.data());
+
+      // Calculate trends
+      const trends = {
+        avgStatus: metrics.filter(m => m.status === 'healthy').length / metrics.length,
+        avgDuplicateRate: metrics.reduce((sum, m) => sum + (m.duplicateRemovalRate || 0), 0) / metrics.length,
+        avgQualityScore: metrics.reduce((sum, m) => sum + (m.averageQualityScore || 0), 0) / metrics.length,
+        avgFeedSuccessRate: metrics.reduce((sum, m) => sum + (m.feedSuccessRate || 0), 0) / metrics.length,
+      };
+
+      res.json({
+        success: true,
+        days,
+        cycleCount: metrics.length,
+        trends,
+        metrics,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[GET CYCLE HISTORY ERROR]', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+/**
+ * Get Feed Quality Report
+ * Comprehensive report on feed quality, duplicates, and recommendations
+ */
+export const getFeedQualityReport = onRequest(
+  {cors: true},
+  async (req, res) => {
+    try {
+      const hours = parseInt(req.query.hours as string) || 24;
+
+      const startTime = new Date(Date.now() - hours * 60 * 60 * 1000);
+      const snapshot = await getDb().collection('newsArticles')
+        .where('publishedAt', '>=', startTime)
+        .orderBy('publishedAt', 'desc')
+        .limit(1000)
+        .get();
+
+      const articles = snapshot.docs.map(doc => doc.data());
+
+      // Calculate quality metrics
+      const totalArticles = articles.length;
+      const articlesWithAIScore = articles.filter(a => a.aiScore).length;
+      const articlesWithQualityScore = articles.filter(a => a.qualityScore).length;
+      const avgAIScore = articlesWithAIScore > 0
+        ? articles.reduce((sum, a) => sum + (a.aiScore || 0), 0) / articlesWithAIScore
+        : 0;
+      const avgQualityScore = articlesWithQualityScore > 0
+        ? articles.reduce((sum, a) => sum + (a.qualityScore || 0), 0) / articlesWithQualityScore
+        : 0;
+
+      // Duplicate detection
+      const urlSet = new Set<string>();
+      let duplicateCount = 0;
+      for (const article of articles) {
+        const url = article.canonicalLink?.toLowerCase() || '';
+        if (urlSet.has(url)) {
+          duplicateCount++;
+        } else {
+          urlSet.add(url);
+        }
+      }
+
+      const report = {
+        timeRange: { hours, startTime, endTime: new Date() },
+        articleMetrics: {
+          total: totalArticles,
+          unique: totalArticles - duplicateCount,
+          duplicates: duplicateCount,
+          duplicateRate: totalArticles > 0 ? duplicateCount / totalArticles : 0,
+        },
+        scoringMetrics: {
+          articlesWithAIScore,
+          articlesWithQualityScore,
+          avgAIScore: Math.round(avgAIScore * 10) / 10,
+          avgQualityScore: Math.round(avgQualityScore * 10) / 10,
+        },
+        recommendations: [
+          duplicateCount > totalArticles * 0.1 ? '⚠️ High duplicate rate detected' : '✅ Duplicate rate acceptable',
+          avgQualityScore < 70 ? '⚠️ Average quality score is low' : '✅ Quality score is good',
+          articlesWithAIScore < totalArticles * 0.8 ? '⚠️ Not all articles have AI scores' : '✅ All articles scored',
+        ],
+      };
+
+      res.json({
+        success: true,
+        data: report,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[GET FEED QUALITY REPORT ERROR]', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
 
 
 
