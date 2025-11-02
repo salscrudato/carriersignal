@@ -113,7 +113,7 @@ function AppContent() {
   // Render
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-white via-[#FAFAFA]/50 to-[#F5F5F5]/30 flex flex-col">
+      <div className="min-h-screen bg-gradient-to-b from-white via-[#F9FAFB]/50 to-[#F3F4F6]/30 flex flex-col">
         <Header isLoading={true} />
         <SkeletonGrid />
       </div>
@@ -121,7 +121,7 @@ function AppContent() {
   }
 
   return (
-    <div className="h-screen w-full max-w-full overflow-x-hidden bg-gradient-to-b from-white via-[#FAFAFA]/50 to-[#F5F5F5]/30 flex flex-col">
+    <div className="h-screen w-full max-w-full overflow-x-hidden bg-gradient-to-b from-white via-[#F9FAFB]/50 to-[#F3F4F6]/30 flex flex-col">
       {/* Professional Header - Sticky */}
       <div className="sticky top-0 z-50">
         <Header isLoading={false} />
@@ -143,11 +143,11 @@ function AppContent() {
           />
         </div>
       ) : view === 'dashboard' ? (
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto bg-gradient-to-b from-white via-[#F9FAFB]/50 to-[#F3F4F6]/30">
           <Dashboard articles={sortMode === 'smart' && displayArticles.length > 0 ? displayArticles : articles} />
         </div>
       ) : view === 'test' ? (
-        <div className="flex-1 flex flex-col bg-gradient-to-b from-white via-[#F9FBFF]/30 to-[#E8F2FF]/20 p-4">
+        <div className="flex-1 flex flex-col bg-gradient-to-b from-white via-[#F9FAFB]/30 to-[#F3F4F6]/20 p-4">
           <div className="space-y-4">
             <h1 className="text-2xl font-bold">Pagination Test</h1>
             <div className="space-y-2">
@@ -173,13 +173,13 @@ function AppContent() {
           </div>
         </div>
       ) : view === 'bookmarks' ? (
-        <div className="flex-1 flex flex-col bg-gradient-to-b from-white via-[#F9FBFF]/30 to-[#E8F2FF]/20">
+        <div className="flex-1 flex flex-col bg-gradient-to-b from-white via-[#F9FAFB]/30 to-[#F3F4F6]/20">
           <Suspense fallback={<SkeletonGrid />}>
             <Bookmarks onArticleSelect={setSelectedArticle} />
           </Suspense>
         </div>
       ) : view === 'settings' ? (
-        <div className="flex-1 flex flex-col bg-gradient-to-b from-white via-[#F9FBFF]/30 to-[#E8F2FF]/20">
+        <div className="flex-1 flex flex-col bg-gradient-to-b from-white via-[#F9FAFB]/30 to-[#F3F4F6]/20">
           <Suspense fallback={<SkeletonGrid />}>
             <SettingsPanel onSortChange={setSortMode} />
           </Suspense>

@@ -121,10 +121,10 @@ export function SearchFirst({
       {/* Results - Scrollable */}
       <div ref={scrollContainerRef} className="flex-1 w-full max-w-full overflow-y-auto overflow-x-hidden scroll-smooth">
         {/* Sort Controls Header - Modern, clean, sticky */}
-        <div className="bg-white border-b border-[#F0F0F0] p-3 sm:p-4 flex-shrink-0 w-full max-w-full overflow-x-hidden flex justify-center transition-all duration-300 sticky top-0 z-10 shadow-sm">
+        <div className="bg-white border-b border-[#F3F4F6] p-3 sm:p-4 flex-shrink-0 w-full max-w-full overflow-x-hidden flex justify-center transition-all duration-300 sticky top-0 z-10 shadow-xs">
           <div className="flex items-center gap-3 sm:gap-4 w-full max-w-4xl overflow-x-hidden">
             {/* Sort Buttons - Modern, clean design */}
-            <div className="sort-button-group flex items-center gap-1 bg-[#F5F5F5] rounded-lg p-1 flex-shrink-0 border border-[#E5E5E5]">
+            <div className="sort-button-group flex items-center gap-1 bg-[#F9FAFB] rounded-lg p-1 flex-shrink-0 border border-[#E5E7EB]">
               <button
                 onClick={() => {
                   logger.debug('SearchFirst', 'Changing sort to smart');
@@ -133,8 +133,8 @@ export function SearchFirst({
                 }}
                 className={`sort-button flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 min-h-[36px] ${
                   localSortBy === 'smart'
-                    ? 'bg-white text-[#14B8A6] border border-[#E5E5E5] shadow-sm'
-                    : 'text-[#525252] hover:text-[#171717]'
+                    ? 'bg-white text-[#10B981] border border-[#E5E7EB] shadow-sm'
+                    : 'text-[#4B5563] hover:text-[#111827]'
                 }`}
                 aria-label="Sort by AI relevance"
                 aria-pressed={localSortBy === 'smart'}
@@ -150,8 +150,8 @@ export function SearchFirst({
                 }}
                 className={`sort-button flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 min-h-[36px] ${
                   localSortBy === 'recency'
-                    ? 'bg-white text-[#14B8A6] border border-[#E5E5E5] shadow-sm'
-                    : 'text-[#525252] hover:text-[#171717]'
+                    ? 'bg-white text-[#10B981] border border-[#E5E7EB] shadow-sm'
+                    : 'text-[#4B5563] hover:text-[#111827]'
                 }`}
                 aria-label="Sort by recency"
                 aria-pressed={localSortBy === 'recency'}
@@ -162,7 +162,7 @@ export function SearchFirst({
             </div>
 
             {/* Results Count - Right Aligned */}
-            <div className="ml-auto text-xs text-[#737373] font-medium whitespace-nowrap flex-shrink-0">
+            <div className="ml-auto text-xs text-[#9CA3AF] font-medium whitespace-nowrap flex-shrink-0">
               <span className="hidden sm:inline">{searchResults.length} articles</span>
               <span className="sm:hidden">{searchResults.length}</span>
             </div>
@@ -211,7 +211,7 @@ export function SearchFirst({
       {showScrollToTop && (
         <button
           onClick={handleScrollToTop}
-          className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 p-3.5 rounded-full bg-white border border-[#E5E5E5] text-[#14B8A6] shadow-lg hover:shadow-xl transition-all duration-300 ease-out hover:scale-110 active:scale-95 animate-fadeInUp hover:border-[#14B8A6]/50 hover:bg-[#14B8A6]/5 group will-change-transform"
+          className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 p-3.5 rounded-full bg-white border border-[#E5E7EB] text-[#10B981] shadow-lg hover:shadow-xl transition-all duration-300 ease-out hover:scale-110 active:scale-95 animate-fadeInUp hover:border-[#10B981]/50 hover:bg-[#10B981]/5 group will-change-transform"
           aria-label="Scroll to top"
           title="Scroll to top"
         >
@@ -251,10 +251,10 @@ function SearchResultCard({ result, isSelected, onSelect, index = 0 }: SearchRes
   return (
     <div
       style={{ animationDelay: `${index * 50}ms` }}
-      className={`w-full max-w-full rounded-xl border transition-all duration-300 ease-out animate-slideInUp overflow-hidden flex flex-col cursor-pointer group ${
+      className={`w-full max-w-full rounded-lg border transition-all duration-300 ease-out animate-slideInUp overflow-hidden flex flex-col cursor-pointer group article-card ${
         isSelected
-          ? 'bg-[#F5F5F5] border-[#14B8A6] shadow-md'
-          : 'bg-white border-[#F0F0F0] hover:border-[#E5E5E5] hover:shadow-md'
+          ? 'article-card selected'
+          : ''
       }`}
     >
       {/* Content Section - Clean, minimal, modern */}
@@ -262,35 +262,35 @@ function SearchResultCard({ result, isSelected, onSelect, index = 0 }: SearchRes
         {/* Header with Source and Time */}
         <div className="flex items-start justify-between gap-3 w-full max-w-full overflow-x-hidden">
           <div className="flex-1 min-w-0 overflow-hidden">
-            <span className="text-xs font-semibold text-[#14B8A6] bg-[#CCFBF1] px-2.5 py-1 rounded-md inline-block truncate">
+            <span className="text-xs font-semibold text-[#10B981] bg-[#D1FAE5] px-2.5 py-1 rounded-md inline-block truncate">
               {getFeedSourceName(article.source)}
             </span>
           </div>
           {timeAgo && (
-            <span className="text-xs text-[#737373] font-medium flex-shrink-0 whitespace-nowrap">{timeAgo}</span>
+            <span className="text-xs text-[#9CA3AF] font-medium flex-shrink-0 whitespace-nowrap">{timeAgo}</span>
           )}
         </div>
 
         {/* Title - Clean typography, modern */}
-        <h3 className="font-semibold text-[#171717] text-base leading-snug line-clamp-2 group-hover:text-[#14B8A6] transition-colors duration-300 w-full max-w-full overflow-hidden break-words">
+        <h3 className="font-semibold text-[#111827] text-base leading-snug line-clamp-2 group-hover:text-[#10B981] transition-colors duration-300 w-full max-w-full overflow-hidden break-words">
           {article.title}
         </h3>
 
         {/* AI-Generated Summary - Clean, modern */}
         {article.bullets5 && article.bullets5.length > 0 && (
-          <div className="space-y-2 pt-3 border-t border-[#F0F0F0] w-full max-w-full overflow-x-hidden">
+          <div className="space-y-2 pt-3 border-t border-[#F3F4F6] w-full max-w-full overflow-x-hidden">
             <div className="flex items-center gap-2 w-full max-w-full overflow-x-hidden">
-              <div className="w-4 h-4 rounded-full bg-[#14B8A6] flex items-center justify-center flex-shrink-0">
+              <div className="w-4 h-4 rounded-full bg-[#10B981] flex items-center justify-center flex-shrink-0">
                 <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 </svg>
               </div>
-              <span className="text-xs font-semibold text-[#14B8A6] uppercase tracking-wide">Summary</span>
+              <span className="text-xs font-semibold text-[#10B981] uppercase tracking-wide">Summary</span>
             </div>
             <div className="space-y-1.5 w-full max-w-full overflow-x-hidden">
               {article.bullets5.slice(0, 2).map((bullet: string, idx: number) => (
-                <div key={idx} className="flex gap-2 text-xs text-[#525252] leading-relaxed w-full max-w-full overflow-x-hidden">
-                  <span className="text-[#14B8A6] font-semibold flex-shrink-0 mt-0.5">•</span>
+                <div key={idx} className="flex gap-2 text-xs text-[#4B5563] leading-relaxed w-full max-w-full overflow-x-hidden">
+                  <span className="text-[#10B981] font-semibold flex-shrink-0 mt-0.5">•</span>
                   <span className="flex-1 overflow-hidden break-words">{bullet}</span>
                 </div>
               ))}
@@ -300,11 +300,11 @@ function SearchResultCard({ result, isSelected, onSelect, index = 0 }: SearchRes
 
         {/* Tags Section - Modern, clean */}
         {article.tags && Object.values(article.tags).some((tagArray: string[] | undefined) => tagArray && tagArray.length > 0) && (
-          <div className="flex flex-wrap gap-2 pt-3 border-t border-[#F0F0F0] w-full max-w-full">
+          <div className="flex flex-wrap gap-2 pt-3 border-t border-[#F3F4F6] w-full max-w-full">
             {/* LOB Tags */}
             {article.tags.lob && article.tags.lob.length > 0 && (
               article.tags.lob.slice(0, 2).map((tag: string, idx: number) => (
-                <span key={`lob-${idx}`} className="px-2.5 py-1 rounded-lg bg-[#F5F5F5] text-[#525252] text-xs font-medium whitespace-nowrap border border-[#E5E5E5] hover:bg-[#ECECF1] hover:border-[#D4D4D4] transition-all duration-200 cursor-default">
+                <span key={`lob-${idx}`} className="px-2.5 py-1 rounded-lg bg-[#F9FAFB] text-[#4B5563] text-xs font-medium whitespace-nowrap border border-[#E5E7EB] hover:bg-[#F3F4F6] hover:border-[#D1D5DB] transition-all duration-200 cursor-default">
                   {tag}
                 </span>
               ))
@@ -312,7 +312,7 @@ function SearchResultCard({ result, isSelected, onSelect, index = 0 }: SearchRes
             {/* Perils Tags */}
             {article.tags.perils && article.tags.perils.length > 0 && (
               article.tags.perils.slice(0, 2).map((tag: string, idx: number) => (
-                <span key={`perils-${idx}`} className="px-2.5 py-1 rounded-lg bg-[#F5F5F5] text-[#525252] text-xs font-medium whitespace-nowrap border border-[#E5E5E5] hover:bg-[#ECECF1] hover:border-[#D4D4D4] transition-all duration-200 cursor-default">
+                <span key={`perils-${idx}`} className="px-2.5 py-1 rounded-lg bg-[#F9FAFB] text-[#4B5563] text-xs font-medium whitespace-nowrap border border-[#E5E7EB] hover:bg-[#F3F4F6] hover:border-[#D1D5DB] transition-all duration-200 cursor-default">
                   {tag}
                 </span>
               ))
@@ -320,7 +320,7 @@ function SearchResultCard({ result, isSelected, onSelect, index = 0 }: SearchRes
             {/* Regions Tags */}
             {article.tags.regions && article.tags.regions.length > 0 && (
               article.tags.regions.slice(0, 1).map((tag: string, idx: number) => (
-                <span key={`regions-${idx}`} className="px-2.5 py-1 rounded-lg bg-[#F5F5F5] text-[#525252] text-xs font-medium whitespace-nowrap border border-[#E5E5E5] hover:bg-[#ECECF1] hover:border-[#D4D4D4] transition-all duration-200 cursor-default">
+                <span key={`regions-${idx}`} className="px-2.5 py-1 rounded-lg bg-[#F9FAFB] text-[#4B5563] text-xs font-medium whitespace-nowrap border border-[#E5E7EB] hover:bg-[#F3F4F6] hover:border-[#D1D5DB] transition-all duration-200 cursor-default">
                   {tag}
                 </span>
               ))
@@ -329,16 +329,16 @@ function SearchResultCard({ result, isSelected, onSelect, index = 0 }: SearchRes
         )}
 
         {/* Bottom Action Buttons - Modern, clean */}
-        <div className="flex gap-2 pt-3 mt-auto border-t border-[#F0F0F0] w-full max-w-full overflow-x-hidden">
+        <div className="flex gap-2 pt-3 mt-auto border-t border-[#F3F4F6] w-full max-w-full overflow-x-hidden">
           <button
             onClick={handleViewMore}
-            className="flex-1 px-3 py-2 text-xs font-medium text-[#525252] bg-[#F5F5F5] rounded-lg border border-[#E5E5E5] hover:bg-[#ECECF1] hover:text-[#171717] hover:border-[#D4D4D4] transition-all duration-300 min-h-[40px]"
+            className="flex-1 px-3 py-2 text-xs font-medium text-[#4B5563] bg-[#F9FAFB] rounded-lg border border-[#E5E7EB] hover:bg-[#F3F4F6] hover:text-[#111827] hover:border-[#D1D5DB] transition-all duration-300 min-h-[40px]"
           >
             View More
           </button>
           <button
             onClick={handleViewArticle}
-            className="flex-1 px-3 py-2 text-xs font-medium text-white bg-[#14B8A6] rounded-lg border border-[#14B8A6] hover:bg-[#0D9488] hover:border-[#0D9488] transition-all duration-300 flex items-center justify-center gap-1 min-h-[40px]"
+            className="flex-1 px-3 py-2 text-xs font-medium text-white bg-[#10B981] rounded-lg border border-[#10B981] hover:bg-[#059669] hover:border-[#059669] transition-all duration-300 flex items-center justify-center gap-1 min-h-[40px]"
           >
             <span className="hidden sm:inline">Article</span>
             <ExternalLink size={12} className="flex-shrink-0" />

@@ -65,10 +65,10 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
             isOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
           }`}
         >
-          <div className="bg-white border-t border-[#F0F0F0] rounded-t-3xl shadow-lg" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          <div className="bg-white border-t border-[#F3F4F6] rounded-t-3xl shadow-lg" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
             {/* Handle Bar - Modern */}
             <div className="flex justify-center pt-3 pb-3">
-              <div className="w-10 h-1 bg-[#E5E5E5] rounded-full" />
+              <div className="w-10 h-1 bg-[#E5E7EB] rounded-full" />
             </div>
 
             {/* Navigation Items */}
@@ -78,8 +78,8 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
                 onClick={() => handleNavClick('feed')}
                 className={`nav-button w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-300 transform min-h-[48px] ${
                   currentView === 'feed'
-                    ? 'bg-[#CCFBF1] text-[#14B8A6] border border-[#14B8A6]/30'
-                    : 'bg-[#F5F5F5] text-[#525252] hover:bg-[#ECECF1] border border-[#E5E5E5]'
+                    ? 'bg-[#D1FAE5] text-[#10B981] border border-[#10B981]/30'
+                    : 'bg-[#F9FAFB] text-[#4B5563] hover:bg-[#F3F4F6] border border-[#E5E7EB]'
                 }`}
                 aria-label="News Feed"
               >
@@ -92,8 +92,8 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
                 onClick={() => handleNavClick('dashboard')}
                 className={`nav-button w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-300 transform min-h-[48px] ${
                   currentView === 'dashboard'
-                    ? 'bg-[#CCFBF1] text-[#14B8A6] border border-[#14B8A6]/30'
-                    : 'bg-[#F5F5F5] text-[#525252] hover:bg-[#ECECF1] border border-[#E5E5E5]'
+                    ? 'bg-[#D1FAE5] text-[#10B981] border border-[#10B981]/30'
+                    : 'bg-[#F9FAFB] text-[#4B5563] hover:bg-[#F3F4F6] border border-[#E5E7EB]'
                 }`}
                 aria-label="Dashboard"
               >
@@ -106,8 +106,8 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
                 onClick={() => handleNavClick('bookmarks')}
                 className={`nav-button w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-300 transform min-h-[48px] ${
                   currentView === 'bookmarks'
-                    ? 'bg-[#CCFBF1] text-[#14B8A6] border border-[#14B8A6]/30'
-                    : 'bg-[#F5F5F5] text-[#525252] hover:bg-[#ECECF1] border border-[#E5E5E5]'
+                    ? 'bg-[#D1FAE5] text-[#10B981] border border-[#10B981]/30'
+                    : 'bg-[#F9FAFB] text-[#4B5563] hover:bg-[#F3F4F6] border border-[#E5E7EB]'
                 }`}
                 aria-label="Bookmarks"
               >
@@ -120,8 +120,8 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
                 onClick={() => handleNavClick('settings')}
                 className={`nav-button w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-300 transform min-h-[48px] ${
                   currentView === 'settings'
-                    ? 'bg-[#CCFBF1] text-[#14B8A6] border border-[#14B8A6]/30'
-                    : 'bg-[#F5F5F5] text-[#525252] hover:bg-[#ECECF1] border border-[#E5E5E5]'
+                    ? 'bg-[#D1FAE5] text-[#10B981] border border-[#10B981]/30'
+                    : 'bg-[#F9FAFB] text-[#4B5563] hover:bg-[#F3F4F6] border border-[#E5E7EB]'
                 }`}
                 aria-label="Settings"
               >
@@ -132,7 +132,7 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
               {/* Close Button */}
               <button
                 onClick={() => setIsOpen(false)}
-                className="nav-button w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium bg-[#F5F5F5] text-[#525252] hover:bg-[#ECECF1] transition-all duration-300 mt-2 border border-[#E5E5E5] transform min-h-[48px]"
+                className="nav-button w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium bg-[#F9FAFB] text-[#4B5563] hover:bg-[#F3F4F6] transition-all duration-300 mt-2 border border-[#E5E7EB] transform min-h-[48px]"
                 aria-label="Close navigation"
               >
                 <X size={20} />
