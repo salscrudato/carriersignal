@@ -34,19 +34,19 @@ export function SettingsPanel({
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-2xl mx-auto p-6 space-y-8">
+      <div className="max-w-2xl mx-auto p-6 space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-lg liquid-glass-premium flex items-center justify-center border border-[#5AA6FF]/40 animate-iconGlow">
-            <Settings size={20} className="text-[#5AA6FF]" />
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-lg bg-[#E8F5F0] flex items-center justify-center border border-[#10A37F]/20">
+            <Settings size={20} className="text-[#10A37F]" />
           </div>
-          <h2 className="text-2xl font-bold text-[#0F172A]">Settings</h2>
+          <h2 className="text-2xl font-semibold text-[#0D0D0D]">Settings</h2>
         </div>
 
         {/* Sort Preference */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-bold text-[#0F172A]">Default Sort</h3>
-          <p className="text-sm text-[#64748B]">Choose how articles are sorted by default</p>
+        <div className="space-y-3">
+          <h3 className="text-base font-semibold text-[#0D0D0D]">Default Sort</h3>
+          <p className="text-sm text-[#8B8B9A]">Choose how articles are sorted by default</p>
           <div className="space-y-2">
             {SORT_OPTIONS.map(sort => {
               const IconComponent = sort.icon;
@@ -54,17 +54,17 @@ export function SettingsPanel({
                 <button
                   key={sort.id}
                   onClick={() => setSelectedSort(sort.id as 'smart' | 'recency')}
-                  className={`w-full p-4 rounded-lg border-2 transition-all duration-250 text-left flex items-center gap-3 ${
+                  className={`w-full p-4 rounded-lg border transition-all duration-200 text-left flex items-center gap-3 ${
                     selectedSort === sort.id
-                      ? 'liquid-glass-premium border-[#5AA6FF]/50 bg-gradient-to-r from-[#E8F2FF]/30 to-[#E8F2FF]/15'
-                      : 'liquid-glass-light border-[#C7D2E1]/30 hover:border-[#5AA6FF]/50 hover:bg-gradient-to-r hover:from-[#E8F2FF]/15 hover:to-[#E8F2FF]/08'
+                      ? 'bg-[#E8F5F0] border-[#10A37F]/30 text-[#10A37F]'
+                      : 'bg-white border-[#E5E7EB] text-[#565869] hover:border-[#D1D5DB] hover:bg-[#F7F7F8]'
                   }`}
                 >
-                  <div className="text-[#5AA6FF] animate-iconGlow">
+                  <div className={selectedSort === sort.id ? 'text-[#10A37F]' : 'text-[#8B8B9A]'}>
                     <IconComponent size={20} />
                   </div>
                   <div>
-                    <div className="font-semibold text-[#0F172A]">{sort.label}</div>
+                    <div className="font-medium">{sort.label}</div>
                   </div>
                 </button>
               );
@@ -73,16 +73,16 @@ export function SettingsPanel({
         </div>
 
         {/* Save Button */}
-        <div className="flex gap-3 pt-6 border-t border-[#C7D2E1]/20">
+        <div className="flex gap-3 pt-4 border-t border-[#E5E7EB]">
           <button
             onClick={handleSave}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 liquid-glass-premium text-[#5AA6FF] rounded-lg hover:border-[#5AA6FF]/50 transition-all duration-250 font-semibold border border-[#5AA6FF]/30 elevated-glow hover:shadow-md"
+            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[#10A37F] text-white rounded-lg hover:bg-[#0D8B6F] transition-all duration-200 font-medium border border-[#10A37F]"
           >
             <Save size={18} />
             Save Settings
           </button>
           {saved && (
-            <div className="flex items-center gap-2 px-4 py-3 liquid-glass-light text-[#16A34A] rounded-lg text-sm font-medium border border-[#16A34A]/40 animate-slideInRight">
+            <div className="flex items-center gap-2 px-4 py-3 bg-[#E8F5F0] text-[#10A37F] rounded-lg text-sm font-medium border border-[#10A37F]/20">
               <Check size={18} />
               Saved
             </div>

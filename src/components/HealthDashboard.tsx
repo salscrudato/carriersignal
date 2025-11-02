@@ -80,9 +80,9 @@ export const HealthDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="bg-white rounded-lg border border-[#E5E7EB] p-6">
         <div className="flex items-center justify-center h-32">
-          <div className="text-gray-600">Loading health metrics...</div>
+          <div className="text-[#8B8B9A]">Loading health metrics...</div>
         </div>
       </div>
     );
@@ -90,8 +90,8 @@ export const HealthDashboard: React.FC = () => {
 
   if (error || !metrics) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <div className="flex items-center gap-2 text-red-600">
+      <div className="bg-white rounded-lg border border-[#E5E7EB] p-6">
+        <div className="flex items-center gap-2 text-[#EF4444]">
           <AlertCircle size={20} />
           <span>{error || 'No metrics available'}</span>
         </div>
@@ -100,13 +100,13 @@ export const HealthDashboard: React.FC = () => {
   }
 
   const isHealthy = metrics.ingestionSuccess >= 99.5;
-  const statusColor = isHealthy ? 'text-green-600' : 'text-yellow-600';
-  const statusBg = isHealthy ? 'bg-green-50' : 'bg-yellow-50';
+  const statusColor = isHealthy ? 'text-[#10A37F]' : 'text-[#F59E0B]';
+  const statusBg = isHealthy ? 'bg-[#E8F5F0]' : 'bg-[#FEF3C7]';
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6">
+    <div className="bg-white rounded-lg border border-[#E5E7EB] p-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+        <h2 className="text-lg font-semibold text-[#0D0D0D] flex items-center gap-2">
           <Activity size={20} />
           System Health
         </h2>
@@ -125,39 +125,39 @@ export const HealthDashboard: React.FC = () => {
       {/* Metrics Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {/* Ingestion Success Rate */}
-        <div className="bg-gray-50 rounded-lg p-4">
-          <p className="text-xs text-gray-600 font-medium mb-1">Ingestion Success</p>
-          <p className="text-2xl font-bold text-gray-900">{metrics.ingestionSuccess.toFixed(2)}%</p>
-          <p className="text-xs text-gray-500 mt-1">Target: 99.5%</p>
+        <div className="bg-[#F7F7F8] rounded-lg p-4 border border-[#E5E7EB]">
+          <p className="text-xs text-[#8B8B9A] font-medium mb-1">Ingestion Success</p>
+          <p className="text-2xl font-bold text-[#0D0D0D]">{metrics.ingestionSuccess.toFixed(2)}%</p>
+          <p className="text-xs text-[#ABABBA] mt-1">Target: 99.5%</p>
         </div>
 
         {/* Articles Processed */}
-        <div className="bg-gray-50 rounded-lg p-4">
-          <p className="text-xs text-gray-600 font-medium mb-1">Articles (24h)</p>
-          <p className="text-2xl font-bold text-gray-900">{metrics.articlesProcessed.toLocaleString()}</p>
-          <p className="text-xs text-gray-500 mt-1">Last 24 hours</p>
+        <div className="bg-[#F7F7F8] rounded-lg p-4 border border-[#E5E7EB]">
+          <p className="text-xs text-[#8B8B9A] font-medium mb-1">Articles (24h)</p>
+          <p className="text-2xl font-bold text-[#0D0D0D]">{metrics.articlesProcessed.toLocaleString()}</p>
+          <p className="text-xs text-[#ABABBA] mt-1">Last 24 hours</p>
         </div>
 
         {/* Avg Processing Time */}
-        <div className="bg-gray-50 rounded-lg p-4">
-          <p className="text-xs text-gray-600 font-medium mb-1">Avg Processing</p>
-          <p className="text-2xl font-bold text-gray-900">{metrics.avgProcessingTime.toFixed(0)}ms</p>
-          <p className="text-xs text-gray-500 mt-1">Per batch</p>
+        <div className="bg-[#F7F7F8] rounded-lg p-4 border border-[#E5E7EB]">
+          <p className="text-xs text-[#8B8B9A] font-medium mb-1">Avg Processing</p>
+          <p className="text-2xl font-bold text-[#0D0D0D]">{metrics.avgProcessingTime.toFixed(0)}ms</p>
+          <p className="text-xs text-[#ABABBA] mt-1">Per batch</p>
         </div>
 
         {/* Error Rate */}
-        <div className="bg-gray-50 rounded-lg p-4">
-          <p className="text-xs text-gray-600 font-medium mb-1">Error Rate</p>
-          <p className={`text-2xl font-bold ${metrics.errorRate > 0.5 ? 'text-red-600' : 'text-green-600'}`}>
+        <div className="bg-[#F7F7F8] rounded-lg p-4 border border-[#E5E7EB]">
+          <p className="text-xs text-[#8B8B9A] font-medium mb-1">Error Rate</p>
+          <p className={`text-2xl font-bold ${metrics.errorRate > 0.5 ? 'text-[#EF4444]' : 'text-[#10A37F]'}`}>
             {metrics.errorRate.toFixed(2)}%
           </p>
-          <p className="text-xs text-gray-500 mt-1">Last 24 hours</p>
+          <p className="text-xs text-[#ABABBA] mt-1">Last 24 hours</p>
         </div>
       </div>
 
       {/* Last Ingestion */}
-      <div className="mt-4 pt-4 border-t border-gray-200">
-        <p className="text-xs text-gray-600 font-medium">
+      <div className="mt-4 pt-4 border-t border-[#E5E7EB]">
+        <p className="text-xs text-[#8B8B9A] font-medium">
           Last ingestion: {new Date(metrics.lastIngestionTime).toLocaleString()}
         </p>
       </div>
@@ -165,14 +165,14 @@ export const HealthDashboard: React.FC = () => {
       {/* Status Indicators */}
       <div className="mt-4 space-y-2">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-700">Core Web Vitals Budget</span>
-          <span className={`font-medium ${metrics.avgProcessingTime < 2500 ? 'text-green-600' : 'text-red-600'}`}>
+          <span className="text-[#565869]">Core Web Vitals Budget</span>
+          <span className={`font-medium ${metrics.avgProcessingTime < 2500 ? 'text-[#10A37F]' : 'text-[#EF4444]'}`}>
             {metrics.avgProcessingTime < 2500 ? '✓ Pass' : '✗ Fail'}
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-700">Ingestion SLA (99.5%)</span>
-          <span className={`font-medium ${metrics.ingestionSuccess >= 99.5 ? 'text-green-600' : 'text-red-600'}`}>
+          <span className="text-[#565869]">Ingestion SLA (99.5%)</span>
+          <span className={`font-medium ${metrics.ingestionSuccess >= 99.5 ? 'text-[#10A37F]' : 'text-[#EF4444]'}`}>
             {metrics.ingestionSuccess >= 99.5 ? '✓ Pass' : '✗ Fail'}
           </span>
         </div>

@@ -85,17 +85,17 @@ export function CommandPalette({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-md flex items-start justify-center pt-20 animate-fadeIn"
+      className="fixed inset-0 z-50 bg-black/20 flex items-start justify-center pt-20"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl liquid-glass-ultra rounded-2xl shadow-xl shadow-[#5AA6FF]/20 overflow-hidden border border-[#C7D2E1]/30 animate-commandPaletteSlideIn mx-4"
+        className="w-full max-w-2xl bg-white rounded-lg shadow-lg overflow-hidden border border-[#E5E7EB] mx-4"
         onClick={e => e.stopPropagation()}
       >
         {/* Search Input */}
-        <div className="border-b border-[#C7D2E1]/25 p-5 liquid-glass-premium">
+        <div className="border-b border-[#E5E7EB] p-4">
           <div className="flex items-center gap-3">
-            <Search size={20} className="text-[#5AA6FF] animate-iconGlow" />
+            <Search size={20} className="text-[#10A37F]" />
             <input
               ref={inputRef}
               type="text"
@@ -103,9 +103,9 @@ export function CommandPalette({
               value={query}
               onChange={e => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="flex-1 bg-transparent text-base outline-none text-[#0F172A] placeholder-[#94A3B8] font-medium"
+              className="flex-1 bg-transparent text-base outline-none text-[#0D0D0D] placeholder-[#ABABBA] font-medium"
             />
-            {isLoading && <Loader size={20} className="text-[#5AA6FF] animate-spin" />}
+            {isLoading && <Loader size={20} className="text-[#10A37F] animate-spin" />}
           </div>
         </div>
 
@@ -113,11 +113,11 @@ export function CommandPalette({
         <div className="max-h-96 overflow-y-auto">
           {results.length === 0 ? (
             <div className="p-8 text-center">
-              <AlertCircle size={32} className="mx-auto text-[#D4DFE8] mb-2" />
-              <p className="text-[#94A3B8]">No articles found</p>
+              <AlertCircle size={32} className="mx-auto text-[#D1D5DB] mb-2" />
+              <p className="text-[#ABABBA]">No articles found</p>
             </div>
           ) : (
-            <div className="divide-y divide-[#C7D2E1]/25">
+            <div className="divide-y divide-[#E5E7EB]">
               {results.map((article, idx) => (
                 <button
                   key={article.id}
@@ -125,20 +125,20 @@ export function CommandPalette({
                     onArticleSelect(article);
                     onClose();
                   }}
-                  className={`w-full text-left p-4 transition-all duration-250 ${
+                  className={`w-full text-left p-4 transition-all duration-200 ${
                     idx === selectedIndex
-                      ? 'liquid-glass-premium border-l-4 border-[#5AA6FF] bg-gradient-to-r from-[#F9FBFF]/40 to-[#E8F2FF]/20 shadow-md shadow-[#5AA6FF]/10'
-                      : 'hover:bg-gradient-to-r hover:from-[#F9FBFF]/20 hover:to-[#E8F2FF]/10 hover:shadow-sm'
+                      ? 'bg-[#F7F7F8] border-l-4 border-[#10A37F]'
+                      : 'hover:bg-[#F7F7F8]'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-[#0F172A] line-clamp-2">
+                      <h3 className="font-semibold text-[#0D0D0D] line-clamp-2">
                         {article.title}
                       </h3>
-                      <p className="text-sm text-[#64748B] mt-1">{article.source}</p>
+                      <p className="text-sm text-[#8B8B9A] mt-1">{article.source}</p>
                       {article.bullets5?.[0] && (
-                        <p className="text-sm text-[#2D3748] mt-2 line-clamp-1">
+                        <p className="text-sm text-[#565869] mt-2 line-clamp-1">
                           {article.bullets5[0]}
                         </p>
                       )}
@@ -148,7 +148,7 @@ export function CommandPalette({
                         {article.tags.companies.slice(0, 2).map(company => (
                           <span
                             key={company}
-                            className="text-xs liquid-glass-light text-[#0F172A] px-2 py-1 rounded border border-[#C7D2E1]/30"
+                            className="text-xs text-[#0D0D0D] px-2 py-1 rounded-md bg-[#F7F7F8] border border-[#E5E7EB]"
                           >
                             {company}
                           </span>
@@ -163,7 +163,7 @@ export function CommandPalette({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-[#C7D2E1]/20 liquid-glass-premium px-4 py-3 text-xs text-[#64748B] flex items-center justify-between">
+        <div className="border-t border-[#E5E7EB] bg-[#F7F7F8] px-4 py-3 text-xs text-[#8B8B9A] flex items-center justify-between">
           <div className="flex gap-4">
             <span>↑↓ Navigate</span>
             <span>⏎ Select</span>

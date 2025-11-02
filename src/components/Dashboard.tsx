@@ -80,14 +80,14 @@ export function Dashboard({ articles }: DashboardProps) {
     .slice(0, 5);
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="space-y-5 p-4 sm:p-6">
       {/* Today's Signal - Key Metrics */}
       <div>
-        <h2 className="text-2xl font-bold text-[#0F172A] mb-4 flex items-center gap-2 group">
-          <Zap size={28} className="text-[#5AA6FF] group-hover:animate-pulse transition-all duration-250" />
+        <h2 className="text-xl font-semibold text-[#0D0D0D] mb-4 flex items-center gap-2">
+          <Zap size={24} className="text-[#10A37F]" />
           Today's Signal
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <MetricCard
             icon={<BarChart3 size={24} />}
             label="Total Articles"
@@ -120,38 +120,38 @@ export function Dashboard({ articles }: DashboardProps) {
         {/* CAT Ticker */}
         <InsightCard title="Active Catastrophes" icon={<Cloud size={20} />} color="blue">
           {storms.length > 0 ? (
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {storms.map((storm, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 bg-[#F9FBFF]/60 rounded-lg hover:bg-[#F0F7FF]/80 transition-all duration-250 hover:shadow-md hover:scale-102 transform">
+                <div key={idx} className="flex items-center justify-between p-3 bg-[#F7F7F8] rounded-lg hover:bg-[#ECECF1] transition-all duration-200 border border-[#E5E7EB]">
                   <div className="flex items-center gap-2">
-                    <Cloud size={16} className="text-[#5AA6FF] group-hover:animate-pulse" />
-                    <span className="text-sm font-semibold text-[#0F172A]">{storm}</span>
+                    <Cloud size={16} className="text-[#10A37F]" />
+                    <span className="text-sm font-medium text-[#0D0D0D]">{storm}</span>
                   </div>
-                  <span className="px-2.5 py-1 rounded-full bg-gradient-to-r from-[#E8F2FF] to-[#E8F2FF] text-[#5AA6FF] text-xs font-bold hover:shadow-md transition-all duration-250">Active</span>
+                  <span className="px-2 py-1 rounded-md bg-[#E8F5F0] text-[#10A37F] text-xs font-medium">Active</span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-[#64748B] italic">No active catastrophes tracked</p>
+            <p className="text-sm text-[#8B8B9A] italic">No active catastrophes tracked</p>
           )}
         </InsightCard>
 
         {/* Regulatory Tracker */}
         <InsightCard title="Regulatory Updates" icon={<FileText size={20} />} color="red">
           {regulatoryItems.length > 0 ? (
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {regulatoryItems.map((item, idx) => (
-                <div key={idx} className="flex items-start justify-between p-3 bg-[#F9FBFF]/60 rounded-lg hover:bg-[#FEE2E2]/60 transition-all duration-250 hover:shadow-md hover:scale-102 transform">
+                <div key={idx} className="flex items-start justify-between p-3 bg-[#F7F7F8] rounded-lg hover:bg-[#ECECF1] transition-all duration-200 border border-[#E5E7EB]">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[#0F172A] line-clamp-2">{item.title}</p>
-                    <p className="text-xs text-[#64748B] mt-1">{item.tags?.regulations?.[0] || 'Regulatory'}</p>
+                    <p className="text-sm font-medium text-[#0D0D0D] line-clamp-2">{item.title}</p>
+                    <p className="text-xs text-[#8B8B9A] mt-1">{item.tags?.regulations?.[0] || 'Regulatory'}</p>
                   </div>
-                  <Clock size={14} className="text-[#EF4444] flex-shrink-0 ml-2 group-hover:animate-pulse" />
+                  <Clock size={14} className="text-[#EF4444] flex-shrink-0 ml-2" />
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-[#64748B] italic">No regulatory updates this week</p>
+            <p className="text-sm text-[#8B8B9A] italic">No regulatory updates this week</p>
           )}
         </InsightCard>
       </div>
@@ -221,20 +221,20 @@ interface MetricCardProps {
 
 function MetricCard({ icon, label, value, color }: MetricCardProps) {
   const colorClasses = {
-    blue: 'from-[#E8F2FF]/70 to-[#E8F2FF]/50 border-[#5AA6FF]/60 text-[#5AA6FF]',
-    red: 'from-[#FEE2E2]/70 to-[#FEE2E2]/50 border-[#EF4444]/60 text-[#EF4444]',
-    orange: 'from-[#FEF3C7]/70 to-[#FEF3C7]/50 border-[#F59E0B]/60 text-[#F59E0B]',
+    blue: 'bg-[#E8F5F0] text-[#10A37F] border-[#10A37F]/20',
+    red: 'bg-[#FEE2E2] text-[#EF4444] border-[#EF4444]/20',
+    orange: 'bg-[#FEF3C7] text-[#F59E0B] border-[#F59E0B]/20',
   };
 
   return (
-    <div className={`liquid-glass-premium rounded-xl border p-5 bg-gradient-to-br ${colorClasses[color]} hover:shadow-lg hover:shadow-[#5AA6FF]/20 transition-all duration-300 animate-enhancedPremiumGlow elevated-glow hover:scale-105`}>
+    <div className={`bg-white border border-[#E5E7EB] rounded-lg p-4 sm:p-5 hover:border-[#D1D5DB] hover:shadow-md transition-all duration-200`}>
       <div className="flex items-start justify-between mb-3">
-        <div className={`p-2.5 rounded-lg liquid-glass-light ${colorClasses[color].split(' ')[2]} animate-iconGlow shadow-sm border border-white/50`}>
+        <div className={`p-2.5 rounded-lg ${colorClasses[color]} border`}>
           {icon}
         </div>
       </div>
-      <p className="text-xs font-semibold text-[#64748B] mb-1.5">{label}</p>
-      <p className="text-3xl font-bold bg-gradient-to-r from-[#0F172A] via-[#5AA6FF] to-[#0F172A] bg-clip-text text-transparent">{value}</p>
+      <p className="text-xs font-semibold text-[#8B8B9A] mb-2 uppercase tracking-wide">{label}</p>
+      <p className="text-3xl font-bold text-[#0D0D0D]">{value}</p>
     </div>
   );
 }
@@ -248,18 +248,18 @@ interface InsightCardProps {
 
 function InsightCard({ title, icon, color, children }: InsightCardProps) {
   const colorClasses = {
-    blue: 'from-[#E8F2FF]/70 to-[#E8F2FF]/50 border-[#5AA6FF]/60 text-[#5AA6FF]',
-    red: 'from-[#FEE2E2]/70 to-[#FEE2E2]/50 border-[#EF4444]/60 text-[#EF4444]',
-    green: 'from-[#DCFCE7]/70 to-[#DCFCE7]/50 border-[#16A34A]/60 text-[#16A34A]',
+    blue: 'bg-[#E8F5F0] text-[#10A37F] border-[#10A37F]/20',
+    red: 'bg-[#FEE2E2] text-[#EF4444] border-[#EF4444]/20',
+    green: 'bg-[#E8F5F0] text-[#10A37F] border-[#10A37F]/20',
   };
 
   return (
-    <div className={`liquid-glass-premium rounded-xl border p-6 bg-gradient-to-br ${colorClasses[color]} hover:shadow-xl hover:shadow-[#5AA6FF]/20 transition-all duration-300 animate-enhancedPremiumGlow elevated-glow hover:scale-[1.01]`}>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 rounded-lg liquid-glass-light animate-iconGlow shadow-md border border-white/60">
+    <div className={`bg-white border border-[#E5E7EB] rounded-lg p-4 sm:p-5 hover:border-[#D1D5DB] hover:shadow-md transition-all duration-200`}>
+      <div className="flex items-center gap-3 mb-4">
+        <div className={`p-2.5 rounded-lg ${colorClasses[color]} border`}>
           {icon}
         </div>
-        <h3 className="text-lg font-bold text-[#0F172A]">{title}</h3>
+        <h3 className="text-base font-semibold text-[#0D0D0D]">{title}</h3>
       </div>
       {children}
     </div>

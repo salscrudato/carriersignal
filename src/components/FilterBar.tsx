@@ -65,17 +65,17 @@ export const FilterBar: React.FC<FilterBarProps> = ({ filters, onFiltersChange }
     filters.watchlistOnly;
 
   return (
-    <div className="bg-white border-b border-gray-200 p-4 space-y-3">
+    <div className="bg-white border-b border-[#E5E7EB] p-4 space-y-3">
       {/* Time Window */}
       <div className="flex gap-2 flex-wrap">
         {(['today', 'week', 'month', 'all'] as const).map(window => (
           <button
             key={window}
             onClick={() => handleTimeWindowChange(window)}
-            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
               filters.timeWindow === window
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-[#10A37F] text-white border border-[#10A37F]'
+                : 'bg-[#F7F7F8] text-[#565869] border border-[#E5E7EB] hover:border-[#D1D5DB]'
             }`}
           >
             {window.charAt(0).toUpperCase() + window.slice(1)}
@@ -86,27 +86,27 @@ export const FilterBar: React.FC<FilterBarProps> = ({ filters, onFiltersChange }
       {/* Expandable Sections */}
       <div className="space-y-2">
         {/* States */}
-        <div className="border border-gray-200 rounded">
+        <div className="border border-[#E5E7EB] rounded-lg">
           <button
             onClick={() => setExpandedSection(expandedSection === 'states' ? null : 'states')}
-            className="w-full flex items-center justify-between p-2 hover:bg-gray-50"
+            className="w-full flex items-center justify-between p-3 hover:bg-[#F7F7F8] transition-colors"
           >
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-[#0D0D0D]">
               States {filters.states && filters.states.length > 0 && `(${filters.states.length})`}
             </span>
-            <ChevronDown size={16} className={`transition-transform ${expandedSection === 'states' ? 'rotate-180' : ''}`} />
+            <ChevronDown size={16} className={`transition-transform text-[#8B8B9A] ${expandedSection === 'states' ? 'rotate-180' : ''}`} />
           </button>
           {expandedSection === 'states' && (
-            <div className="p-2 border-t border-gray-200 grid grid-cols-6 gap-1 max-h-48 overflow-y-auto">
+            <div className="p-3 border-t border-[#E5E7EB] grid grid-cols-6 gap-2 max-h-48 overflow-y-auto bg-[#F7F7F8]">
               {US_STATES.map(state => (
-                <label key={state} className="flex items-center gap-1 cursor-pointer">
+                <label key={state} className="flex items-center gap-1.5 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={filters.states?.includes(state) || false}
                     onChange={() => handleStateToggle(state)}
-                    className="w-3 h-3"
+                    className="w-4 h-4 rounded border-[#D1D5DB] accent-[#10A37F]"
                   />
-                  <span className="text-xs text-gray-700">{state}</span>
+                  <span className="text-xs text-[#565869]">{state}</span>
                 </label>
               ))}
             </div>
@@ -114,27 +114,27 @@ export const FilterBar: React.FC<FilterBarProps> = ({ filters, onFiltersChange }
         </div>
 
         {/* LOBs */}
-        <div className="border border-gray-200 rounded">
+        <div className="border border-[#E5E7EB] rounded-lg">
           <button
             onClick={() => setExpandedSection(expandedSection === 'lobs' ? null : 'lobs')}
-            className="w-full flex items-center justify-between p-2 hover:bg-gray-50"
+            className="w-full flex items-center justify-between p-3 hover:bg-[#F7F7F8] transition-colors"
           >
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-[#0D0D0D]">
               Lines of Business {filters.lobs && filters.lobs.length > 0 && `(${filters.lobs.length})`}
             </span>
-            <ChevronDown size={16} className={`transition-transform ${expandedSection === 'lobs' ? 'rotate-180' : ''}`} />
+            <ChevronDown size={16} className={`transition-transform text-[#8B8B9A] ${expandedSection === 'lobs' ? 'rotate-180' : ''}`} />
           </button>
           {expandedSection === 'lobs' && (
-            <div className="p-2 border-t border-gray-200 space-y-1 max-h-48 overflow-y-auto">
+            <div className="p-3 border-t border-[#E5E7EB] space-y-2 max-h-48 overflow-y-auto bg-[#F7F7F8]">
               {LOB_OPTIONS.map(lob => (
                 <label key={lob} className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={filters.lobs?.includes(lob) || false}
                     onChange={() => handleLobToggle(lob)}
-                    className="w-3 h-3"
+                    className="w-4 h-4 rounded border-[#D1D5DB] accent-[#10A37F]"
                   />
-                  <span className="text-sm text-gray-700">{lob}</span>
+                  <span className="text-sm text-[#565869]">{lob}</span>
                 </label>
               ))}
             </div>
@@ -142,27 +142,27 @@ export const FilterBar: React.FC<FilterBarProps> = ({ filters, onFiltersChange }
         </div>
 
         {/* Regulators */}
-        <div className="border border-gray-200 rounded">
+        <div className="border border-[#E5E7EB] rounded-lg">
           <button
             onClick={() => setExpandedSection(expandedSection === 'regulators' ? null : 'regulators')}
-            className="w-full flex items-center justify-between p-2 hover:bg-gray-50"
+            className="w-full flex items-center justify-between p-3 hover:bg-[#F7F7F8] transition-colors"
           >
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-[#0D0D0D]">
               Regulators {filters.regulators && filters.regulators.length > 0 && `(${filters.regulators.length})`}
             </span>
-            <ChevronDown size={16} className={`transition-transform ${expandedSection === 'regulators' ? 'rotate-180' : ''}`} />
+            <ChevronDown size={16} className={`transition-transform text-[#8B8B9A] ${expandedSection === 'regulators' ? 'rotate-180' : ''}`} />
           </button>
           {expandedSection === 'regulators' && (
-            <div className="p-2 border-t border-gray-200 space-y-1 max-h-48 overflow-y-auto">
+            <div className="p-3 border-t border-[#E5E7EB] space-y-2 max-h-48 overflow-y-auto bg-[#F7F7F8]">
               {REGULATOR_OPTIONS.map(regulator => (
                 <label key={regulator} className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={filters.regulators?.includes(regulator) || false}
                     onChange={() => handleRegulatorToggle(regulator)}
-                    className="w-3 h-3"
+                    className="w-4 h-4 rounded border-[#D1D5DB] accent-[#10A37F]"
                   />
-                  <span className="text-sm text-gray-700">{regulator}</span>
+                  <span className="text-sm text-[#565869]">{regulator}</span>
                 </label>
               ))}
             </div>
@@ -174,20 +174,20 @@ export const FilterBar: React.FC<FilterBarProps> = ({ filters, onFiltersChange }
       <div className="flex gap-2 flex-wrap">
         <button
           onClick={handleHazardToggle}
-          className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+          className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
             filters.hazardOnly
-              ? 'bg-amber-100 text-amber-800 border border-amber-300'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ? 'bg-[#FEF3C7] text-[#F59E0B] border border-[#F59E0B]/30'
+              : 'bg-[#F7F7F8] text-[#565869] border border-[#E5E7EB] hover:border-[#D1D5DB]'
           }`}
         >
           🌪️ Hazards Only
         </button>
         <button
           onClick={handleWatchlistToggle}
-          className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+          className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
             filters.watchlistOnly
-              ? 'bg-purple-100 text-purple-800 border border-purple-300'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ? 'bg-[#E8F5F0] text-[#10A37F] border border-[#10A37F]/30'
+              : 'bg-[#F7F7F8] text-[#565869] border border-[#E5E7EB] hover:border-[#D1D5DB]'
           }`}
         >
           ⭐ Watchlist Only
@@ -198,7 +198,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({ filters, onFiltersChange }
       {hasActiveFilters && (
         <button
           onClick={clearFilters}
-          className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+          className="flex items-center gap-1 text-sm text-[#8B8B9A] hover:text-[#0D0D0D] transition-colors"
         >
           <X size={14} />
           Clear all filters

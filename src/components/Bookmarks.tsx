@@ -73,10 +73,10 @@ export function Bookmarks({ onArticleSelect }: BookmarksProps) {
     return (
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="text-center">
-          <div className="w-12 h-12 rounded-full liquid-glass-premium flex items-center justify-center mx-auto mb-3 animate-pulse border border-[#5AA6FF]/30">
-            <Bookmark size={24} className="text-[#5AA6FF]" />
+          <div className="w-12 h-12 rounded-full bg-[#F7F7F8] flex items-center justify-center mx-auto mb-3 animate-pulse border border-[#E5E7EB]">
+            <Bookmark size={24} className="text-[#10A37F]" />
           </div>
-          <p className="text-[#64748B]">Loading bookmarks...</p>
+          <p className="text-[#8B8B9A]">Loading bookmarks...</p>
         </div>
       </div>
     );
@@ -86,11 +86,11 @@ export function Bookmarks({ onArticleSelect }: BookmarksProps) {
     return (
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="text-center">
-          <div className="w-16 h-16 rounded-full liquid-glass-light flex items-center justify-center mx-auto mb-4 border border-[#C7D2E1]/30">
-            <Bookmark size={32} className="text-[#D4DFE8]" />
+          <div className="w-16 h-16 rounded-full bg-[#F7F7F8] flex items-center justify-center mx-auto mb-4 border border-[#E5E7EB]">
+            <Bookmark size={32} className="text-[#D1D5DB]" />
           </div>
-          <h3 className="text-lg font-semibold text-[#0F172A] mb-1">No bookmarks yet</h3>
-          <p className="text-sm text-[#64748B]">Save articles to read them later</p>
+          <h3 className="text-lg font-semibold text-[#0D0D0D] mb-1">No bookmarks yet</h3>
+          <p className="text-sm text-[#8B8B9A]">Save articles to read them later</p>
         </div>
       </div>
     );
@@ -98,24 +98,24 @@ export function Bookmarks({ onArticleSelect }: BookmarksProps) {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="p-4 space-y-2.5">
+      <div className="p-4 space-y-2">
         {bookmarks.map(bookmark => (
           <div
             key={bookmark.id}
-            className="p-4 rounded-lg border border-[#C7D2E1]/30 hover:border-[#5AA6FF]/50 hover:shadow-sm transition-all duration-250 liquid-glass-light micro-glow hover:bg-gradient-to-r hover:from-[#F9FBFF]/15 hover:to-[#E8F2FF]/08"
+            className="p-4 rounded-lg border border-[#E5E7EB] hover:border-[#D1D5DB] hover:shadow-md transition-all duration-200 bg-white"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <button
                   onClick={() => onArticleSelect?.({ url: bookmark.url, title: bookmark.title } as Article)}
-                  className="text-left hover:text-[#5AA6FF] transition-colors"
+                  className="text-left hover:text-[#10A37F] transition-colors"
                 >
-                  <h3 className="font-semibold text-[#0F172A] line-clamp-2 hover:underline">
+                  <h3 className="font-semibold text-[#0D0D0D] line-clamp-2 hover:underline">
                     {bookmark.title}
                   </h3>
                 </button>
-                <p className="text-sm text-[#64748B] mt-1">{bookmark.source}</p>
-                <p className="text-xs text-[#94A3B8] mt-2">
+                <p className="text-sm text-[#8B8B9A] mt-1">{bookmark.source}</p>
+                <p className="text-xs text-[#ABABBA] mt-2">
                   {bookmark.savedAt.toLocaleDateString()}
                 </p>
               </div>
@@ -125,14 +125,14 @@ export function Bookmarks({ onArticleSelect }: BookmarksProps) {
                   href={bookmark.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-2 hover:liquid-glass-premium rounded-lg transition-all duration-250 border border-[#5AA6FF]/25 hover:border-[#5AA6FF]/50 hover:shadow-sm animate-iconGlow"
+                  className="p-2 rounded-md transition-all duration-200 border border-[#E5E7EB] hover:border-[#10A37F]/30 hover:bg-[#E8F5F0]"
                   title="Open in new tab"
                 >
-                  <ExternalLink size={16} className="text-[#5AA6FF]" />
+                  <ExternalLink size={16} className="text-[#10A37F]" />
                 </a>
                 <button
                   onClick={() => handleRemoveBookmark(bookmark.id)}
-                  className="p-2 hover:liquid-glass-premium rounded-lg transition-all duration-250 border border-[#EF4444]/25 hover:border-[#EF4444]/50 hover:shadow-sm"
+                  className="p-2 rounded-md transition-all duration-200 border border-[#E5E7EB] hover:border-[#EF4444]/30 hover:bg-[#FEE2E2]"
                   title="Remove bookmark"
                 >
                   <Trash2 size={16} className="text-[#EF4444]" />

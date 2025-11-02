@@ -6,21 +6,10 @@ interface MobileNavProps {
   currentView?: 'feed' | 'dashboard' | 'bookmarks' | 'settings' | 'test';
 }
 
-interface NavButtonState {
-  mousePos: { x: number; y: number };
-}
-
 export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
-  const [navButtonStates, setNavButtonStates] = useState<Record<string, NavButtonState>>({
-    feed: { mousePos: { x: 0, y: 0 } },
-    dashboard: { mousePos: { x: 0, y: 0 } },
-    bookmarks: { mousePos: { x: 0, y: 0 } },
-    settings: { mousePos: { x: 0, y: 0 } },
-    close: { mousePos: { x: 0, y: 0 } },
-  });
 
   // Handle swipe gestures
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -59,22 +48,6 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
     setIsOpen(false);
   };
 
-  const handleNavButtonMouseMove = (
-    e: React.MouseEvent<HTMLButtonElement>,
-    buttonId: string
-  ) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setNavButtonStates(prev => ({
-      ...prev,
-      [buttonId]: {
-        mousePos: {
-          x: e.clientX - rect.left,
-          y: e.clientY - rect.top,
-        },
-      },
-    }));
-  };
-
   return (
     <>
       {/* Bottom Sheet Trigger - Visible on Mobile */}
@@ -88,127 +61,82 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
 
         {/* Bottom Sheet */}
         <div
-          className={`pointer-events-auto transition-all duration-400 ease-out ${
+          className={`pointer-events-auto transition-all duration-300 ease-out ${
             isOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
           }`}
         >
-          <div className="liquid-glass-ultra border-t border-[#C7D2E1]/40 rounded-t-3xl shadow-2xl shadow-[#5AA6FF]/30 animate-enhancedPremiumGlow" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-            {/* Handle Bar - Aurora Gradient */}
-            <div className="flex justify-center pt-5 pb-4">
-              <div className="w-12 h-1.5 bg-gradient-to-r from-[#5AA6FF] via-[#8B7CFF] to-[#B08CFF] rounded-full opacity-100 transition-all duration-300 hover:opacity-100 hover:scale-110" />
+          <div className="bg-white border-t border-[#E5E7EB] rounded-t-2xl shadow-lg" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+            {/* Handle Bar - Minimal */}
+            <div className="flex justify-center pt-3 pb-3">
+              <div className="w-10 h-1 bg-[#D1D5DB] rounded-full" />
             </div>
 
             {/* Navigation Items */}
-            <div className="px-5 pb-6 space-y-2.5">
-              {/* Feed Button - Staggered Animation */}
+            <div className="px-4 pb-4 space-y-2">
+              {/* Feed Button */}
               <button
                 onClick={() => handleNavClick('feed')}
-                onMouseMove={(e) => handleNavButtonMouseMove(e, 'feed')}
-                className={`nav-button w-full flex items-center gap-3.5 px-5 py-3 rounded-xl font-bold transition-all duration-300 transform min-h-[52px] animate-slideInUp relative overflow-hidden ${
+                className={`nav-button w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 transform min-h-[48px] ${
                   currentView === 'feed'
-                    ? 'liquid-glass-premium text-[#5AA6FF] shadow-lg shadow-[#5AA6FF]/35 border border-[#5AA6FF]/50 scale-105'
-                    : 'liquid-glass text-[#0F172A] hover:border-[#C7D2E1]/60 hover:shadow-md hover:shadow-[#5AA6FF]/15 hover:scale-[1.02] active:scale-95'
+                    ? 'bg-[#E8F5F0] text-[#10A37F] border border-[#10A37F]/30'
+                    : 'bg-[#F7F7F8] text-[#565869] hover:bg-[#ECECF1] border border-[#E5E7EB]'
                 }`}
-                style={{ animationDelay: '0ms' }}
                 aria-label="News Feed"
               >
-                {/* Specular highlight layer */}
-                <div
-                  className="absolute inset-0 pointer-events-none rounded-xl opacity-0 hover:opacity-100 transition-opacity duration-300"
-                  style={{
-                    background: `radial-gradient(circle at ${navButtonStates.feed.mousePos.x}px ${navButtonStates.feed.mousePos.y}px, rgba(255, 255, 255, 0.3) 0%, transparent 50%)`,
-                  }}
-                />
-                <Search size={21} className="flex-shrink-0 relative z-10" />
-                <span className="text-base font-semibold relative z-10">News Feed</span>
+                <Search size={20} className="flex-shrink-0" />
+                <span className="text-sm font-medium">News Feed</span>
               </button>
 
-              {/* Dashboard Button - Staggered Animation */}
+              {/* Dashboard Button */}
               <button
                 onClick={() => handleNavClick('dashboard')}
-                onMouseMove={(e) => handleNavButtonMouseMove(e, 'dashboard')}
-                className={`nav-button w-full flex items-center gap-3.5 px-5 py-3 rounded-xl font-bold transition-all duration-250 transform min-h-[48px] animate-slideInUp relative overflow-hidden ${
+                className={`nav-button w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 transform min-h-[48px] ${
                   currentView === 'dashboard'
-                    ? 'liquid-glass-premium text-[#8B7CFF] shadow-lg shadow-[#8B7CFF]/30 border border-[#8B7CFF]/40 scale-105'
-                    : 'liquid-glass text-[#0F172A] hover:border-[#C7D2E1]/50 hover:shadow-md hover:scale-102 active:scale-98'
+                    ? 'bg-[#E8F5F0] text-[#10A37F] border border-[#10A37F]/30'
+                    : 'bg-[#F7F7F8] text-[#565869] hover:bg-[#ECECF1] border border-[#E5E7EB]'
                 }`}
-                style={{ animationDelay: '50ms' }}
                 aria-label="Dashboard"
               >
-                {/* Specular highlight layer */}
-                <div
-                  className="absolute inset-0 pointer-events-none rounded-xl opacity-0 hover:opacity-100 transition-opacity duration-300"
-                  style={{
-                    background: `radial-gradient(circle at ${navButtonStates.dashboard.mousePos.x}px ${navButtonStates.dashboard.mousePos.y}px, rgba(255, 255, 255, 0.3) 0%, transparent 50%)`,
-                  }}
-                />
-                <BarChart3 size={21} className="flex-shrink-0 relative z-10" />
-                <span className="text-base font-semibold relative z-10">Dashboard</span>
+                <BarChart3 size={20} className="flex-shrink-0" />
+                <span className="text-sm font-medium">Dashboard</span>
               </button>
 
-              {/* Bookmarks Button - Staggered Animation */}
+              {/* Bookmarks Button */}
               <button
                 onClick={() => handleNavClick('bookmarks')}
-                onMouseMove={(e) => handleNavButtonMouseMove(e, 'bookmarks')}
-                className={`nav-button w-full flex items-center gap-3.5 px-5 py-3 rounded-xl font-bold transition-all duration-250 transform min-h-[48px] animate-slideInUp relative overflow-hidden ${
+                className={`nav-button w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 transform min-h-[48px] ${
                   currentView === 'bookmarks'
-                    ? 'liquid-glass-premium text-[#B08CFF] shadow-lg shadow-[#B08CFF]/30 border border-[#B08CFF]/40 scale-105'
-                    : 'liquid-glass text-[#0F172A] hover:border-[#C7D2E1]/50 hover:shadow-md hover:scale-102 active:scale-98'
+                    ? 'bg-[#E8F5F0] text-[#10A37F] border border-[#10A37F]/30'
+                    : 'bg-[#F7F7F8] text-[#565869] hover:bg-[#ECECF1] border border-[#E5E7EB]'
                 }`}
-                style={{ animationDelay: '100ms' }}
                 aria-label="Bookmarks"
               >
-                {/* Specular highlight layer */}
-                <div
-                  className="absolute inset-0 pointer-events-none rounded-xl opacity-0 hover:opacity-100 transition-opacity duration-300"
-                  style={{
-                    background: `radial-gradient(circle at ${navButtonStates.bookmarks.mousePos.x}px ${navButtonStates.bookmarks.mousePos.y}px, rgba(255, 255, 255, 0.3) 0%, transparent 50%)`,
-                  }}
-                />
-                <Bookmark size={21} className="flex-shrink-0 relative z-10" />
-                <span className="text-base font-semibold relative z-10">Bookmarks</span>
+                <Bookmark size={20} className="flex-shrink-0" />
+                <span className="text-sm font-medium">Bookmarks</span>
               </button>
 
-              {/* Settings Button - Staggered Animation */}
+              {/* Settings Button */}
               <button
                 onClick={() => handleNavClick('settings')}
-                onMouseMove={(e) => handleNavButtonMouseMove(e, 'settings')}
-                className={`nav-button w-full flex items-center gap-3.5 px-5 py-3 rounded-xl font-bold transition-all duration-250 transform min-h-[48px] animate-slideInUp relative overflow-hidden ${
+                className={`nav-button w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 transform min-h-[48px] ${
                   currentView === 'settings'
-                    ? 'liquid-glass-premium text-[#5AA6FF] shadow-lg shadow-[#5AA6FF]/30 border border-[#5AA6FF]/40 scale-105'
-                    : 'liquid-glass text-[#0F172A] hover:border-[#C7D2E1]/50 hover:shadow-md hover:scale-102 active:scale-98'
+                    ? 'bg-[#E8F5F0] text-[#10A37F] border border-[#10A37F]/30'
+                    : 'bg-[#F7F7F8] text-[#565869] hover:bg-[#ECECF1] border border-[#E5E7EB]'
                 }`}
-                style={{ animationDelay: '150ms' }}
                 aria-label="Settings"
               >
-                {/* Specular highlight layer */}
-                <div
-                  className="absolute inset-0 pointer-events-none rounded-xl opacity-0 hover:opacity-100 transition-opacity duration-300"
-                  style={{
-                    background: `radial-gradient(circle at ${navButtonStates.settings.mousePos.x}px ${navButtonStates.settings.mousePos.y}px, rgba(255, 255, 255, 0.3) 0%, transparent 50%)`,
-                  }}
-                />
-                <Settings size={21} className="flex-shrink-0 relative z-10" />
-                <span className="text-base font-semibold relative z-10">Settings</span>
+                <Settings size={20} className="flex-shrink-0" />
+                <span className="text-sm font-medium">Settings</span>
               </button>
 
-              {/* Close Button - Staggered Animation */}
+              {/* Close Button */}
               <button
                 onClick={() => setIsOpen(false)}
-                onMouseMove={(e) => handleNavButtonMouseMove(e, 'close')}
-                className="nav-button w-full flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl font-bold liquid-glass text-[#0F172A] hover:border-[#C7D2E1]/50 hover:shadow-md transition-all duration-250 mt-3 border border-[#C7D2E1]/35 transform hover:scale-102 active:scale-98 min-h-[48px] animate-slideInUp relative overflow-hidden"
-                style={{ animationDelay: '200ms' }}
+                className="nav-button w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium bg-[#F7F7F8] text-[#565869] hover:bg-[#ECECF1] transition-all duration-200 mt-2 border border-[#E5E7EB] transform min-h-[48px]"
                 aria-label="Close navigation"
               >
-                {/* Specular highlight layer */}
-                <div
-                  className="absolute inset-0 pointer-events-none rounded-xl opacity-0 hover:opacity-100 transition-opacity duration-300"
-                  style={{
-                    background: `radial-gradient(circle at ${navButtonStates.close.mousePos.x}px ${navButtonStates.close.mousePos.y}px, rgba(255, 255, 255, 0.3) 0%, transparent 50%)`,
-                  }}
-                />
-                <X size={21} className="relative z-10" />
-                <span className="text-base font-semibold relative z-10">Close</span>
+                <X size={20} />
+                <span className="text-sm font-medium">Close</span>
               </button>
             </div>
           </div>
@@ -218,7 +146,7 @@ export function MobileNav({ onViewChange, currentView = 'feed' }: MobileNavProps
       {/* Overlay */}
       {isOpen && (
         <div
-          className="md:hidden fixed inset-0 z-30 bg-black/30 backdrop-blur-md pointer-events-auto transition-all duration-300 animate-fadeIn"
+          className="md:hidden fixed inset-0 z-30 bg-black/20 pointer-events-auto transition-all duration-300"
           onClick={() => setIsOpen(false)}
         />
       )}

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.comprehensiveIngest = exports.readerView = exports.askBrief = exports.feedHealthReport = exports.testSingleArticle = exports.refreshFeedsManual = exports.initializeFeeds = exports.refreshFeeds = void 0;
+exports.getTrendingArticles = exports.get24HourFeed = exports.getFeedMonitoring = exports.verifyCycleCompletion = exports.scheduledOverdueCheck = exports.scheduledFeedWeightAdjustment = exports.scheduledRealtimeScoring = exports.adjustFeedWeights = exports.getFeedPriorities = exports.updateRealtimeScores = exports.checkOverdueCycles = exports.getCycleStatus = exports.getSystemHealth = exports.comprehensiveIngest = exports.readerView = exports.askBrief = exports.feedHealthReport = exports.testSingleArticle = exports.refreshFeedsManual = exports.initializeFeeds = exports.refreshFeeds = void 0;
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const https_1 = require("firebase-functions/v2/https");
 const params_1 = require("firebase-functions/params");
@@ -12,8 +12,21 @@ const firestore_1 = require("firebase-admin/firestore");
 const openai_1 = __importDefault(require("openai"));
 const rss_parser_1 = __importDefault(require("rss-parser"));
 const agents_1 = require("./agents");
+const monitoring_1 = require("./monitoring");
+const healthCheck_1 = require("./healthCheck");
+const advancedScheduling_1 = require("./advancedScheduling");
+const realtimeScoring_1 = require("./realtimeScoring");
+const feedPrioritization_1 = require("./feedPrioritization");
+const cycleVerification_1 = require("./cycleVerification");
+const feedRetrieval_1 = require("./feedRetrieval");
 (0, app_1.initializeApp)();
-const db = (0, firestore_1.getFirestore)();
+let db = null;
+function getDb() {
+    if (!db) {
+        db = (0, firestore_1.getFirestore)();
+    }
+    return db;
+}
 const OPENAI_API_KEY = (0, params_1.defineSecret)("OPENAI_API_KEY");
 /**
  * Firestore-backed rate limiter for askBrief endpoint
@@ -28,7 +41,7 @@ const RATE_LIMIT_MAX_REQUESTS = 20; // 20 requests per hour per IP
 async function checkRateLimit(ip) {
     try {
         const hashedIp = (0, agents_1.hashUrl)(ip); // Hash IP for privacy
-        const rateLimitRef = db.collection('rate_limits').doc(hashedIp);
+        const rateLimitRef = getDb().collection('rate_limits').doc(hashedIp);
         const now = Date.now();
         const windowStart = now - RATE_LIMIT_WINDOW_MS;
         // Get current rate limit record
@@ -170,7 +183,7 @@ async function loadFeedsFromFirestore() {
         return cachedFeeds;
     }
     try {
-        const snapshot = await db.collection('feeds').get();
+        const snapshot = await getDb().collection('feeds').get();
         if (snapshot.empty) {
             console.log('[FEEDS] No feeds in Firestore, using defaults');
             cachedFeeds = DEFAULT_FEED_SOURCES;
@@ -200,8 +213,8 @@ const FEEDS = DEFAULT_FEED_SOURCES.filter(f => f.enabled).map(f => f.url);
  */
 async function initializeFeedsCollection() {
     // First, clear existing feeds collection
-    const existingFeeds = await db.collection('feeds').get();
-    const deleteBatch = db.batch();
+    const existingFeeds = await getDb().collection('feeds').get();
+    const deleteBatch = getDb().batch();
     existingFeeds.forEach(doc => {
         deleteBatch.delete(doc.ref);
     });
@@ -210,9 +223,9 @@ async function initializeFeedsCollection() {
         console.log(`[FEEDS] Cleared ${existingFeeds.size} existing feeds`);
     }
     // Now add all default feeds
-    const batch = db.batch();
+    const batch = getDb().batch();
     for (const feed of DEFAULT_FEED_SOURCES) {
-        const feedRef = db.collection('feeds').doc((0, agents_1.hashUrl)(feed.url));
+        const feedRef = getDb().collection('feeds').doc((0, agents_1.hashUrl)(feed.url));
         batch.set(feedRef, Object.assign(Object.assign({}, feed), { createdAt: new Date(), updatedAt: new Date() }));
     }
     await batch.commit();
@@ -274,10 +287,10 @@ async function refreshFeedsLogic(apiKey) {
                         }
                         const url = item.link;
                         const id = (0, agents_1.hashUrl)(url);
-                        const docRef = db.collection("articles").doc(id);
+                        const docRef = getDb().collection("articles").doc(id);
                         // Idempotency check: use transaction to ensure atomic read-write
                         const idempotencyKey = `${batchId}_${feedId}_${id}`;
-                        const idempotencyRef = db.collection("_idempotency").doc(idempotencyKey);
+                        const idempotencyRef = getDb().collection("_idempotency").doc(idempotencyKey);
                         const idempotencyDoc = await idempotencyRef.get();
                         if (idempotencyDoc.exists) {
                             console.log(`[BATCH ${batchId}] [FEED ${feedId}] [ARTICLE ${itemIndex}/${articles.length}] Already processed in this batch (idempotent)`);
@@ -352,7 +365,7 @@ async function refreshFeedsLogic(apiKey) {
                         const contentHash = (0, agents_1.computeContentHash)(content.text);
                         // Multi-layer deduplication check
                         // 1. Check for duplicates by content hash
-                        const duplicateByContentHash = await db.collection('articles')
+                        const duplicateByContentHash = await getDb().collection('articles')
                             .where('contentHash', '==', contentHash)
                             .limit(1)
                             .get();
@@ -362,7 +375,7 @@ async function refreshFeedsLogic(apiKey) {
                             return;
                         }
                         // 2. Check for duplicates by canonical URL
-                        const duplicateByCanonicalUrl = await db.collection('articles')
+                        const duplicateByCanonicalUrl = await getDb().collection('articles')
                             .where('canonicalUrl', '==', canonicalUrl)
                             .limit(1)
                             .get();
@@ -372,7 +385,7 @@ async function refreshFeedsLogic(apiKey) {
                             return;
                         }
                         // 3. Check for duplicates by title + source (fuzzy match for syndicated content)
-                        const duplicateByTitleSource = await db.collection('articles')
+                        const duplicateByTitleSource = await getDb().collection('articles')
                             .where('title', '==', brief.title)
                             .where('source', '==', brief.source)
                             .limit(1)
@@ -423,7 +436,7 @@ async function refreshFeedsLogic(apiKey) {
                             clusterId,
                             regulatory, stormName: stormName || null, batchProcessedAt: new Date() }));
                         // Store embedding in separate collection for performance
-                        await db.collection("article_embeddings").doc(id).set({
+                        await getDb().collection("article_embeddings").doc(id).set({
                             embedding: emb,
                             articleId: id,
                             createdAt: new Date(),
@@ -575,7 +588,7 @@ async function checkLinkHealth(url) {
  */
 async function updateFeedHealth(feedUrl, success, error) {
     try {
-        const healthRef = db.collection('feed_health').doc((0, agents_1.hashUrl)(feedUrl));
+        const healthRef = getDb().collection('feed_health').doc((0, agents_1.hashUrl)(feedUrl));
         const healthDoc = await healthRef.get();
         const health = healthDoc.exists
             ? healthDoc.data()
@@ -610,16 +623,38 @@ async function updateFeedHealth(feedUrl, success, error) {
 }
 /**
  * Enhanced refresh logic with batch processing and detailed logging
+ * Integrated with comprehensive monitoring system
  */
 async function refreshFeedsWithBatching(apiKey) {
+    const cycleId = `cycle_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const startTime = Date.now();
     console.log(`[BATCH START] Initiating news feed batch refresh at ${new Date().toISOString()}`);
     console.log(`[BATCH CONFIG] Interval: ${BATCH_CONFIG.interval}min, BatchSize: ${BATCH_CONFIG.batchSize}, MaxRetries: ${BATCH_CONFIG.maxRetries}`);
+    // Register cycle with scheduler
+    await advancedScheduling_1.scheduler.registerCycle(cycleId);
+    await advancedScheduling_1.scheduler.markRunning(cycleId);
+    // Start monitoring cycle
+    monitoring_1.monitoring.startCycle(cycleId);
     try {
         const results = await refreshFeedsLogic(apiKey);
         const duration = Date.now() - startTime;
         console.log(`[BATCH COMPLETE] Refresh completed in ${duration}ms`);
         console.log(`[BATCH RESULTS] Processed: ${results.processed}, Skipped: ${results.skipped}, Errors: ${results.errors}`);
+        // Calculate success rate
+        const successRate = results.processed / (results.processed + results.skipped + results.errors || 1);
+        // Record metrics
+        monitoring_1.monitoring.recordMetrics({
+            articlesProcessed: results.processed,
+            articlesSkipped: results.skipped,
+            errors: results.errors,
+            duration,
+            successRate,
+            feedsProcessed: results.feedsProcessed,
+            avgLatency: results.totalLatencyMs / (results.feedsProcessed || 1),
+        });
+        // Complete monitoring cycle
+        await monitoring_1.monitoring.completeCycle('completed');
+        await advancedScheduling_1.scheduler.markCompleted(cycleId);
         // Log batch completion to Firestore for monitoring
         await logBatchCompletion({
             timestamp: new Date(),
@@ -628,12 +663,25 @@ async function refreshFeedsWithBatching(apiKey) {
             skipped: results.skipped,
             errors: results.errors,
             status: 'success',
+            cycleId,
         });
         return results;
     }
     catch (error) {
         const duration = Date.now() - startTime;
         console.error(`[BATCH ERROR] Batch refresh failed after ${duration}ms:`, error);
+        // Record failure in monitoring
+        monitoring_1.monitoring.recordMetrics({
+            articlesProcessed: 0,
+            articlesSkipped: 0,
+            errors: 1,
+            duration,
+            successRate: 0,
+            feedsProcessed: 0,
+        });
+        await monitoring_1.monitoring.completeCycle('failed');
+        // Mark cycle as failed and trigger retry
+        const shouldRetry = await advancedScheduling_1.scheduler.markFailed(cycleId, error instanceof Error ? error : new Error('Unknown error'));
         // Log batch failure to Firestore for monitoring
         await logBatchCompletion({
             timestamp: new Date(),
@@ -643,6 +691,8 @@ async function refreshFeedsWithBatching(apiKey) {
             errors: 1,
             status: 'failed',
             errorMessage: error instanceof Error ? error.message : 'Unknown error',
+            cycleId,
+            shouldRetry,
         });
         throw error;
     }
@@ -652,7 +702,7 @@ async function refreshFeedsWithBatching(apiKey) {
  */
 async function logBatchCompletion(metrics) {
     try {
-        await db.collection('batch_logs').add(Object.assign(Object.assign({}, metrics), { batchInterval: BATCH_CONFIG.interval, batchSize: BATCH_CONFIG.batchSize }));
+        await getDb().collection('batch_logs').add(Object.assign(Object.assign({}, metrics), { batchInterval: BATCH_CONFIG.interval, batchSize: BATCH_CONFIG.batchSize }));
     }
     catch (error) {
         console.error('[BATCH LOG ERROR] Failed to log batch metrics:', error);
@@ -780,7 +830,7 @@ exports.testSingleArticle = (0, https_1.onRequest)({ cors: true, secrets: [OPENA
 exports.feedHealthReport = (0, https_1.onRequest)({ cors: true }, async (_req, res) => {
     try {
         // Fetch all feed health records from Firestore
-        const healthSnapshot = await db.collection('feed_health').get();
+        const healthSnapshot = await getDb().collection('feed_health').get();
         const healthData = healthSnapshot.docs.map(doc => {
             var _a, _b, _c, _d, _e, _f;
             const health = doc.data();
@@ -982,7 +1032,7 @@ exports.askBrief = (0, https_1.onRequest)({ cors: false, secrets: [OPENAI_API_KE
         }
         const client = new openai_1.default({ apiKey: OPENAI_API_KEY.value() });
         // Fetch recent articles - reduced from 500 to 200 for better performance
-        const snap = await db.collection("articles").orderBy("createdAt", "desc").limit(200).get();
+        const snap = await getDb().collection("articles").orderBy("createdAt", "desc").limit(200).get();
         const articles = snap.docs.map((d) => (Object.assign({ id: d.id }, d.data())));
         if (articles.length === 0) {
             res.json({
@@ -1001,7 +1051,7 @@ exports.askBrief = (0, https_1.onRequest)({ cors: false, secrets: [OPENAI_API_KE
         const embeddingMap = new Map();
         for (let i = 0; i < articleIds.length; i += 10) {
             const chunk = articleIds.slice(i, i + 10);
-            const embeddingSnap = await db.collection("article_embeddings").where("articleId", "in", chunk).get();
+            const embeddingSnap = await getDb().collection("article_embeddings").where("articleId", "in", chunk).get();
             embeddingSnap.docs.forEach(d => {
                 embeddingMap.set(d.data().articleId, d.data().embedding);
             });
@@ -1290,7 +1340,7 @@ async function comprehensiveIngestionWithAI(apiKey) {
                     }
                     const url = item.link;
                     const id = (0, agents_1.hashUrl)(url);
-                    const docRef = db.collection("articles").doc(id);
+                    const docRef = getDb().collection("articles").doc(id);
                     // Check if already exists
                     const existing = await docRef.get();
                     if (existing.exists) {
@@ -1407,7 +1457,7 @@ async function comprehensiveIngestionWithAI(apiKey) {
     console.log(`[COMPREHENSIVE INGEST ${batchId}] Stats:`, stats);
     // Log to Firestore
     try {
-        await db.collection('ingestion_logs').add({
+        await getDb().collection('ingestion_logs').add({
             batchId,
             timestamp: new Date(),
             duration,
@@ -1420,4 +1470,326 @@ async function comprehensiveIngestionWithAI(apiKey) {
     }
     return stats;
 }
+/**
+ * Health Check Endpoint
+ * Returns comprehensive system health and 12-hour cycle status
+ */
+exports.getSystemHealth = (0, https_1.onRequest)({ cors: true }, async (_req, res) => {
+    try {
+        const health = await healthCheck_1.healthCheck.getSystemHealth();
+        res.json({
+            success: true,
+            health,
+            timestamp: new Date().toISOString(),
+        });
+    }
+    catch (error) {
+        console.error('[HEALTH CHECK ERROR]', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+/**
+ * Cycle Status Endpoint
+ * Returns current 12-hour cycle status and next execution time
+ */
+exports.getCycleStatus = (0, https_1.onRequest)({ cors: true }, async (_req, res) => {
+    try {
+        const status = await healthCheck_1.healthCheck.getCycleStatus();
+        res.json({
+            success: true,
+            status,
+            timestamp: new Date().toISOString(),
+        });
+    }
+    catch (error) {
+        console.error('[CYCLE STATUS ERROR]', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+/**
+ * Check Overdue Cycles Endpoint
+ * Triggers recovery for any overdue cycles
+ */
+exports.checkOverdueCycles = (0, https_1.onRequest)({ cors: false, timeoutSeconds: 300 }, async (req, res) => {
+    try {
+        const origin = req.headers.origin;
+        if (!checkCORS(origin)) {
+            res.status(403).json({ error: "Forbidden: Invalid origin" });
+            return;
+        }
+        res.set('Access-Control-Allow-Origin', origin);
+        console.log('[OVERDUE CHECK] Checking for overdue cycles...');
+        await advancedScheduling_1.scheduler.checkForOverdueCycles();
+        const isOverdue = await healthCheck_1.healthCheck.isCycleOverdue();
+        res.json({
+            success: true,
+            isOverdue,
+            message: isOverdue ? 'Overdue cycle detected and recovery triggered' : 'All cycles on schedule',
+            timestamp: new Date().toISOString(),
+        });
+    }
+    catch (error) {
+        console.error('[OVERDUE CHECK ERROR]', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+/**
+ * Real-time Scoring Update Endpoint
+ * Triggers real-time score recalculation for top articles
+ */
+exports.updateRealtimeScores = (0, https_1.onRequest)({ cors: false, secrets: [OPENAI_API_KEY], timeoutSeconds: 300 }, async (req, res) => {
+    try {
+        const origin = req.headers.origin;
+        if (!checkCORS(origin)) {
+            res.status(403).json({ error: "Forbidden: Invalid origin" });
+            return;
+        }
+        res.set('Access-Control-Allow-Origin', origin);
+        const client = new openai_1.default({ apiKey: OPENAI_API_KEY.value() });
+        const limit = req.query.limit ? parseInt(req.query.limit) : 50;
+        console.log(`[REALTIME SCORING] Updating scores for top ${limit} articles...`);
+        const updates = await realtimeScoring_1.realtimeScoring.recalculateTopArticleScores(client, limit);
+        res.json({
+            success: true,
+            updatesCount: updates.length,
+            updates: updates.slice(0, 10),
+            timestamp: new Date().toISOString(),
+        });
+    }
+    catch (error) {
+        console.error('[REALTIME SCORING ERROR]', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+/**
+ * Feed Prioritization Endpoint
+ * Returns current feed priorities and weights
+ */
+exports.getFeedPriorities = (0, https_1.onRequest)({ cors: true }, async (_req, res) => {
+    try {
+        const priorities = await feedPrioritization_1.feedPrioritization.getAllFeedPriorities();
+        res.json({
+            success: true,
+            priorities,
+            count: priorities.length,
+            timestamp: new Date().toISOString(),
+        });
+    }
+    catch (error) {
+        console.error('[FEED PRIORITIES ERROR]', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+/**
+ * Adjust Feed Weights Endpoint
+ * Dynamically adjusts feed weights based on performance
+ */
+exports.adjustFeedWeights = (0, https_1.onRequest)({ cors: false, timeoutSeconds: 300 }, async (req, res) => {
+    try {
+        const origin = req.headers.origin;
+        if (!checkCORS(origin)) {
+            res.status(403).json({ error: "Forbidden: Invalid origin" });
+            return;
+        }
+        res.set('Access-Control-Allow-Origin', origin);
+        console.log('[FEED WEIGHTS] Adjusting feed weights...');
+        await feedPrioritization_1.feedPrioritization.adjustFeedWeights();
+        const priorities = await feedPrioritization_1.feedPrioritization.getAllFeedPriorities();
+        res.json({
+            success: true,
+            message: 'Feed weights adjusted',
+            prioritiesCount: priorities.length,
+            timestamp: new Date().toISOString(),
+        });
+    }
+    catch (error) {
+        console.error('[FEED WEIGHTS ERROR]', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+/**
+ * Scheduled Real-time Scoring (every hour)
+ * Continuously updates scores between 12-hour cycles
+ */
+exports.scheduledRealtimeScoring = (0, scheduler_1.onSchedule)({ schedule: "every 1 hours", timeZone: "America/New_York", secrets: [OPENAI_API_KEY] }, async () => {
+    try {
+        const client = new openai_1.default({ apiKey: OPENAI_API_KEY.value() });
+        console.log('[SCHEDULED SCORING] Starting hourly real-time scoring update...');
+        const updates = await realtimeScoring_1.realtimeScoring.recalculateTopArticleScores(client, 100);
+        const trendingUpdates = await realtimeScoring_1.realtimeScoring.boostTrendingArticles();
+        console.log(`[SCHEDULED SCORING] Completed: ${updates.length} score updates, ${trendingUpdates.length} trending boosts`);
+    }
+    catch (error) {
+        console.error('[SCHEDULED SCORING ERROR]', error);
+    }
+});
+/**
+ * Scheduled Feed Weight Adjustment (every 6 hours)
+ * Dynamically adjusts feed priorities based on performance
+ */
+exports.scheduledFeedWeightAdjustment = (0, scheduler_1.onSchedule)({ schedule: "every 6 hours", timeZone: "America/New_York" }, async () => {
+    try {
+        console.log('[SCHEDULED WEIGHTS] Starting feed weight adjustment...');
+        await feedPrioritization_1.feedPrioritization.adjustFeedWeights();
+        console.log('[SCHEDULED WEIGHTS] Feed weights adjusted successfully');
+    }
+    catch (error) {
+        console.error('[SCHEDULED WEIGHTS ERROR]', error);
+    }
+});
+/**
+ * Scheduled Overdue Cycle Check (every 30 minutes)
+ * Checks for and recovers from overdue cycles
+ */
+exports.scheduledOverdueCheck = (0, scheduler_1.onSchedule)({ schedule: "every 30 minutes", timeZone: "America/New_York" }, async () => {
+    try {
+        console.log('[SCHEDULED OVERDUE CHECK] Checking for overdue cycles...');
+        await advancedScheduling_1.scheduler.checkForOverdueCycles();
+        console.log('[SCHEDULED OVERDUE CHECK] Overdue check completed');
+    }
+    catch (error) {
+        console.error('[SCHEDULED OVERDUE CHECK ERROR]', error);
+    }
+});
+/**
+ * Comprehensive 12-Hour Cycle Verification Endpoint
+ * Verifies both refreshFeeds and comprehensiveIngest complete successfully
+ */
+exports.verifyCycleCompletion = (0, https_1.onRequest)({ cors: true }, async (_req, res) => {
+    try {
+        const verification = await cycleVerification_1.cycleVerification.getCycleVerification();
+        const completion = await cycleVerification_1.cycleVerification.verifyCycleCompletion();
+        res.json({
+            success: true,
+            verification,
+            completion,
+            timestamp: new Date().toISOString(),
+        });
+    }
+    catch (error) {
+        console.error('[CYCLE VERIFICATION ERROR]', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+/**
+ * Real-Time Feed Monitoring Dashboard Endpoint
+ * Shows live feed status, ingestion rates, and performance metrics
+ */
+exports.getFeedMonitoring = (0, https_1.onRequest)({ cors: true }, async (_req, res) => {
+    try {
+        const feedMonitoring = await cycleVerification_1.cycleVerification.getFeedMonitoring();
+        // Calculate aggregate metrics
+        const totalFeeds = feedMonitoring.length;
+        const healthyFeeds = feedMonitoring.filter(f => f.status === 'healthy').length;
+        const degradedFeeds = feedMonitoring.filter(f => f.status === 'degraded').length;
+        const failedFeeds = feedMonitoring.filter(f => f.status === 'failed').length;
+        const avgSuccessRate = totalFeeds > 0
+            ? feedMonitoring.reduce((sum, f) => sum + f.successRate, 0) / totalFeeds
+            : 0;
+        const totalArticles = feedMonitoring.reduce((sum, f) => sum + f.articlesIngested, 0);
+        const totalDuplicates = feedMonitoring.reduce((sum, f) => sum + f.duplicatesDetected, 0);
+        res.json({
+            success: true,
+            summary: {
+                totalFeeds,
+                healthyFeeds,
+                degradedFeeds,
+                failedFeeds,
+                avgSuccessRate: (avgSuccessRate * 100).toFixed(2) + '%',
+                totalArticlesIngested: totalArticles,
+                totalDuplicatesDetected: totalDuplicates,
+            },
+            feeds: feedMonitoring,
+            timestamp: new Date().toISOString(),
+        });
+    }
+    catch (error) {
+        console.error('[FEED MONITORING ERROR]', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+/**
+ * 24-Hour Feed Retrieval Endpoint
+ * Returns all articles from past 24 hours with deduplication and quality scoring
+ */
+exports.get24HourFeed = (0, https_1.onRequest)({ cors: true }, async (req, res) => {
+    try {
+        const hoursBack = parseInt(req.query.hours) || 24;
+        const limit = parseInt(req.query.limit) || 100;
+        const feedResult = await feedRetrieval_1.feedRetrieval.get24HourFeed(hoursBack);
+        // Apply limit
+        const limitedArticles = feedResult.articles.slice(0, limit);
+        res.json({
+            success: true,
+            summary: {
+                totalArticles: feedResult.totalArticles,
+                uniqueArticles: feedResult.uniqueArticles,
+                duplicatesDetected: feedResult.duplicatesDetected,
+                duplicateRemovalRate: (feedResult.duplicateRemovalRate * 100).toFixed(2) + '%',
+                averageScore: feedResult.averageScore.toFixed(2),
+                timeRange: feedResult.timeRange,
+            },
+            sourceBreakdown: feedResult.sourceBreakdown,
+            categoryBreakdown: feedResult.categoryBreakdown,
+            topTrendingTopics: feedResult.topTrendingTopics,
+            articles: limitedArticles,
+            timestamp: new Date().toISOString(),
+        });
+    }
+    catch (error) {
+        console.error('[24H FEED ERROR]', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+/**
+ * Trending Articles Endpoint
+ * Returns top trending articles from past 24 hours
+ */
+exports.getTrendingArticles = (0, https_1.onRequest)({ cors: true }, async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 20;
+        const hoursBack = parseInt(req.query.hours) || 24;
+        const articles = await feedRetrieval_1.feedRetrieval.getTrendingArticles(limit, hoursBack);
+        res.json({
+            success: true,
+            count: articles.length,
+            articles,
+            timestamp: new Date().toISOString(),
+        });
+    }
+    catch (error) {
+        console.error('[TRENDING ARTICLES ERROR]', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
 //# sourceMappingURL=index.js.map
