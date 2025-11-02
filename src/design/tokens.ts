@@ -1,39 +1,57 @@
 /**
  * Design System Tokens
- * Aurora-inspired liquid glass theme with blue-violet-lilac gradient
+ * ChatGPT-inspired modern, clean, minimalist design
  */
 
 export const colors = {
-  // Aurora Accent Set
-  aurora: {
-    blue: '#5AA6FF',
-    blueDark: '#4A96EF',
-    blueLight: '#6BB3FF',
-    violet: '#8B7CFF',
-    violetDark: '#7B6CEF',
-    lilac: '#B08CFF',
+  // Primary Accent - Modern Teal/Green (ChatGPT-inspired)
+  primary: {
+    50: '#F0FDF9',
+    100: '#CCFBF1',
+    200: '#99F6E4',
+    300: '#5EEAD4',
+    400: '#2DD4BF',
+    500: '#14B8A6',
+    600: '#0D9488',
+    700: '#0F766E',
+    800: '#115E59',
+    900: '#134E4A',
   },
 
-  // Neutral Colors (Cool Whites)
+  // Secondary Accent - Slate Blue
+  secondary: {
+    50: '#F8FAFC',
+    100: '#F1F5F9',
+    200: '#E2E8F0',
+    300: '#CBD5E1',
+    400: '#94A3B8',
+    500: '#64748B',
+    600: '#475569',
+    700: '#334155',
+    800: '#1E293B',
+    900: '#0F172A',
+  },
+
+  // Neutral Colors - Clean, minimal palette
   neutral: {
     white: '#FFFFFF',
-    50: '#F9FBFF',
-    100: '#F0F7FF',
-    150: '#E8F2FF',
-    200: '#E0ECFF',
-    300: '#D4DFE8',
-    400: '#C7D2E1',
-    500: '#94A3B8',
-    600: '#64748B',
-    700: '#475569',
-    800: '#334155',
-    900: '#0F172A',
+    50: '#FAFAFA',
+    100: '#F5F5F5',
+    150: '#F0F0F0',
+    200: '#E5E5E5',
+    300: '#D4D4D4',
+    400: '#A3A3A3',
+    500: '#737373',
+    600: '#525252',
+    700: '#404040',
+    800: '#262626',
+    900: '#171717',
   },
 
   // Semantic Colors with enhanced contrast
   semantic: {
-    success: '#06B6D4',
-    successDark: '#0891B2',
+    success: '#10B981',
+    successDark: '#059669',
     warning: '#F59E0B',
     warningDark: '#D97706',
     danger: '#EF4444',
@@ -189,36 +207,36 @@ export const components = {
   },
 } as const;
 
-// Glass effect presets - CRISP & SHARP
+// Glass effect presets - Modern, clean aesthetic
 export const glass = {
   light: {
-    background: 'linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(249,251,255,0.88) 100%)',
-    backdropFilter: 'blur(8px) saturate(160%)',
-    border: '1px solid rgba(90,166,255,0.14)',
+    background: 'linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(250,250,250,0.6) 100%)',
+    backdropFilter: 'blur(8px) saturate(180%)',
+    border: '1px solid rgba(0,0,0,0.06)',
   },
   standard: {
-    background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(249,251,255,0.92) 100%)',
-    backdropFilter: 'blur(12px) saturate(180%) brightness(1.08)',
-    border: '1px solid rgba(90,166,255,0.18)',
+    background: 'linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(250,250,250,0.7) 100%)',
+    backdropFilter: 'blur(12px) saturate(190%)',
+    border: '1px solid rgba(0,0,0,0.08)',
   },
   premium: {
-    background: 'linear-gradient(135deg, rgba(255,255,255,0.97) 0%, rgba(249,251,255,0.94) 100%)',
-    backdropFilter: 'blur(16px) saturate(200%) brightness(1.12)',
-    border: '1px solid rgba(90,166,255,0.24)',
+    background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(250,250,250,0.8) 100%)',
+    backdropFilter: 'blur(16px) saturate(200%)',
+    border: '1px solid rgba(0,0,0,0.1)',
   },
   ultra: {
-    background: 'linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(249,251,255,0.96) 100%)',
-    backdropFilter: 'blur(20px) saturate(210%) brightness(1.15)',
-    border: '1px solid rgba(90,166,255,0.28)',
+    background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(250,250,250,0.9) 100%)',
+    backdropFilter: 'blur(20px) saturate(210%)',
+    border: '1px solid rgba(0,0,0,0.12)',
   },
 } as const;
 
-// Gradient presets
+// Gradient presets - Modern, subtle
 export const gradients = {
-  aurora: 'linear-gradient(135deg, #5AA6FF 0%, #8B7CFF 50%, #B08CFF 100%)',
-  auroraAccent: 'linear-gradient(135deg, #5AA6FF 0%, #B08CFF 100%)',
-  success: 'linear-gradient(135deg, #06B6D4 0%, #14B8A6 100%)',
-  subtle: 'linear-gradient(135deg, #F9FBFF 0%, #F0F7FF 100%)',
+  primary: 'linear-gradient(135deg, #14B8A6 0%, #0D9488 100%)',
+  primaryAccent: 'linear-gradient(135deg, #2DD4BF 0%, #14B8A6 100%)',
+  success: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+  subtle: 'linear-gradient(135deg, #FAFAFA 0%, #F5F5F5 100%)',
 } as const;
 
 export default {

@@ -113,7 +113,7 @@ function AppContent() {
   // Render
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-white via-[#F9FBFF]/30 to-[#E8F2FF]/20 flex flex-col">
+      <div className="min-h-screen bg-gradient-to-b from-white via-[#FAFAFA]/50 to-[#F5F5F5]/30 flex flex-col">
         <Header isLoading={true} />
         <SkeletonGrid />
       </div>
@@ -121,7 +121,7 @@ function AppContent() {
   }
 
   return (
-    <div className="h-screen w-full max-w-full overflow-x-hidden bg-gradient-to-b from-white via-[#F9FBFF]/30 to-[#E8F2FF]/20 flex flex-col">
+    <div className="h-screen w-full max-w-full overflow-x-hidden bg-gradient-to-b from-white via-[#FAFAFA]/50 to-[#F5F5F5]/30 flex flex-col">
       {/* Professional Header - Sticky */}
       <div className="sticky top-0 z-50">
         <Header isLoading={false} />
